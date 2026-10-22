@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "status": "not_run_yet",
+  "liveData": false,
+  "predictionsGenerated": false,
+  "totoTargetsConfirmed": false,
+  "round": null,
+  "deadline": null,
+  "generatedAt": null,
+  "predictions": [],
+  "warnings": [
+    "自動取得が成功するまで予想はありません。"
+  ]
+}
