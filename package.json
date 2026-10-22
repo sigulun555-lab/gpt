@@ -1,0 +1,10 @@
+{
+  "name": "jleague-toto-predictor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "iPhone-first J.League toto auto forecast",
+  "scripts": {
+    "test": "node tests/test.js",
+    "update": "node scripts/auto_pipeline.js"
+  }
+}
