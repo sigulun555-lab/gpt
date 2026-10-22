@@ -1,0 +1,75 @@
+name: Update J.League toto predictions
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'model.js'
+      - 'app.js'
+      - 'index.html'
+      - 'styles.css'
+      - 'package.json'
+      - 'data/**'
+      - '.github/workflows/update-predictions.yml'
+permissions:
+  contents: write
+concurrency:
+  group: toto-prediction-refresh
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run tests
+        run: |
+          node --check model.js
+          node --check scripts/auto_pipeline.js
+          node --check app.js
+          npm test
+      - name: Fetch data and generate predictions
+        id: pipeline
+        continue-on-error: true
+        run: npm run update
+      - name: Commit status and generated data
+        if: always()
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/
+          if git diff --cached --quiet; then
+            echo 'No data changes to publish.'
+          else
+            git commit -m "chore: refresh toto data and predictions [skip ci]"
+            git push
+          fi
+      - name: Report unsuccessful source parsing
+        if: steps.pipeline.outcome != 'success'
+        run: echo 'Data source fetch/parse did not complete successfully. See data/status.json and logs.' 
+  deploy:
+    if: always() && needs.update.result != 'cancelled'
+    needs: update
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - uses: actions/deploy-pages@v4
