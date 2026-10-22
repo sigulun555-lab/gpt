@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {csv,date,score,parseSchedule,parseToto,build}=require('../scripts/auto_pipeline.js');
+const {predict}=require('../model.js');
+assert.deepEqual(csv('"2026","J1","round","2026/10/22","2026-10-22T19:00:00+09:00","Home","2-1","Away"')[0].slice(0,4),['2026','J1','round','2026/10/22']);
+assert.equal(date('2026/1/9'),'2026-01-09');
+assert.deepEqual(score('2-1'),{home_goals:2,away_goals:1});
+const hist=parseSchedule('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"\n"2025","J1","R2","2025/01/08","2025-01-08T12:00:00+09:00","Away","1-1","Home"');
+assert.equal(hist.length,2);assert.equal(hist[0].home,'Home');assert.equal(hist[0].home_goals,2);
+const p=predict(hist,{date:'2025-02-01',home:'Home',away:'Away'}).probabilities;
+assert.ok(Math.abs(p['1']+p['0']+p['2']-1)<1e-9);assert.ok(Object.values(p).every(x=>x>=0&&x<=1));
+const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Date('2026-10-22T00:00:00Z'));assert.equal(noTargets.fixtures.length,0);
+const html='<div>〖開催回〗 第 999 回 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
+const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);
+const notConfirmed=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"','<html>none</html>',new Date('2026-10-22T00:00:00Z'));assert.equal(notConfirmed.payload.predictionsGenerated,false);assert.equal(notConfirmed.payload.predictions.length,0);
+console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, and safe no-target behavior');
