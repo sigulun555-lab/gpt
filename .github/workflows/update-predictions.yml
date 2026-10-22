@@ -51,7 +51,7 @@ jobs:
             echo 'No data changes to publish.'
           else
             git commit -m "chore: refresh toto data and predictions [skip ci]"
-            git pull --rebase origin main
+            git pull --rebase -X theirs origin main
             git push
           fi
       - name: Report unsuccessful source parsing
