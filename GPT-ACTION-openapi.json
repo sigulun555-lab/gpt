@@ -1,0 +1,171 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Jリーグ toto Insight",
+    "version": "0.1.0",
+    "description": "GitHub Pages上の最新toto予想と更新状態を読む読み取り専用API。公開URLに置換してからGPT Actionsへ登録する。"
+  },
+  "servers": [
+    {
+      "url": "https://sigulun555-lab.github.io/gpt"
+    }
+  ],
+  "paths": {
+    "/data/status.json": {
+      "get": {
+        "operationId": "getTotoInsightStatus",
+        "summary": "自動取得・予想生成の最新状態を取得",
+        "responses": {
+          "200": {
+            "description": "Status JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/predictions.json": {
+      "get": {
+        "operationId": "getLatestTotoForecast",
+        "summary": "最新のtoto開催回・13試合の予想を取得",
+        "responses": {
+          "200": {
+            "description": "Forecast JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forecast"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/backtest.json": {
+      "get": {
+        "operationId": "getTotoInsightBacktest",
+        "summary": "時系列バックテストの評価指標を取得",
+        "responses": {
+          "200": {
+            "description": "Backtest JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Status": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "liveData": {
+            "type": "boolean"
+          },
+          "predictionsGenerated": {
+            "type": "boolean"
+          },
+          "totoTargetsConfirmed": {
+            "type": "boolean"
+          },
+          "round": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastAttemptAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastSuccessfulFetch": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "Forecast": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "liveData": {
+            "type": "boolean"
+          },
+          "predictionsGenerated": {
+            "type": "boolean"
+          },
+          "totoTargetsConfirmed": {
+            "type": "boolean"
+          },
+          "round": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "generatedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "predictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}
