@@ -1,0 +1,13 @@
+{
+  "status": "not_run_yet",
+  "liveData": false,
+  "predictionsGenerated": false,
+  "totoTargetsConfirmed": false,
+  "lastAttemptAt": null,
+  "lastSuccessfulFetch": null,
+  "lastError": null,
+  "warnings": [
+    "自動取得はまだ実行されていません。",
+    "負傷・欠場情報は未接続です。"
+  ]
+}
