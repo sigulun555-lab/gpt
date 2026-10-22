@@ -1,14 +1,348 @@
 {
   "schemaVersion": 1,
-  "status": "not_run_yet",
-  "liveData": false,
-  "predictionsGenerated": false,
-  "totoTargetsConfirmed": false,
-  "round": null,
-  "deadline": null,
-  "generatedAt": null,
-  "predictions": [],
+  "generatedAt": "2026-10-22T06:58:35.240Z",
+  "status": "predictions_generated",
+  "liveData": true,
+  "predictionsGenerated": true,
+  "totoTargetsConfirmed": true,
+  "round": 1665,
+  "deadline": "2026-10-24T13:50:00+09:00",
+  "saleStart": "2026-10-21T08:00:00+09:00",
+  "source": {
+    "name": "k-addtimes/jleague_open_data",
+    "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
+    "kind": "community mirror; not official toto feed"
+  },
+  "totoSource": {
+    "name": "スポーツくじ公式公開ページ",
+    "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+    "lastFetchedAt": "2026-10-22T06:58:35.240Z",
+    "round": 1665,
+    "deadline": "2026-10-24T13:50:00+09:00",
+    "fixtureCount": 13
+  },
+  "counts": {
+    "scheduleRows": 1140,
+    "historyMatches": 350,
+    "totoFixtures": 13,
+    "predictions": 13
+  },
   "warnings": [
-    "自動取得が成功するまで予想はありません。"
+    "負傷・欠場・出場停止情報は未取得です。",
+    "予測モデルはベースラインであり、的中を保証しません。"
+  ],
+  "predictions": [
+    {
+      "number": 1,
+      "date": "2026-10-24",
+      "dateLabel": "10/24",
+      "home": "広島",
+      "away": "清水",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.13027310881982795,
+          "1": 0.8133809695772064,
+          "2": 0.0563459216029657
+        },
+        "homeExpectedGoals": 2.5847268462889885,
+        "awayExpectedGoals": 0.5392945111618,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 2,
+      "date": "2026-10-24",
+      "dateLabel": "10/24",
+      "home": "鹿島",
+      "away": "柏",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.18780478111253412,
+          "1": 0.4759783604338558,
+          "2": 0.33621685845361016
+        },
+        "homeExpectedGoals": 2.526570492247486,
+        "awayExpectedGoals": 2.1356062642007285,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 3,
+      "date": "2026-10-24",
+      "dateLabel": "10/24",
+      "home": "神戸",
+      "away": "町田",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.23313227480704,
+          "1": 0.24870812918069984,
+          "2": 0.5181595960122601
+        },
+        "homeExpectedGoals": 1.1631270808300447,
+        "awayExpectedGoals": 1.77967188683394,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 4,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "Ｃ大阪",
+      "away": "千葉",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.1877473129955028,
+          "1": 0.6831683382461956,
+          "2": 0.12908434875830155
+        },
+        "homeExpectedGoals": 2.1803278688524594,
+        "awayExpectedGoals": 0.827123695976155,
+        "historyHomeMatches": 0,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 5,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "FC東京",
+      "away": "水戸",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.16869019950869588,
+          "1": 0.756896187619988,
+          "2": 0.0744136128713161
+        },
+        "homeExpectedGoals": 2.17117055088275,
+        "awayExpectedGoals": 0.5177227307153281,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 6,
+      "date": "2026-10-24",
+      "dateLabel": "10/24",
+      "home": "東京Ｖ",
+      "away": "福岡",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.23203390595195056,
+          "1": 0.5595712705480604,
+          "2": 0.20839482349998897
+        },
+        "homeExpectedGoals": 1.783904619970194,
+        "awayExpectedGoals": 0.992548435171386,
+        "historyHomeMatches": 0,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 7,
+      "date": "2026-10-24",
+      "dateLabel": "10/24",
+      "home": "Ｇ大阪",
+      "away": "京都",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.20644379914281008,
+          "1": 0.6049583779200735,
+          "2": 0.1885978229371164
+        },
+        "homeExpectedGoals": 2.081222056631893,
+        "awayExpectedGoals": 1.0752608047690015,
+        "historyHomeMatches": 0,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 8,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "名古屋",
+      "away": "横浜FM",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.274536689707015,
+          "1": 0.25230521758078367,
+          "2": 0.4731580927122013
+        },
+        "homeExpectedGoals": 0.9240398475483134,
+        "awayExpectedGoals": 1.37520100346259,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 9,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "川崎Ｆ",
+      "away": "岡山",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.25717399259021856,
+          "1": 0.4474845993715233,
+          "2": 0.29534140803825815
+        },
+        "homeExpectedGoals": 1.486587183308495,
+        "awayExpectedGoals": 1.157973174366617,
+        "historyHomeMatches": 0,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 10,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "浦和",
+      "away": "長崎",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.19741678321817419,
+          "1": 0.4886294007208524,
+          "2": 0.3139538160609735
+        },
+        "homeExpectedGoals": 2.3262541616600894,
+        "awayExpectedGoals": 1.86056606350821,
+        "historyHomeMatches": 11,
+        "historyAwayMatches": 11,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 11,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "秋田",
+      "away": "今治",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.23344555670937198,
+          "1": 0.5651034282414376,
+          "2": 0.2014510150491904
+        },
+        "homeExpectedGoals": 1.7646594310818482,
+        "awayExpectedGoals": 0.9516301061542599,
+        "historyHomeMatches": 12,
+        "historyAwayMatches": 12,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 12,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "鳥栖",
+      "away": "八戸",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.28943885772932265,
+          "1": 0.5160163175265363,
+          "2": 0.19454482474414095
+        },
+        "homeExpectedGoals": 1.303133118337365,
+        "awayExpectedGoals": 0.6797357901101855,
+        "historyHomeMatches": 12,
+        "historyAwayMatches": 12,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 13,
+      "date": "2026-10-25",
+      "dateLabel": "10/25",
+      "home": "富山",
+      "away": "札幌",
+      "source": "toto_official_page",
+      "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+      "totoRound": 1665,
+      "totoTargetConfirmed": true,
+      "prediction": {
+        "probabilities": {
+          "0": 0.16483677734952323,
+          "1": 0.7357232079806992,
+          "2": 0.09944001466977757
+        },
+        "homeExpectedGoals": 2.372788219639285,
+        "awayExpectedGoals": 0.7477093691212041,
+        "historyHomeMatches": 12,
+        "historyAwayMatches": 12,
+        "method": "Poisson baseline using earlier results only"
+      },
+      "availabilityNote": "未取得"
+    }
   ]
 }

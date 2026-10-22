@@ -1,13 +1,34 @@
 {
-  "status": "not_run_yet",
-  "liveData": false,
-  "predictionsGenerated": false,
-  "totoTargetsConfirmed": false,
-  "lastAttemptAt": null,
-  "lastSuccessfulFetch": null,
+  "status": "predictions_generated",
+  "liveData": true,
+  "predictionsGenerated": true,
+  "totoTargetsConfirmed": true,
+  "round": 1665,
+  "deadline": "2026-10-24T13:50:00+09:00",
+  "lastAttemptAt": "2026-10-22T06:58:35.240Z",
+  "lastSuccessfulFetch": "2026-10-22T06:58:35.240Z",
   "lastError": null,
+  "source": {
+    "name": "k-addtimes/jleague_open_data",
+    "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
+    "kind": "community mirror; not official toto feed"
+  },
+  "totoSource": {
+    "name": "スポーツくじ公式公開ページ",
+    "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+    "lastFetchedAt": "2026-10-22T06:58:35.240Z",
+    "round": 1665,
+    "deadline": "2026-10-24T13:50:00+09:00",
+    "fixtureCount": 13
+  },
+  "counts": {
+    "scheduleRows": 1140,
+    "historyMatches": 350,
+    "totoFixtures": 13,
+    "predictions": 13
+  },
   "warnings": [
-    "自動取得はまだ実行されていません。",
-    "負傷・欠場情報は未接続です。"
+    "負傷・欠場・出場停止情報は未取得です。",
+    "予測モデルはベースラインであり、的中を保証しません。"
   ]
 }

@@ -1,7 +1,13 @@
 {
-  "n": 0,
-  "brier": null,
-  "logloss": null,
-  "accuracy": null,
-  "status": "no_real_data_yet"
+  "n": 349,
+  "brier": 0.7154116301225093,
+  "logloss": 1.225649734944959,
+  "accuracy": 0.41260744985673353,
+  "method": "chronological walk-forward",
+  "updatedAt": "2026-10-22T06:58:35.240Z",
+  "source": {
+    "name": "k-addtimes/jleague_open_data",
+    "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
+    "kind": "community mirror; not official toto feed"
+  }
 }
