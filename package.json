@@ -5,6 +5,7 @@
   "description": "iPhone-first J.League toto auto forecast",
   "scripts": {
     "test": "node tests/test.js",
+    "audit": "node scripts/audit_model.js",
     "update": "node scripts/auto_pipeline.js"
   }
 }
