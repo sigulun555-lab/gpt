@@ -6,7 +6,9 @@ on:
     paths:
       - 'model.js'
       - 'tests/**'
+      - 'scripts/audit_model.js'
       - 'data/team_aliases.json'
+      - 'data/team_leagues.json'
       - 'package.json'
 permissions:
   contents: read
@@ -20,3 +22,4 @@ jobs:
           node-version: '22'
       - run: node --check model.js
       - run: npm test
+      - run: npm run audit
