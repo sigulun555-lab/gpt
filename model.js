@@ -1,19 +1,28 @@
 'use strict';
-const factorial=n=>{let v=1;for(let i=2;i<=n;i++)v*=i;return v};
-function poisson(lam,k){return Math.exp(-lam)*Math.pow(lam,k)/factorial(k)}
-function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:1.25}
+const fs=require('node:fs');
+const path=require('node:path');
+const aliasFile=path.join(__dirname,'data','team_aliases.json');
+let TEAM_ALIASES={};
+try { TEAM_ALIASES=JSON.parse(fs.readFileSync(aliasFile,'utf8')).aliases||{}; } catch (_) {}
+const canonical=name=>{const key=String(name||'').normalize('NFKC').trim();return TEAM_ALIASES[key]||key;};
+const factorial=n=>{let v=1;for(let i=2;i<=n;i++)v*=i;return v;};
+function poisson(lam,k){return Math.exp(-lam)*Math.pow(lam,k)/factorial(k);}
+function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:1.25;}
+function goalProbabilities(lam){const p0=poisson(lam,0),p1=poisson(lam,1),p2=poisson(lam,2);return [p0,p1,p2,Math.max(0,1-p0-p1-p2)];}
 function predict(history,fixture){
- const prev=history.filter(m=>m.date<fixture.date && Number.isFinite(m.home_goals)&&Number.isFinite(m.away_goals));
+ const homeName=canonical(fixture.home),awayName=canonical(fixture.away);
+ const prev=history.filter(m=>m.date<fixture.date&&Number.isFinite(m.home_goals)&&Number.isFinite(m.away_goals));
  const leagueHome=avg(prev.map(m=>m.home_goals)),leagueAway=avg(prev.map(m=>m.away_goals));
  const teamStats=name=>{
-  const played=prev.filter(m=>m.home===name||m.away===name).slice(-12);
+  const target=canonical(name);
+  const played=prev.filter(m=>canonical(m.home)===target||canonical(m.away)===target).slice(-12);
   if(!played.length)return {attack:1,defense:1,n:0};
-  const gf=played.map(m=>m.home===name?m.home_goals:m.away_goals);
-  const ga=played.map(m=>m.home===name?m.away_goals:m.home_goals);
+  const gf=played.map(m=>canonical(m.home)===target?m.home_goals:m.away_goals);
+  const ga=played.map(m=>canonical(m.home)===target?m.away_goals:m.home_goals);
   const base=(leagueHome+leagueAway)/2;
   return {attack:avg(gf)/Math.max(.2,base),defense:avg(ga)/Math.max(.2,base),n:played.length};
  };
- const h=teamStats(fixture.home),a=teamStats(fixture.away),base=(leagueHome+leagueAway)/2;
+ const h=teamStats(homeName),a=teamStats(awayName);
  const lh=Math.max(.15,Math.min(3.5,leagueHome*h.attack*a.defense));
  const la=Math.max(.15,Math.min(3.5,leagueAway*a.attack*h.defense));
  let home=0,draw=0,away=0;
@@ -22,7 +31,15 @@ function predict(history,fixture){
   if(i>j)home+=p;else if(i===j)draw+=p;else away+=p;
  }
  const total=home+draw+away;
- return {probabilities:{ "1":home/total,"0":draw/total,"2":away/total },homeExpectedGoals:lh,awayExpectedGoals:la,historyHomeMatches:h.n,historyAwayMatches:a.n,method:"Poisson baseline using earlier results only"};
+ return {
+  probabilities:{"1":home/total,"0":draw/total,"2":away/total},
+  homeGoalProbabilities:goalProbabilities(lh),
+  awayGoalProbabilities:goalProbabilities(la),
+  homeExpectedGoals:lh,awayExpectedGoals:la,
+  historyHomeMatches:h.n,historyAwayMatches:a.n,
+  canonicalHome:homeName,canonicalAway:awayName,
+  method:"Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
+ };
 }
 function backtest(history){
  const sorted=history.filter(m=>Number.isFinite(m.home_goals)&&Number.isFinite(m.away_goals)).sort((a,b)=>a.date.localeCompare(b.date));
@@ -33,4 +50,4 @@ function backtest(history){
  }
  return {n,brier:n?brier/n:null,logloss:n?logloss/n:null,accuracy:n?correct/n:null,method:"chronological walk-forward"};
 }
-if(typeof module!=="undefined")module.exports={predict,backtest};
+if(typeof module!=="undefined")module.exports={predict,backtest,canonical,goalProbabilities};

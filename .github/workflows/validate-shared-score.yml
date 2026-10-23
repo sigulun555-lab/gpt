@@ -1,0 +1,22 @@
+name: Validate shared score model
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'model.js'
+      - 'tests/**'
+      - 'data/team_aliases.json'
+      - 'package.json'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check model.js
+      - run: npm test
