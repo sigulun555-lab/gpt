@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-23T04:46:53.307Z",
+  "generatedAt": "2026-10-23T08:15:13.195Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
-    "lastFetchedAt": "2026-10-23T04:46:53.307Z",
+    "lastFetchedAt": "2026-10-23T08:15:13.195Z",
     "round": 1665,
     "deadline": "2026-10-24T13:50:00+09:00",
     "fixtureCount": 13
@@ -48,11 +48,25 @@
           "1": 0.8133809695772064,
           "2": 0.0563459216029657
         },
+        "homeGoalProbabilities": [
+          0.07541667713308461,
+          0.19493151004379267,
+          0.2519223535989213,
+          0.47772945922420135
+        ],
+        "awayGoalProbabilities": [
+          0.5831595198167574,
+          0.3144947281689282,
+          0.08480264034541267,
+          0.017543111668901726
+        ],
         "homeExpectedGoals": 2.5847268462889885,
         "awayExpectedGoals": 0.5392945111618,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "サンフレッチェ広島",
+        "canonicalAway": "清水エスパルス",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -72,11 +86,25 @@
           "1": 0.4759783604338558,
           "2": 0.33621685845361016
         },
+        "homeGoalProbabilities": [
+          0.07993268050522637,
+          0.2019555519307508,
+          0.2551274691268949,
+          0.46298429843712796
+        ],
+        "awayGoalProbabilities": [
+          0.11817292464094034,
+          0.2523708381221128,
+          0.2694823713975861,
+          0.3599738658393608
+        ],
         "homeExpectedGoals": 2.526570492247486,
         "awayExpectedGoals": 2.1356062642007285,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "鹿島アントラーズ",
+        "canonicalAway": "柏レイソル",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -96,11 +124,25 @@
           "1": 0.24870812918069984,
           "2": 0.5181595960122601
         },
+        "homeGoalProbabilities": [
+          0.3125074153928658,
+          0.3634858378036462,
+          0.21139011072380903,
+          0.11261663607967903
+        ],
+        "awayGoalProbabilities": [
+          0.1686934887436511,
+          0.30021905940901356,
+          0.2671457099609749,
+          0.2639417418863605
+        ],
         "homeExpectedGoals": 1.1631270808300447,
         "awayExpectedGoals": 1.77967188683394,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "ヴィッセル神戸",
+        "canonicalAway": "FC町田ゼルビア",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -116,15 +158,29 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.1877473129955028,
-          "1": 0.6831683382461956,
-          "2": 0.12908434875830155
+          "0": 0.26964407902931686,
+          "1": 0.48757315776445287,
+          "2": 0.24278276320623018
         },
-        "homeExpectedGoals": 2.1803278688524594,
-        "awayExpectedGoals": 0.827123695976155,
-        "historyHomeMatches": 0,
+        "homeGoalProbabilities": [
+          0.2413276403002318,
+          0.34307131684956976,
+          0.24385505178451963,
+          0.1717459910656788
+        ],
+        "awayGoalProbabilities": [
+          0.39979607715796833,
+          0.3665333109920301,
+          0.1680189923595685,
+          0.0656516194904331
+        ],
+        "homeExpectedGoals": 1.4215997654589434,
+        "awayExpectedGoals": 0.9168006689750602,
+        "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "セレッソ大阪",
+        "canonicalAway": "ジェフユナイテッド千葉",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -144,11 +200,25 @@
           "1": 0.756896187619988,
           "2": 0.0744136128713161
         },
+        "homeGoalProbabilities": [
+          0.11404404439253744,
+          0.24760907068864232,
+          0.26880076120531265,
+          0.36954612371350753
+        ],
+        "awayGoalProbabilities": [
+          0.5958759741025776,
+          0.30849853648004266,
+          0.07985835236406498,
+          0.015767137053314714
+        ],
         "homeExpectedGoals": 2.17117055088275,
         "awayExpectedGoals": 0.5177227307153281,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "FC東京",
+        "canonicalAway": "水戸ホーリーホック",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -164,15 +234,29 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.23203390595195056,
-          "1": 0.5595712705480604,
-          "2": 0.20839482349998897
+          "0": 0.29037743141930455,
+          "1": 0.20106964023924537,
+          "2": 0.5085529283414502
         },
-        "homeExpectedGoals": 1.783904619970194,
-        "awayExpectedGoals": 0.992548435171386,
-        "historyHomeMatches": 0,
+        "homeGoalProbabilities": [
+          0.49764104824882077,
+          0.3472918678505126,
+          0.1211833729346941,
+          0.033883710965972605
+        ],
+        "awayGoalProbabilities": [
+          0.2740877888114126,
+          0.3547536961979267,
+          0.22958006540868314,
+          0.14157844958197757
+        ],
+        "homeExpectedGoals": 0.6978762484980268,
+        "awayExpectedGoals": 1.2943068267883202,
+        "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "東京ヴェルディ",
+        "canonicalAway": "アビスパ福岡",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -188,15 +272,29 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.20644379914281008,
-          "1": 0.6049583779200735,
-          "2": 0.1885978229371164
+          "0": 0.24193060443214398,
+          "1": 0.44436130003125274,
+          "2": 0.3137080955366032
         },
-        "homeExpectedGoals": 2.081222056631893,
-        "awayExpectedGoals": 1.0752608047690015,
-        "historyHomeMatches": 0,
+        "homeGoalProbabilities": [
+          0.19624764681127893,
+          0.3195653335775159,
+          0.2601865655049468,
+          0.2240004541062584
+        ],
+        "awayGoalProbabilities": [
+          0.26393367391538836,
+          0.3515748146837432,
+          0.23415892425976215,
+          0.1503325871411063
+        ],
+        "homeExpectedGoals": 1.6283779131620624,
+        "awayExpectedGoals": 1.3320574425696463,
+        "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "ガンバ大阪",
+        "canonicalAway": "京都サンガF.C.",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -216,11 +314,25 @@
           "1": 0.25230521758078367,
           "2": 0.4731580927122013
         },
+        "homeGoalProbabilities": [
+          0.39691233252741764,
+          0.3667628112386805,
+          0.16945172609169054,
+          0.06687313014221133
+        ],
+        "awayGoalProbabilities": [
+          0.2527887792778299,
+          0.3476353829269549,
+          0.23903426372012504,
+          0.16054157407509023
+        ],
         "homeExpectedGoals": 0.9240398475483134,
         "awayExpectedGoals": 1.37520100346259,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "名古屋グランパス",
+        "canonicalAway": "横浜F・マリノス",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -236,15 +348,29 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.25717399259021856,
-          "1": 0.4474845993715233,
-          "2": 0.29534140803825815
+          "0": 0.19944212004200015,
+          "1": 0.5879823520631294,
+          "2": 0.21257552789487033
         },
-        "homeExpectedGoals": 1.486587183308495,
-        "awayExpectedGoals": 1.157973174366617,
-        "historyHomeMatches": 0,
+        "homeGoalProbabilities": [
+          0.1076008313563413,
+          0.23987742833490874,
+          0.2673826024355256,
+          0.3851391378732244
+        ],
+        "awayGoalProbabilities": [
+          0.2770600701480877,
+          0.3556124007212615,
+          0.22821798081395583,
+          0.13910954831669503
+        ],
+        "homeExpectedGoals": 2.229326904924252,
+        "awayExpectedGoals": 1.2835209365650844,
+        "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "川崎フロンターレ",
+        "canonicalAway": "ファジアーノ岡山",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -264,11 +390,25 @@
           "1": 0.4886294007208524,
           "2": 0.3139538160609735
         },
+        "homeGoalProbabilities": [
+          0.09766088467552918,
+          0.2271840394078558,
+          0.26424390856763713,
+          0.4109111673489779
+        ],
+        "awayGoalProbabilities": [
+          0.1555845347089402,
+          0.2894753052861693,
+          0.26929396461956273,
+          0.2856461953853277
+        ],
         "homeExpectedGoals": 2.3262541616600894,
         "awayExpectedGoals": 1.86056606350821,
         "historyHomeMatches": 11,
         "historyAwayMatches": 11,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "浦和レッズ",
+        "canonicalAway": "V・ファーレン長崎",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -288,11 +428,25 @@
           "1": 0.5651034282414376,
           "2": 0.2014510150491904
         },
+        "homeGoalProbabilities": [
+          0.1712450973124801,
+          0.30218927599899686,
+          0.26663057793171274,
+          0.2599350487568103
+        ],
+        "awayGoalProbabilities": [
+          0.38611110808600935,
+          0.367434954775228,
+          0.17483108250876794,
+          0.07162285462999474
+        ],
         "homeExpectedGoals": 1.7646594310818482,
         "awayExpectedGoals": 0.9516301061542599,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "ブラウブリッツ秋田",
+        "canonicalAway": "FC今治",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -312,11 +466,25 @@
           "1": 0.5160163175265363,
           "2": 0.19454482474414095
         },
+        "homeGoalProbabilities": [
+          0.2716792549245415,
+          0.35403423465738965,
+          0.23067686810363328,
+          0.1436096423144356
+        ],
+        "awayGoalProbabilities": [
+          0.5067508632695503,
+          0.34445669843354637,
+          0.11706977303423625,
+          0.03172266526266705
+        ],
         "homeExpectedGoals": 1.303133118337365,
         "awayExpectedGoals": 0.6797357901101855,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "サガン鳥栖",
+        "canonicalAway": "ヴァンラーレ八戸",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     },
@@ -336,11 +504,25 @@
           "1": 0.7357232079806992,
           "2": 0.09944001466977757
         },
+        "homeGoalProbabilities": [
+          0.09322044451114535,
+          0.22119237256558333,
+          0.26242132794883993,
+          0.42316585497443143
+        ],
+        "awayGoalProbabilities": [
+          0.4734498103508456,
+          0.3540028590079845,
+          0.13234562718798132,
+          0.04020170345318863
+        ],
         "homeExpectedGoals": 2.372788219639285,
         "awayExpectedGoals": 0.7477093691212041,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "method": "Poisson baseline using earlier results only"
+        "canonicalHome": "カターレ富山",
+        "canonicalAway": "北海道コンサドーレ札幌",
+        "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
     }
