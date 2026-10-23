@@ -24,7 +24,10 @@ function predict(history,fixture,options={}){
   const gf=played.map(m=>canonical(m.home)===target?m.home_goals:m.away_goals);
   const ga=played.map(m=>canonical(m.home)===target?m.away_goals:m.home_goals);
   const base=(leagueHome+leagueAway)/2;
-  return {attack:avg(gf)/Math.max(.2,base),defense:avg(ga)/Math.max(.2,base),n:played.length};
+  const rawAttack=avg(gf)/Math.max(.2,base),rawDefense=avg(ga)/Math.max(.2,base);
+  const k=Number.isFinite(options.shrinkageMatches)?Math.max(0,options.shrinkageMatches):0;
+  const weight=k===0?1:played.length/(played.length+k);
+  return {attack:1+(rawAttack-1)*weight,defense:1+(rawDefense-1)*weight,n:played.length};
  };
  const h=teamStats(homeName),a=teamStats(awayName);
  const lh=Math.max(.15,Math.min(3.5,leagueHome*h.attack*a.defense));
