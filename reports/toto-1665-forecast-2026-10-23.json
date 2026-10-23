@@ -1,0 +1,293 @@
+{
+  "reportTitle": "第1665回 toto 予想スナップショット",
+  "snapshotAt": "2026-10-23T08:15:13.195Z",
+  "round": 1665,
+  "deadline": "2026-10-24T13:50:00+09:00",
+  "model": "本番Poissonベースライン。検証中のshrinkageモデルは本番予想に未採用。",
+  "liveData": true,
+  "sourceTimestamp": "2026-10-23T08:15:13.195Z",
+  "officialFixtureConfirmation": {
+    "confirmed": true,
+    "source": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
+    "fixtureCount": 13
+  },
+  "warnings": [
+    "負傷・欠場・出場停止情報は未取得です。",
+    "予測モデルはベースラインであり、的中を保証しません。"
+  ],
+  "predictions": [
+    {
+      "number": 1,
+      "date": "2026-10-24",
+      "home": "広島",
+      "away": "清水",
+      "probabilities": {
+        "0": 0.13027310881982795,
+        "1": 0.8133809695772064,
+        "2": 0.0563459216029657
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.5847268462889885,
+        "away": 0.5392945111618
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 2,
+      "date": "2026-10-24",
+      "home": "鹿島",
+      "away": "柏",
+      "probabilities": {
+        "0": 0.18780478111253412,
+        "1": 0.4759783604338558,
+        "2": 0.33621685845361016
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.526570492247486,
+        "away": 2.1356062642007285
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 3,
+      "date": "2026-10-24",
+      "home": "神戸",
+      "away": "町田",
+      "probabilities": {
+        "0": 0.23313227480704,
+        "1": 0.24870812918069984,
+        "2": 0.5181595960122601
+      },
+      "predictedOutcome": "2",
+      "expectedGoals": {
+        "home": 1.1631270808300447,
+        "away": 1.77967188683394
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 4,
+      "date": "2026-10-25",
+      "home": "Ｃ大阪",
+      "away": "千葉",
+      "probabilities": {
+        "0": 0.26964407902931686,
+        "1": 0.48757315776445287,
+        "2": 0.24278276320623018
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 1.4215997654589434,
+        "away": 0.9168006689750602
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 5,
+      "date": "2026-10-25",
+      "home": "FC東京",
+      "away": "水戸",
+      "probabilities": {
+        "0": 0.16869019950869588,
+        "1": 0.756896187619988,
+        "2": 0.0744136128713161
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.17117055088275,
+        "away": 0.5177227307153281
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 6,
+      "date": "2026-10-24",
+      "home": "東京Ｖ",
+      "away": "福岡",
+      "probabilities": {
+        "0": 0.29037743141930455,
+        "1": 0.20106964023924537,
+        "2": 0.5085529283414502
+      },
+      "predictedOutcome": "2",
+      "expectedGoals": {
+        "home": 0.6978762484980268,
+        "away": 1.2943068267883202
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 7,
+      "date": "2026-10-24",
+      "home": "Ｇ大阪",
+      "away": "京都",
+      "probabilities": {
+        "0": 0.24193060443214398,
+        "1": 0.44436130003125274,
+        "2": 0.3137080955366032
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 1.6283779131620624,
+        "away": 1.3320574425696463
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 8,
+      "date": "2026-10-25",
+      "home": "名古屋",
+      "away": "横浜FM",
+      "probabilities": {
+        "0": 0.274536689707015,
+        "1": 0.25230521758078367,
+        "2": 0.4731580927122013
+      },
+      "predictedOutcome": "2",
+      "expectedGoals": {
+        "home": 0.9240398475483134,
+        "away": 1.37520100346259
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 9,
+      "date": "2026-10-25",
+      "home": "川崎Ｆ",
+      "away": "岡山",
+      "probabilities": {
+        "0": 0.19944212004200015,
+        "1": 0.5879823520631294,
+        "2": 0.21257552789487033
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.229326904924252,
+        "away": 1.2835209365650844
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 10,
+      "date": "2026-10-25",
+      "home": "浦和",
+      "away": "長崎",
+      "probabilities": {
+        "0": 0.19741678321817419,
+        "1": 0.4886294007208524,
+        "2": 0.3139538160609735
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.3262541616600894,
+        "away": 1.86056606350821
+      },
+      "historicalMatches": {
+        "home": 11,
+        "away": 11
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 11,
+      "date": "2026-10-25",
+      "home": "秋田",
+      "away": "今治",
+      "probabilities": {
+        "0": 0.23344555670937198,
+        "1": 0.5651034282414376,
+        "2": 0.2014510150491904
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 1.7646594310818482,
+        "away": 0.9516301061542599
+      },
+      "historicalMatches": {
+        "home": 12,
+        "away": 12
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 12,
+      "date": "2026-10-25",
+      "home": "鳥栖",
+      "away": "八戸",
+      "probabilities": {
+        "0": 0.28943885772932265,
+        "1": 0.5160163175265363,
+        "2": 0.19454482474414095
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 1.303133118337365,
+        "away": 0.6797357901101855
+      },
+      "historicalMatches": {
+        "home": 12,
+        "away": 12
+      },
+      "availabilityNote": "未取得"
+    },
+    {
+      "number": 13,
+      "date": "2026-10-25",
+      "home": "富山",
+      "away": "札幌",
+      "probabilities": {
+        "0": 0.16483677734952323,
+        "1": 0.7357232079806992,
+        "2": 0.09944001466977757
+      },
+      "predictedOutcome": "1",
+      "expectedGoals": {
+        "home": 2.372788219639285,
+        "away": 0.7477093691212041
+      },
+      "historicalMatches": {
+        "home": 12,
+        "away": 12
+      },
+      "availabilityNote": "未取得"
+    }
+  ]
+}
