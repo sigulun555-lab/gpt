@@ -22,6 +22,8 @@ assert.ok(Math.abs(Object.values(p.probabilities).reduce((a,b)=>a+b,0)-1)<1e-9);
 for(const x of [p.homeGoalProbabilities,p.awayGoalProbabilities])assert.ok(Math.abs(x.reduce((a,b)=>a+b,0)-1)<1e-9);
 const mixed=predict(hist,{date:'2026-02-01',home:'Ｃ大阪',away:'柏レイソル'},{filterCompetition:false});
 assert.equal(mixed.historyCompetitionMatches,4);
+const noShrinkOption=predict(hist,{date:'2026-02-01',home:'Ｃ大阪',away:'柏レイソル'},{shrinkageMatches:0});
+assert.deepEqual(noShrinkOption,p,'K=0 must preserve the default prediction exactly');
 const shrunk=predict(hist,{date:'2026-02-01',home:'Ｃ大阪',away:'柏レイソル'},{shrinkageMatches:8});
 assert.ok(Math.abs(Object.values(shrunk.probabilities).reduce((a,b)=>a+b,0)-1)<1e-9);
 assert.ok(shrunk.homeGoalProbabilities.every(x=>Number.isFinite(x)&&x>=0&&x<=1));
