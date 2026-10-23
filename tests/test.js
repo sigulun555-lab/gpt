@@ -27,6 +27,7 @@ assert.deepEqual(noShrinkOption,p,'K=0 must preserve the default prediction exac
 const shrunk=predict(hist,{date:'2026-02-01',home:'Ｃ大阪',away:'柏レイソル'},{shrinkageMatches:8});
 assert.ok(Math.abs(Object.values(shrunk.probabilities).reduce((a,b)=>a+b,0)-1)<1e-9);
 assert.ok(shrunk.homeGoalProbabilities.every(x=>Number.isFinite(x)&&x>=0&&x<=1));
+for(const k of [2,4,8,12,16]){const candidate=predict(hist,{date:'2026-02-01',home:'Ｃ大阪',away:'柏レイソン'},{shrinkageMatches:k});assert.ok(Math.abs(Object.values(candidate.probabilities).reduce((a,b)=>a+b,0)-1)<1e-9,`K=${k} must preserve normalized 1X2 probabilities`);assert.ok(candidate.homeExpectedGoals>=0.15&&candidate.homeExpectedGoals<=3.5);assert.ok(candidate.awayExpectedGoals>=0.15&&candidate.awayExpectedGoals<=3.5);}
 const parsed=parseSchedule('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"');
 assert.equal(parsed.length,1);
 const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Date('2026-10-22T00:00:00Z'));
