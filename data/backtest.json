@@ -4,7 +4,7 @@
   "logloss": 1.2260090642038333,
   "accuracy": 0.40555555555555556,
   "method": "chronological walk-forward",
-  "updatedAt": "2026-10-24T15:55:38.790Z",
+  "updatedAt": "2026-10-24T20:47:19.138Z",
   "source": {
     "name": "k-addtimes/jleague_open_data",
     "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
