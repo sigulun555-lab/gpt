@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24T20:47:19.138Z",
+  "generatedAt": "2026-10-25T04:38:56.468Z",
   "status": "toto_targets_unconfirmed",
   "liveData": true,
   "predictionsGenerated": false,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
-    "lastFetchedAt": "2026-10-24T20:47:19.138Z",
+    "lastFetchedAt": "2026-10-25T04:38:56.468Z",
     "round": 1666,
     "deadline": "2026-10-28T18:50:00+09:00",
     "fixtureCount": 0
