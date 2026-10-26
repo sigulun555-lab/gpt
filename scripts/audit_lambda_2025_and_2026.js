@@ -37,14 +37,14 @@ function run(data, labels) {
  }
  function fit(tr,lam,tol=1e-5){
   let p=Array(dim).fill(0);p[mi]=Math.log(1.3);let {f,g}=fg(p,tr,lam),S=[],Y=[],R=[],converged=false,status="iteration_limit",iterations=0;
-  for(let it=0;it<250;it++){iterations=it;if(norm(g)<tol){converged=true;status="gradient_tolerance";break;}let q=g.slice(),alpha=[];
+  for(let it=0;it<2000;it++){iterations=it;if(norm(g)<tol){converged=true;status="gradient_tolerance";break;}let q=g.slice(),alpha=[];
    for(let k=S.length-1;k>=0;k--){alpha[k]=R[k]*dot(S[k],q);for(let j=0;j<dim;j++)q[j]-=alpha[k]*Y[k][j];}
    let gamma=1;if(S.length){let k=S.length-1;gamma=dot(S[k],Y[k])/Math.max(1e-20,dot(Y[k],Y[k]));}
    let r=q.map(v=>v*gamma);for(let k=0;k<S.length;k++){const beta=R[k]*dot(Y[k],r);for(let j=0;j<dim;j++)r[j]+=S[k][j]*(alpha[k]-beta);}
    let d=r.map(v=>-v),gd=dot(g,d);if(gd>=0){d=g.map(v=>-v);gd=-dot(g,g);S=[];Y=[];R=[];}
-   let step=1,np,nf,ng,accepted=false;for(let ls=0;ls<35;ls++){np=p.map((v,j)=>v+step*d[j]);const z=fg(np,tr,lam);nf=z.f;ng=z.g;if(Number.isFinite(nf)&&nf<=f+1e-4*step*gd){accepted=true;break;}step*=.5;}
-   if(!accepted||step<1e-10){status="line_search_failure";break;}const s=np.map((v,j)=>v-p[j]),y=ng.map((v,j)=>v-g[j]),sy=dot(s,y);
-   if(sy>1e-12){S.push(s);Y.push(y);R.push(1/sy);if(S.length>7){S.shift();Y.shift();R.shift();}}
+   let step=1,np,nf,ng,accepted=false;for(let ls=0;ls<60;ls++){np=p.map((v,j)=>v+step*d[j]);const z=fg(np,tr,lam);nf=z.f;ng=z.g;if(Number.isFinite(nf)&&nf<=f+1e-4*step*gd){accepted=true;break;}step*=.5;}
+   if(!accepted||step<1e-14){status="line_search_failure";break;}const s=np.map((v,j)=>v-p[j]),y=ng.map((v,j)=>v-g[j]),sy=dot(s,y);
+   if(sy>1e-12){S.push(s);Y.push(y);R.push(1/sy);if(S.length>10){S.shift();Y.shift();R.shift();}}
    p=np;f=nf;g=ng;
   }
   if(!converged&&status==="iteration_limit"&&norm(g)<tol){converged=true;status="gradient_tolerance";}return {p,converged,status,iterations,gradientNorm:norm(g)};
@@ -70,9 +70,9 @@ function run(data, labels) {
   return {evaluated:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol,maxConvergedGradientNorm,maxConvergedIterations,failureDetails};
  }
  for(const start of [60,100,150]){const out={};for(const lam of [10,30]){
-  out["lambda"+lam]={primary:evaluate(start,lam,1e-5,true),thresholdRelaxed:evaluate(start,lam,1e-4,true)};
+  out["lambda"+lam]={primary:evaluate(start,lam,1e-5,false),thresholdRelaxed:evaluate(start,lam,1e-4,true)};
  }results.byStart[start]=out;}
  return results;
 }
-const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 250; failed fits excluded from metrics; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid",2025:run(rows),2026:run(hist)};
+const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 2000, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid",2025:run(rows),2026:run(hist)};
 console.log(JSON.stringify(output,null,2));
