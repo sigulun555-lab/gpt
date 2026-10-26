@@ -1,0 +1,35 @@
+name: Audit lambda 2025 out-of-time and 2026 reproduction
+on:
+  push:
+    branches: [audit/lambda-out-of-time-2025]
+    paths:
+      - "scripts/audit_lambda_2025_and_2026.js"
+      - ".github/workflows/audit-lambda-out-of-time.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Download 2025 public schedule data
+        run: |
+          mkdir -p data
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
+            --output data/2025_schedule_with_ids.csv
+      - name: Run independent walk-forward audits
+        run: node scripts/audit_lambda_2025_and_2026.js | tee lambda-audit-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-audit-results
+          path: lambda-audit-results.json
+          if-no-files-found: error
