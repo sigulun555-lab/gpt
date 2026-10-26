@@ -126,9 +126,9 @@ function summarize(rows) {
     drawPredictions: rows.filter(r => r.predicted === 1).length
   };
 }
-function evaluateLambda(lambdaPen) {
+function evaluateLambda(lambdaPen, start = 60) {
   const rows = [];
-  for (let i = 60; i < matches.length; i++) {
+  for (let i = start; i < matches.length; i++) {
     // Refit before each prediction using every match strictly earlier in time.
     const fitted = fit(matches.slice(0, i), lambdaPen);
     const probs = predict(fitted, matches[i]);
@@ -136,9 +136,9 @@ function evaluateLambda(lambdaPen) {
   }
   return summarize(rows);
 }
-function evaluateHistoricalRateBaseline() {
+function evaluateHistoricalRateBaseline(start = 60) {
   const rows = [];
-  for (let i = 60; i < matches.length; i++) {
+  for (let i = start; i < matches.length; i++) {
     const counts = [0, 0, 0];
     for (const g of matches.slice(0, i)) counts[actualClass(g)]++;
     const probs = counts.map(c => c / i);
@@ -162,6 +162,15 @@ const output = {
     3: evaluateLambda(3),
     10: evaluateLambda(10),
     30: evaluateLambda(30)
-  }
+  },
+  sensitivityByEvaluationStart: Object.fromEntries([100, 150].map(start => [start, {
+    evaluationMatches: matches.length - start,
+    baseline: evaluateHistoricalRateBaseline(start),
+    lambda: {
+      3: evaluateLambda(3, start),
+      10: evaluateLambda(10, start),
+      30: evaluateLambda(30, start)
+    }
+  }]))
 };
 console.log(JSON.stringify(output, null, 2));
