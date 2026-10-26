@@ -1,0 +1,35 @@
+name: Verify lambda-30 shrinkage model
+
+on:
+  push:
+    branches:
+      - audit/lambda-30-shrinkage-verification
+    paths:
+      - "scripts/verify_shrinkage_model.js"
+      - "data/history.json"
+      - ".github/workflows/verify-shrinkage-model.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-30-shrinkage-verification
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run isolated historical verification
+        run: node scripts/verify_shrinkage_model.js | tee lambda30-verification-output.json
+      - name: Upload verification output
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda30-verification-output
+          path: lambda30-verification-output.json
+          if-no-files-found: error
