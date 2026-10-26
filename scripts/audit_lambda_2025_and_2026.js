@@ -57,21 +57,22 @@ function run(data, labels) {
  const cls=g=>g.hg>g.ag?0:g.hg===g.ag?1:2;
  const results={matches:matches.length,teams:teams.length,byStart:{},thresholdSensitivity:{}};
  function evaluate(start,lam,tol,excludeFailed){
-  let correct=0,brier=0,ll=0,draw=0,failed=0,used=0,iterationsAtLimit=0,gradientFailures=0,lineSearchFailures=0,otherFailures=0,failedByReason={};
+  let correct=0,brier=0,ll=0,draw=0,failed=0,used=0,iterationsAtLimit=0,gradientFailures=0,lineSearchFailures=0,otherFailures=0,failedByReason={},failureDetails=[],maxConvergedGradientNorm=0,maxConvergedIterations=0;
   for(let i=start;i<matches.length;i++){
    const f=fit(matches.slice(0,i),lam,tol);
    if(!f.converged){failed++;failedByReason[f.status]=(failedByReason[f.status]||0)+1;
     if(f.status==="iteration_limit")iterationsAtLimit++;else if(f.status==="line_search_failure")lineSearchFailures++;else otherFailures++;
+    failureDetails.push({trainMatches:i,evalDate:matches[i].date,evalHome:teams[matches[i].home],evalAway:teams[matches[i].away],reason:f.status,iterations:f.iterations,gradientNorm:f.gradientNorm});
     if(excludeFailed)continue;
-   }
+   } else {maxConvergedGradientNorm=Math.max(maxConvergedGradientNorm,f.gradientNorm);maxConvergedIterations=Math.max(maxConvergedIterations,f.iterations);}
    const pr=pred(f.p,matches[i]),actual=cls(matches[i]),guess=pr.indexOf(Math.max(...pr));used++;if(guess===actual)correct++;if(guess===1)draw++;for(let k=0;k<3;k++)brier+=(pr[k]-(k===actual?1:0))**2;ll-=Math.log(Math.max(1e-15,pr[actual]));
   }
-  return {evaluated:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol};
+  return {evaluated:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol,maxConvergedGradientNorm,maxConvergedIterations,failureDetails};
  }
  for(const start of [60,100,150]){const out={};for(const lam of [10,30]){
   out["lambda"+lam]={primary:evaluate(start,lam,1e-5,true),thresholdRelaxed:evaluate(start,lam,1e-4,true)};
  }results.byStart[start]=out;}
  return results;
 }
-const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 250; failed fits excluded from metrics; compare gradient norm tolerance 1e-5 vs 1e-4; score grid 0..9, normalize grid",2025:run(rows),2026:run(hist)};
+const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 250; failed fits excluded from metrics; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid",2025:run(rows),2026:run(hist)};
 console.log(JSON.stringify(output,null,2));
