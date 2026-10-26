@@ -2,7 +2,7 @@
 /**
  * Audit-only verification of the lambdaPen=30 penalized Poisson model.
  * Does not import or modify model.js and does not write prediction logs.
- * Run from repository root: node scripts/validate_lambda_shrinkage.js
+ * Run from repository root: node scripts/verify_shrinkage_model.js
  */
 const fs = require("node:fs");
 const path = require("node:path");
