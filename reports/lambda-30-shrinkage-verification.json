@@ -1,0 +1,93 @@
+{
+  "audit": "lambdaPen=30 shrinkage verification",
+  "branch": "audit/lambda-30-shrinkage-verification",
+  "verifier": "scripts/verify_shrinkage_model.js",
+  "execution": {
+    "status": "model logic executed successfully",
+    "environment": "isolated JavaScript runtime",
+    "note": "The verifier source was executed after replacing Node.js fs/path file loading with the same fetched data/history.json content injected as JSON. The model, fitting, prediction, and metric logic were executed. A Node.js CLI run itself was not possible because the container could not reach GitHub to clone the repository.",
+    "productionFilesChanged": false,
+    "predictionLogsChanged": false,
+    "round1666Processed": false
+  },
+  "data": {
+    "path": "data/history.json",
+    "sha": "e7bf659b4194988bc1568107df6db161d7a24764",
+    "competitions": [
+      "J1",
+      "J2",
+      "J3"
+    ],
+    "matches": 380,
+    "teams": 60,
+    "ordering": "date ascending, then competition ascending"
+  },
+  "model": {
+    "lambdaPen": 30,
+    "formulaHome": "exp(mu + h + a_home - d_away)",
+    "formulaAway": "exp(mu + a_away - d_home)",
+    "objective": "-sum(y*ln(lambda)-lambda) + 30*(sum(a^2)+sum(d^2))",
+    "penaltyTargets": [
+      "attack",
+      "defence"
+    ],
+    "unpenalized": [
+      "homeEffect",
+      "mu"
+    ],
+    "initialValues": {
+      "attack": 0,
+      "defence": 0,
+      "homeEffect": 0,
+      "mu": "ln(1.3)"
+    },
+    "poissonGrid": "0..9 x 0..9, outcome probabilities normalized by grid mass"
+  },
+  "metrics": {
+    "60": {
+      "evaluationMatches": 320,
+      "baseline": {
+        "accuracy": 0.434375,
+        "brier": 0.65353433571485,
+        "logLoss": 1.0793118624385614,
+        "drawPredictions": 0
+      },
+      "lambda30": {
+        "accuracy": 0.459375,
+        "brier": 0.6421484438899332,
+        "logLoss": 1.062827014614319,
+        "drawPredictions": 0
+      }
+    },
+    "100": {
+      "evaluationMatches": 280,
+      "baseline": {
+        "accuracy": 0.42142857142857143,
+        "brier": 0.6583010104243179,
+        "logLoss": 1.0856532625519826,
+        "drawPredictions": 0
+      },
+      "lambda30": {
+        "accuracy": 0.45,
+        "brier": 0.6457328507929856,
+        "logLoss": 1.0676755484047813,
+        "drawPredictions": 0
+      }
+    },
+    "150": {
+      "evaluationMatches": 230,
+      "baseline": {
+        "accuracy": 0.4391304347826087,
+        "brier": 0.6505384967345242,
+        "logLoss": 1.0750364235187795,
+        "drawPredictions": 0
+      },
+      "lambda30": {
+        "accuracy": 0.46956521739130436,
+        "brier": 0.6380900155422725,
+        "logLoss": 1.0572631941922415,
+        "drawPredictions": 0
+      }
+    }
+  }
+}
