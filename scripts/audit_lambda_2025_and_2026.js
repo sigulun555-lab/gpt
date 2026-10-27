@@ -55,10 +55,11 @@ function run(data, labels) {
   for(let h=0;h<10;h++)for(let a=0;a<10;a++){const v=hp[h]*ap[a];tot+=v;pr[h>a?0:h===a?1:2]+=v;}return pr.map(v=>v/tot);
  }
  const cls=g=>g.hg>g.ag?0:g.hg===g.ag?1:2;
+ const evalLimit = Number.parseInt(process.env.AUDIT_MAX_EVAL_MATCHES || "0", 10);
  const results={matches:matches.length,teams:teams.length,byStart:{},thresholdSensitivity:{}};
  function evaluate(start,lam,tol,excludeFailed){
   let correct=0,brier=0,ll=0,draw=0,failed=0,used=0,iterationsAtLimit=0,gradientFailures=0,lineSearchFailures=0,otherFailures=0,failedByReason={},failureDetails=[],maxConvergedGradientNorm=0,maxConvergedIterations=0;
-  for(let i=start;i<matches.length;i++){
+  for(let i=start;i<Math.min(matches.length, start + (evalLimit > 0 ? evalLimit : matches.length));i++){
    const f=fit(matches.slice(0,i),lam,tol);
    if(!f.converged){failed++;failedByReason[f.status]=(failedByReason[f.status]||0)+1;
     if(f.status==="iteration_limit")iterationsAtLimit++;else if(f.status==="line_search_failure")lineSearchFailures++;else otherFailures++;
@@ -67,12 +68,12 @@ function run(data, labels) {
    } else {maxConvergedGradientNorm=Math.max(maxConvergedGradientNorm,f.gradientNorm);maxConvergedIterations=Math.max(maxConvergedIterations,f.iterations);}
    const pr=pred(f.p,matches[i]),actual=cls(matches[i]),guess=pr.indexOf(Math.max(...pr));used++;if(guess===actual)correct++;if(guess===1)draw++;for(let k=0;k<3;k++)brier+=(pr[k]-(k===actual?1:0))**2;ll-=Math.log(Math.max(1e-15,pr[actual]));
   }
-  return {evaluated:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol,maxConvergedGradientNorm,maxConvergedIterations,failureDetails};
+  return {evaluated:used + (excludeFailed ? failed : 0),totalAvailable:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol,maxConvergedGradientNorm,maxConvergedIterations,failureDetails};
  }
  for(const start of [60,100,150]){const out={};for(const lam of [10,30]){
   out["lambda"+lam]={primary:evaluate(start,lam,1e-5,false),thresholdRelaxed:evaluate(start,lam,1e-4,true)};
  }results.byStart[start]=out;}
  return results;
 }
-const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 2000, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid",2025:run(rows),2026:run(hist)};
+const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 2000, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows),2026:run(hist)};
 console.log(JSON.stringify(output,null,2));
