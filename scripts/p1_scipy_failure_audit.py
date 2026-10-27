@@ -121,7 +121,11 @@ def main():
             if m: half=int(m.group(1))
             wt=weights_for(train,target["date"],half)
             fun=lambda p: objgrad(p,data,n,lam,kind,wt)
-            scipy=minimize(fun,p0,jac=True,method="L-BFGS-B",
+            # Independent cold start: do not initialize SciPy from the fit being audited.
+            base=4*n if kind=="home_away_attack_defense" else 2*n
+            scipy_x0=np.zeros_like(p0)
+            scipy_x0[base]=math.log(1.3)
+            scipy=minimize(fun,scipy_x0,jac=True,method="L-BFGS-B",
                            options={"gtol":1e-10,"ftol":0.0,"maxiter":10000,"maxfun":1000000,"maxls":100,"maxcor":10})
             psp=np.asarray(scipy.x,dtype=float)
             jsprob=pair_probs(p0,teams,kind,np.array([ix[target_home]]),np.array([ix[target_away]]))[0]
