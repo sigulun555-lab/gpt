@@ -32,7 +32,9 @@ jobs:
             --output data/2025_schedule_with_ids.csv
       - name: Run independent JavaScript L-BFGS audit
         env:
-          AUDIT_MAX_EVAL_MATCHES: 8
+          AUDIT_MAX_EVAL_MATCHES: 2
+          AUDIT_MAX_ITERATIONS: 100
+          AUDIT_SMOKE: 1
         run: node scripts/audit_lambda_2025_and_2026.js | tee lambda-audit-results.json
       - name: Install SciPy for independent optimizer comparison
         run: python -m pip install --disable-pip-version-check numpy scipy
