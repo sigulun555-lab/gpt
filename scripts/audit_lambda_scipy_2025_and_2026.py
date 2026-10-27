@@ -42,6 +42,8 @@ def load_2026():
                          hg=int(g["home_goals"]),ag=int(g["away_goals"])))
     return sorted(rows,key=lambda g:(g["date"],g["competition"]))
 
+diagnostic_rows = []
+
 def audit(data, year):
     teams=sorted({g["home"] for g in data}|{g["away"] for g in data})
     ti={t:i for i,t in enumerate(teams)}
@@ -67,10 +69,13 @@ def audit(data, year):
         result=minimize(lambda p:fg(p,train,lam),p0,jac=True,method="L-BFGS-B",
             options={"maxiter":MAX_ITERATIONS,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10})
         gradnorm=float(np.linalg.norm(result.jac))
+        gradmax=float(np.max(np.abs(result.jac)))
+        # With no bounds, projected gradient equals raw gradient; SciPy gtol uses its infinity norm.
+        message=str(result.message)
         # Preserve SciPy's native termination status; report gradient norm separately for comparison with JS.
         converged=bool(result.success)
         status="converged" if converged else str(result.message)
-        return result.x,converged,status,int(result.nit),gradnorm,float(result.fun)
+        return result.x,converged,status,int(result.nit),gradnorm,gradmax,float(result.fun),message
     def predict(p,g):
         lh=math.exp(max(-20,min(20,p[mi]+p[hi]+p[g["home"]]-p[nt+g["away"]])))
         la=math.exp(max(-20,min(20,p[mi]+p[g["away"]]-p[nt+g["home"]])))
@@ -90,12 +95,13 @@ def audit(data, year):
             correct=0; brier=0.; ll=0.; draws=0; failed=0; maxgrad=0.; maxiter=0; failure_reasons={}
             # Every evaluation match is retained, including fits SciPy marks unsuccessful.
             for i in range(start,min(len(rows), start + EVAL_LIMIT) if EVAL_LIMIT else len(rows)):
-                p,ok,status,nit,gn,fun=fit(rows[:i],lam)
+                p,ok,status,nit,gn,gmax,fun,message=fit(rows[:i],lam)
                 if not ok:
                     failed+=1; failure_reasons[status]=failure_reasons.get(status,0)+1
                 else:
                     maxgrad=max(maxgrad,gn); maxiter=max(maxiter,nit)
                 pr=predict(p,rows[i]); y=actual[i]; guess=int(np.argmax(pr))
+                diagnostic_rows.append(dict(year=year,start=start,**{"lambda":lam},tolerance=TOL,train_matches=i,date=rows[i]["date"],competition=rows[i]["competition"],home=teams[rows[i]["home"]],away=teams[rows[i]["away"]],p_home=float(pr[0]),p_draw=float(pr[1]),p_away=float(pr[2]),objective=fun,gradient_l2=gn,gradient_max_abs=gmax,converged=ok,termination_reason=status,iterations=nit,scipy_message=message))
                 correct+=int(guess==y); draws+=int(guess==1)
                 brier+=float(np.sum((pr-np.eye(3)[y])**2)); ll-=math.log(max(1e-15,float(pr[y])))
             n=min(EVAL_LIMIT, len(rows)-start) if EVAL_LIMIT else len(rows)-start
@@ -110,4 +116,7 @@ def audit(data, year):
 result={"generatedAt":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         "spec":"Independent SciPy L-BFGS-B implementation; same Poisson negative log-likelihood, L2 penalty, zero init except log(1.3) intercept, walk-forward splits, score grid 0..9. All evaluation matches retained even when optimizer reports failure; failure counts shown explicitly. eval cap=" + str(EVAL_LIMIT or "none") + ", maxiter=" + str(MAX_ITERATIONS) + ", smoke=" + str(AUDIT_SMOKE),
         "2025":audit(load_2025(),"2025"),"2026":audit(load_2026(),"2026")}
+fieldnames=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"]
+with (ROOT/"lambda-audit-scipy-per-match.csv").open("w",encoding="utf-8",newline="") as f:
+    writer=csv.DictWriter(f,fieldnames=fieldnames); writer.writeheader(); writer.writerows(diagnostic_rows)
 print(json.dumps(result,ensure_ascii=False,indent=2))
