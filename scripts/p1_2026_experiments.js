@@ -54,7 +54,7 @@ for(const trainMode of ["2026_only","2025_plus_2026"]){for(const start of starts
  for(const c of candidates){const arr=predictions.get(c.name),s=summarize(c.name,arr);if(c.name!=="baseline"){s.accuracy_diff=pairedCI(arr,base,"correct",11+start+lambda+c.name.length);s.brier_diff=pairedCI(base,arr,"brier",21+start+lambda+c.name.length);s.log_loss_diff=pairedCI(base,arr,"ll",31+start+lambda+c.name.length);s.ci_note="paired percentile bootstrap, 4000 resamples, fixed seed; positive accuracy_diff favors candidate, positive Brier/log_loss_diff means candidate is better";}else{s.accuracy_diff={difference:0,ci95_low:0,ci95_high:0};s.brier_diff={difference:0,ci95_low:0,ci95_high:0};s.log_loss_diff={difference:0,ci95_low:0,ci95_high:0};}allResults.push(s);
   for(let j=0;j<arr.length;j++){const r=arr[j];matchResults.push({train_mode:trainMode,start,lambda,model:c.name,half_life_days:c.halfLife??"",date:r.date,competition:r.competition,home:r.home,away:r.away,correct:r.correct,brier:r.brier,log_loss:r.ll,p_home:r.p_home,p_draw:r.p_draw,p_away:r.p_away,objective:r.objective,gradient_max_abs:r.gradient_max_abs,gradient_l2:r.gradient_l2,converged:r.converged,termination_reason:r.termination_reason,iterations:r.iterations});}
  }
-}}
+}}}
 function csvEscape(v){const x=String(v??"");return /[",\n\r]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;}
 function writeCsv(file,rows){const keys=Object.keys(rows[0]||{});fs.writeFileSync(path.join(ROOT,file),[keys.join(","),...rows.map(r=>keys.map(k=>csvEscape(r[k]&&typeof r[k]==="object"?JSON.stringify(r[k]):r[k])).join(","))].join("\n")+"\n");}
 writeCsv("p1-2026-metrics.csv",allResults);writeCsv("p1-2026-per-match.csv",matchResults);writeCsv("p1-2026-fit-failures.csv",fitFailures);
