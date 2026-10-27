@@ -41,10 +41,14 @@ jobs:
         env:
           AUDIT_MAX_ITERATIONS: 2000
         run: python scripts/audit_lambda_scipy_2025_and_2026.py | tee lambda-audit-scipy-results.json
+      - name: Compare per-match JS and SciPy diagnostics
+        run: python scripts/compare_lambda_per_match.py
       - uses: actions/upload-artifact@v4
         with:
           name: lambda-audit-results
-          path: lambda-audit-results.json
+          path: |
+            lambda-audit-results.json
+            lambda-audit-js-per-match.csv
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
