@@ -31,10 +31,14 @@ jobs:
             https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
             --output data/2025_schedule_with_ids.csv
       - name: Run independent JavaScript L-BFGS audit
+        env:
+          AUDIT_MAX_EVAL_MATCHES: 8
         run: node scripts/audit_lambda_2025_and_2026.js | tee lambda-audit-results.json
       - name: Install SciPy for independent optimizer comparison
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Run independent SciPy L-BFGS-B audit
+        env:
+          AUDIT_MAX_EVAL_MATCHES: 8
         run: python scripts/audit_lambda_scipy_2025_and_2026.py | tee lambda-audit-scipy-results.json
       - uses: actions/upload-artifact@v4
         with:
