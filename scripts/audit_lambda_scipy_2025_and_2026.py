@@ -67,8 +67,8 @@ def audit(data, year):
         result=minimize(lambda p:fg(p,train,lam),p0,jac=True,method="L-BFGS-B",
             options={"maxiter":MAX_ITERATIONS,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10})
         gradnorm=float(np.linalg.norm(result.jac))
-        # Treat SciPy's termination as converged only if success and gradient meets tolerance.
-        converged=bool(result.success and gradnorm < TOL)
+        # Preserve SciPy's native termination status; report gradient norm separately for comparison with JS.
+        converged=bool(result.success)
         status="converged" if converged else str(result.message)
         return result.x,converged,status,int(result.nit),gradnorm,float(result.fun)
     def predict(p,g):
