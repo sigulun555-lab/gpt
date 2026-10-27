@@ -19,7 +19,24 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        include:
+          - {chunk: 0, offset: 0}
+          - {chunk: 1, offset: 1000}
+          - {chunk: 2, offset: 2000}
+          - {chunk: 3, offset: 3000}
+          - {chunk: 4, offset: 4000}
+          - {chunk: 5, offset: 5000}
+          - {chunk: 6, offset: 6000}
+          - {chunk: 7, offset: 7000}
+          - {chunk: 8, offset: 8000}
+          - {chunk: 9, offset: 9000}
+          - {chunk: 10, offset: 10000}
+          - {chunk: 11, offset: 11000}
+          - {chunk: 12, offset: 12000}
+          - {chunk: 13, offset: 13000}
+          - {chunk: 14, offset: 14000}
+          - {chunk: 15, offset: 15000}
+          - {chunk: 16, offset: 16000}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +58,7 @@ jobs:
           curl --fail --location --retry 3 https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv --output data/2025_schedule_with_ids.csv
       - name: Audit a bounded batch of failed fits
         env:
-          P1_AUDIT_OFFSET: ${{ matrix.chunk * 1000 }}
+          P1_AUDIT_OFFSET: ${{ matrix.offset }}
           P1_AUDIT_LIMIT: 1000
         run: python scripts/p1_scipy_failure_audit.py | tee p1-scipy-audit-chunk.log
       - uses: actions/upload-artifact@v4
