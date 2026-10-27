@@ -4,16 +4,27 @@ on:
     branches: [audit/lambda-out-of-time-2025]
     paths:
       - "scripts/p1_2026_experiments.js"
+      - "scripts/merge_p1_results.js"
       - "data/history.json"
       - "data/team_aliases.json"
       - ".github/workflows/p1-2026-experiments.yml"
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: p1-audit-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   p1:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        train_mode: [2026_only, 2025_plus_2026]
+        start: [60, 100, 150]
+        lambda: [10, 30]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,8 +38,42 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
             --output data/2025_schedule_with_ids.csv
-      - name: Run P1 JavaScript walk-forward experiments
+      - name: Run one P1 shard
+        env:
+          P1_TRAIN_MODE: ${{ matrix.train_mode }}
+          P1_START: ${{ matrix.start }}
+          P1_LAMBDA: ${{ matrix.lambda }}
         run: set -o pipefail; node scripts/p1_2026_experiments.js | tee p1-2026-console.json
+      - name: Package shard results
+        env:
+          SHARD_KEY: ${{ matrix.train_mode }}-${{ matrix.start }}-${{ matrix.lambda }}
+        run: |
+          mkdir -p "part-results/$SHARD_KEY"
+          cp p1-2026-results.json p1-2026-metrics.csv p1-2026-per-match.csv p1-2026-fit-failures.csv p1-2026-console.json "part-results/$SHARD_KEY/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p1-part-${{ matrix.train_mode }}-${{ matrix.start }}-${{ matrix.lambda }}
+          path: part-results/**
+          if-no-files-found: error
+  merge:
+    needs: p1
+    if: success()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: p1-part-*
+          path: p1-parts
+          merge-multiple: false
+      - name: Merge and validate all shards
+        run: set -o pipefail; node scripts/merge_p1_results.js | tee p1-merge-console.json
       - uses: actions/upload-artifact@v4
         with:
           name: p1-2026-experiment-results
@@ -37,5 +82,5 @@ jobs:
             p1-2026-metrics.csv
             p1-2026-per-match.csv
             p1-2026-fit-failures.csv
-            p1-2026-console.json
+            p1-merge-console.json
           if-no-files-found: error
