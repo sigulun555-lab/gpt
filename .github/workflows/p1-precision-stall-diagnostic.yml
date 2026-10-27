@@ -1,0 +1,40 @@
+name: P1 precision-stall diagnostic (single cold-start fit)
+on:
+  push:
+    branches: [audit/lambda-out-of-time-2025]
+    paths:
+      - "scripts/p1_precision_stall_diagnostic.py"
+      - ".github/workflows/p1-precision-stall-diagnostic.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  precision-stall-diagnostic:
+    name: Cold-start representative fit and SciPy comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install SciPy reference optimizer
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Download 2025 public schedule data
+        run: |
+          mkdir -p data
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
+            --output data/2025_schedule_with_ids.csv
+      - name: Run single cold-start precision-stall diagnostic
+        run: python scripts/p1_precision_stall_diagnostic.py | tee p1-precision-stall-diagnostic.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p1-precision-stall-diagnostic
+          path: |
+            p1-precision-stall-diagnostic.json
+            p1-precision-stall-diagnostic.log
+          if-no-files-found: error
+          retention-days: 90
