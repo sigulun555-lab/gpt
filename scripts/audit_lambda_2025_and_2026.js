@@ -21,7 +21,8 @@ const rows = csv.map(line => {
 }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)||a.competition.localeCompare(b.competition));
 const source = JSON.parse(fs.readFileSync(path.join(__dirname,"../data/history.json"),"utf8"));
 const hist = source.history.filter(g=>["J1","J2","J3"].includes(g.competition)).sort((a,b)=>a.date.localeCompare(b.date)||a.competition.localeCompare(b.competition)).map(g=>({date:g.date,competition:g.competition,home:g.home,away:g.away,hg:+g.home_goals,ag:+g.away_goals}));
-function run(data, labels) {
+const diagnosticRows = [];
+function run(data, year) {
  const teams=[...new Set(data.flatMap(g=>[g.home,g.away]))].sort(), ti=new Map(teams.map((t,i)=>[t,i]));
  const matches=data.map(g=>({...g,home:ti.get(g.home),away:ti.get(g.away)}));
  const nt=teams.length, dim=2*nt+2, mi=2*nt, hi=mi+1;
@@ -47,7 +48,7 @@ function run(data, labels) {
    if(sy>1e-12){S.push(s);Y.push(y);R.push(1/sy);if(S.length>10){S.shift();Y.shift();R.shift();}}
    p=np;f=nf;g=ng;
   }
-  if(!converged&&status==="iteration_limit"&&norm(g)<tol){converged=true;status="gradient_tolerance";}return {p,converged,status,iterations,gradientNorm:norm(g)};
+  if(!converged&&status==="iteration_limit"&&norm(g)<tol){converged=true;status="gradient_tolerance";}return {p,converged,status,iterations,objective:f,gradientNormL2:norm(g),gradientNormMaxAbs:Math.max(...g.map(v=>Math.abs(v)))};
  }
  function pred(p,g){const lh=Math.exp(Math.max(-20,Math.min(20,p[mi]+p[hi]+p[g.home]-p[nt+g.away]))),la=Math.exp(Math.max(-20,Math.min(20,p[mi]+p[g.away]-p[nt+g.home])));
   const pois=l=>Array.from({length:10},(_,k)=>{let v=Math.exp(-l);for(let i=1;i<=k;i++)v*=l/i;return v;});
@@ -79,5 +80,8 @@ function run(data, labels) {
  }results.byStart[start]=out;}
  return results;
 }
-const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations configurable, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows),2026:run(hist)};
+const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations configurable, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows,"2025"),2026:run(hist,"2026")};
+const csvFields=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"];
+const csvEscape=v=>{const s=String(v??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\n")+"\n");
 console.log(JSON.stringify(output,null,2));
