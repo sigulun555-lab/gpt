@@ -37,7 +37,7 @@ function run(data, labels) {
  }
  function fit(tr,lam,tol=1e-5){
   let p=Array(dim).fill(0);p[mi]=Math.log(1.3);let {f,g}=fg(p,tr,lam),S=[],Y=[],R=[],converged=false,status="iteration_limit",iterations=0;
-  for(let it=0;it<2000;it++){iterations=it;if(norm(g)<tol){converged=true;status="gradient_tolerance";break;}let q=g.slice(),alpha=[];
+  for(let it=0;it<maxIterations;it++){iterations=it;if(norm(g)<tol){converged=true;status="gradient_tolerance";break;}let q=g.slice(),alpha=[];
    for(let k=S.length-1;k>=0;k--){alpha[k]=R[k]*dot(S[k],q);for(let j=0;j<dim;j++)q[j]-=alpha[k]*Y[k][j];}
    let gamma=1;if(S.length){let k=S.length-1;gamma=dot(S[k],Y[k])/Math.max(1e-20,dot(Y[k],Y[k]));}
    let r=q.map(v=>v*gamma);for(let k=0;k<S.length;k++){const beta=R[k]*dot(Y[k],r);for(let j=0;j<dim;j++)r[j]+=S[k][j]*(alpha[k]-beta);}
@@ -56,6 +56,8 @@ function run(data, labels) {
  }
  const cls=g=>g.hg>g.ag?0:g.hg===g.ag?1:2;
  const evalLimit = Number.parseInt(process.env.AUDIT_MAX_EVAL_MATCHES || "0", 10);
+ const maxIterations = Number.parseInt(process.env.AUDIT_MAX_ITERATIONS || "2000", 10);
+ const auditSmoke = process.env.AUDIT_SMOKE === "1";
  const results={matches:matches.length,teams:teams.length,byStart:{},thresholdSensitivity:{}};
  function evaluate(start,lam,tol,excludeFailed){
   let correct=0,brier=0,ll=0,draw=0,failed=0,used=0,iterationsAtLimit=0,gradientFailures=0,lineSearchFailures=0,otherFailures=0,failedByReason={},failureDetails=[],maxConvergedGradientNorm=0,maxConvergedIterations=0;
@@ -70,10 +72,10 @@ function run(data, labels) {
   }
   return {evaluated:used + (excludeFailed ? failed : 0),totalAvailable:matches.length-start,used,excluded:excludeFailed?failed:0,accuracy:used?correct/used:null,brier:used?brier/used:null,logLoss:used?ll/used:null,drawPredictions:draw,convergenceFailures:failed,failedByReason,iterationLimit:iterationsAtLimit,lineSearchFailure:lineSearchFailures,otherFailure:otherFailures,tolerance:tol,maxConvergedGradientNorm,maxConvergedIterations,failureDetails};
  }
- for(const start of [60,100,150]){const out={};for(const lam of [10,30]){
+ for(const start of (auditSmoke ? [60] : [60,100,150])){const out={};for(const lam of (auditSmoke ? [10] : [10,30])){
   out["lambda"+lam]={primary:evaluate(start,lam,1e-5,false),thresholdRelaxed:evaluate(start,lam,1e-4,true)};
  }results.byStart[start]=out;}
  return results;
 }
-const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations 2000, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows),2026:run(hist)};
+const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations configurable, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows),2026:run(hist)};
 console.log(JSON.stringify(output,null,2));
