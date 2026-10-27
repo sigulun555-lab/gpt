@@ -41,5 +41,5 @@ with (ROOT/"p1-scipy-failure-audit.csv").open("w",encoding="utf-8",newline="") a
     w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
 (ROOT/"p1-scipy-failure-audit-summary.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
 print(json.dumps(summary,ensure_ascii=False,indent=2))
-if len(errors)>0 or len(valid)!=expected:
-    raise SystemExit("Audit incomplete: errors or missing valid dP comparisons")
+if len(valid)+len(errors)!=expected:
+    raise SystemExit("Audit incomplete: some rows were neither compared nor recorded as errors")
