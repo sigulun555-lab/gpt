@@ -52,7 +52,8 @@ for(const name of dirs){
 }
 assert.equal(metrics.length,60,"expected 60 model-condition metric rows");assert.equal(matches.length,16600,"expected 16,600 per-match predictions");assert(failures.length>0,"failed fits must remain in output");
 const mh=readCsv(path.join(root,dirs[0],"p1-2026-metrics.csv")).header,ph=readCsv(path.join(root,dirs[0],"p1-2026-per-match.csv")).header,fh=readCsv(path.join(root,dirs[0],"p1-2026-fit-failures.csv")).header;
-const ord=(a,b)=>({2026_only:0,2025_plus_2026:1}[a.train_mode]-{2026_only:0,2025_plus_2026:1}[b.train_mode]||Number(a.start)-Number(b.start)||Number(a.lambda)-Number(b.lambda)||a.model.localeCompare(b.model);
+const modeOrder={"2026_only":0,"2025_plus_2026":1};
+const ord=(a,b)=>modeOrder[a.train_mode]-modeOrder[b.train_mode]||Number(a.start)-Number(b.start)||Number(a.lambda)-Number(b.lambda)||a.model.localeCompare(b.model);
 metrics.sort(ord);matches.sort((a,b)=>ord(a,b)||a.date.localeCompare(b.date)||a.competition.localeCompare(b.competition)||a.home.localeCompare(b.home)||a.away.localeCompare(b.away));failures.sort((a,b)=>ord(a,b)||a.date.localeCompare(b.date)||a.competition.localeCompare(b.competition)||a.home.localeCompare(b.home)||a.away.localeCompare(b.away));
 writeCsv("p1-2026-metrics.csv",mh,metrics);writeCsv("p1-2026-per-match.csv",ph,matches);writeCsv("p1-2026-fit-failures.csv",fh,failures);
 const byReason={};for(const r of failures)byReason[r.reason]=(byReason[r.reason]||0)+1;
