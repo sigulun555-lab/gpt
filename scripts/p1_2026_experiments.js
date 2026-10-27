@@ -24,7 +24,7 @@ function fit(train,m,lambda,weights){const p=Array(m.dim).fill(0),n=m.n;p[(m.kin
  for(let it=0;it<maxIter;it++){iterations=it;if(maxabs(g)<=tol){status="max_projected_gradient";break;}let q=g.slice(),alpha=[];
   for(let k=S.length-1;k>=0;k--){alpha[k]=R[k]*dot(S[k],q);for(let j=0;j<q.length;j++)q[j]-=alpha[k]*Y[k][j];}
   let gamma=1;if(S.length){const k=S.length-1;gamma=dot(S[k],Y[k])/Math.max(1e-20,dot(Y[k],Y[k]));}
-  let d=q.map(v=>-gamma*v);for(let k=0;k<S.length;k++){const beta=R[k]*dot(Y[k],d);for(let j=0;j<d.length;j++)d[j]+=S[k][j]*(alpha[k]-beta);}let gd=dot(g,d);
+  let r=q.map(v=>gamma*v);for(let k=0;k<S.length;k++){const beta=R[k]*dot(Y[k],r);for(let j=0;j<r.length;j++)r[j]+=S[k][j]*(alpha[k]-beta);}let d=r.map(v=>-v),gd=dot(g,d);
   if(gd>=0){d=g.map(v=>-v);gd=-dot(g,g);S=[];Y=[];R=[];}
   let step=1,np,nz,accepted=false;for(let ls=0;ls<60;ls++){np=p.map((v,j)=>v+step*d[j]);nz=objective(np,train,m,lambda,weights);if(Number.isFinite(nz.f)&&nz.f<=f+1e-4*step*gd){accepted=true;break;}step*=.5;}
   if(!accepted||step<1e-14){status="line_search_failure";break;}const s=np.map((v,j)=>v-p[j]),y=nz.g.map((v,j)=>v-g[j]),sy=dot(s,y);if(sy>1e-12){S.push(s);Y.push(y);R.push(1/sy);if(S.length>10){S.shift();Y.shift();R.shift();}}for(let j=0;j<p.length;j++)p[j]=np[j];f=nz.f;g=nz.g;
