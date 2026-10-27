@@ -20,7 +20,7 @@ function objective(p,train,m,lambda,weights){const n=m.n,ha=m.kind==="home_away"
   }else{lh=clampExp(mu+adv+p[r.home]-p[n+r.away]);la=clampExp(mu+p[r.away]-p[n+r.home]);const eh=w*(lh-r.hg),ea=w*(la-r.ag);f+=w*(lh-r.hg*Math.log(lh)+la-r.ag*Math.log(la));g[r.home]+=eh;g[n+r.away]-=eh;g[r.away]+=ea;g[n+r.home]-=ea;g[2*n]+=eh+ea;g[2*n+1]+=eh;}
  }
  const teamParams=(ha?4:2)*n;for(let i=0;i<teamParams;i++){f+=lambda*p[i]*p[i];g[i]+=2*lambda*p[i];}return {f,g};}
-function fit(train,m,lambda,weights,initialP){const p=initialP&&initialP.length===m.dim?initialP.slice():Array(m.dim).fill(0),n=m.n;if(!(initialP&&initialP.length===m.dim))p[(m.kind==="home_away"?4:2)*n]=Math.log(1.3);let z=objective(p,train,m,lambda,weights),f=z.f,g=z.g,S=[],Y=[],R=[],status="iteration_limit",iterations=0;const maxIter=2000,tol=1e-5;
+function fit(train,m,lambda,weights,initialP){const p=initialP&&initialP.length===m.dim?initialP.slice():Array(m.dim).fill(0),n=m.n;if(!(initialP&&initialP.length===m.dim))p[(m.kind==="home_away"?4:2)*n]=Math.log(1.3);let z=objective(p,train,m,lambda,weights),f=z.f,g=z.g,S=[],Y=[],R=[],status="iteration_limit",iterations=0;const maxIter=4000,tol=1e-5;
  for(let it=0;it<maxIter;it++){iterations=it;if(maxabs(g)<=tol){status="max_projected_gradient";break;}let q=g.slice(),alpha=[];
   for(let k=S.length-1;k>=0;k--){alpha[k]=R[k]*dot(S[k],q);for(let j=0;j<q.length;j++)q[j]-=alpha[k]*Y[k][j];}
   let gamma=1;if(S.length){const k=S.length-1;gamma=dot(S[k],Y[k])/Math.max(1e-20,dot(Y[k],Y[k]));}
