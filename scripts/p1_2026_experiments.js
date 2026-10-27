@@ -37,7 +37,8 @@ function seeded(seed){let x=seed>>>0;return ()=>{x=(1664525*x+1013904223)>>>0;re
 function pairedCI(a,b,key,seed){const diffs=a.map((r,i)=>r[key]-b[i][key]),mean=diffs.reduce((s,v)=>s+v,0)/diffs.length,rng=seeded(seed),boots=[],n=diffs.length;for(let k=0;k<4000;k++){let s=0;for(let j=0;j<n;j++)s+=diffs[Math.floor(rng()*n)];boots.push(s/n);}boots.sort((x,y)=>x-y);return {difference:mean,ci95_low:boots[Math.floor(.025*boots.length)],ci95_high:boots[Math.floor(.975*boots.length)]};}
 const rows25=load2025(),rows26=load2026();
 const starts=[60,100,150],lambdas=[10,30],halflives=[60,120,240];
-const allResults=[],matchResults=[],fitFailures=[];\nconst teamUniverse=[...new Set(rows25.concat(rows26).flatMap(g=>[g.home,g.away]))];
+const allResults=[],matchResults=[],fitFailures=[];
+const teamUniverse=[...new Set(rows25.concat(rows26).flatMap(g=>[g.home,g.away]))];
 for(const trainMode of ["2026_only","2025_plus_2026"]){for(const start of starts){for(const lambda of lambdas){
  const evalRows=rows26.slice(start);const candidates=[{name:"baseline",kind:"standard",halfLife:null},{name:"home_away_attack_defense",kind:"home_away",halfLife:null},...halflives.map(h=>({name:"recency_half_life_"+h,kind:"standard",halfLife:h}))];
  const predictions=new Map(candidates.map(c=>[c.name,[]]));
