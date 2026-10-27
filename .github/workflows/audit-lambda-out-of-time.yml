@@ -5,7 +5,9 @@ on:
     paths:
       - "scripts/audit_lambda_2025_and_2026.js"
       - "scripts/audit_lambda_scipy_2025_and_2026.py"
-      - "scripts/compare_lambda_per_match.py"\n      - "scripts/p1_2026_experiments.js"\n      - "data/team_aliases.json"
+      - "scripts/compare_lambda_per_match.py"
+      - "scripts/p1_2026_experiments.js"
+      - "data/team_aliases.json"
       - ".github/workflows/audit-lambda-out-of-time.yml"
   workflow_dispatch:
 permissions:
