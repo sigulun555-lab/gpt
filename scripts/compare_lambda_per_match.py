@@ -4,8 +4,16 @@ import csv, json, math
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-JS=ROOT/"lambda-audit-js-per-match.csv"
-SCIPY=ROOT/"lambda-audit-scipy-per-match.csv"
+def locate(name):
+    candidates=(ROOT/name, ROOT/"scripts"/name)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    checked=", ".join(str(p) for p in candidates)
+    raise SystemExit(f"Required audit CSV not found; checked: {checked}")
+
+JS=locate("lambda-audit-js-per-match.csv")
+SCIPY=locate("lambda-audit-scipy-per-match.csv")
 OUT=ROOT/"lambda-audit-per-match-comparison.csv"
 REPORT=ROOT/"lambda-audit-per-match-comparison.json"
 PROB_TOL=1e-4
