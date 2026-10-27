@@ -1,0 +1,45 @@
+name: P1 warm-start sample audit (20 fits)
+on:
+  push:
+    branches: [audit/lambda-out-of-time-2025]
+    paths:
+      - "scripts/p1_warmstart_sample_audit.py"
+      - ".github/workflows/p1-warmstart-sample.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  warmstart-sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: p1-2026-experiment-results
+          run-id: 40518879108
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+      - name: Install SciPy reference optimizer
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Download 2025 public schedule data
+        run: |
+          mkdir -p data
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv --output data/2025_schedule_with_ids.csv
+      - name: Run targeted warm-start sample audit
+        run: python scripts/p1_warmstart_sample_audit.py | tee p1-warmstart-sample-20.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p1-warmstart-sample-20-results
+          path: |
+            p1-warmstart-sample-20.csv
+            p1-warmstart-sample-20-summary.json
+            p1-warmstart-sample-20.log
+          if-no-files-found: error
+          retention-days: 90
