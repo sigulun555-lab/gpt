@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/audit_lambda_2025_and_2026.js"
       - "scripts/audit_lambda_scipy_2025_and_2026.py"
+      - "scripts/compare_lambda_per_match.py"
       - ".github/workflows/audit-lambda-out-of-time.yml"
   workflow_dispatch:
 permissions:
@@ -48,5 +49,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lambda-audit-scipy-results
-          path: lambda-audit-scipy-results.json
+          path: |
+            lambda-audit-scipy-results.json
+            lambda-audit-scipy-per-match.csv
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-audit-comparison
+          path: |
+            lambda-audit-per-match-comparison.csv
+            lambda-audit-per-match-comparison.json
           if-no-files-found: error
