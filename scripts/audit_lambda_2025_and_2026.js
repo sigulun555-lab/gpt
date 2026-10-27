@@ -82,9 +82,6 @@ function run(data, year) {
 }
 const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60/100/150, unconstrained L-BFGS Armijo, max iterations configurable, history 10, extended Armijo line search; all evaluation matches retained even if fit fails; compare gradient norm tolerance 1e-5 vs 1e-4; per-fit failure details included; score grid 0..9, normalize grid; eval cap=" + (process.env.AUDIT_MAX_EVAL_MATCHES || "none"),2025:run(rows,"2025"),2026:run(hist,"2026")};
 const csvFields=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"];
-const csvEscape=v=>{const s=String(v??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
-fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\n")+"\n");
-const csvFields=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"];
-const csvEscape=v=>{const x=String(v??"");return /[",\n\r]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;};
-fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\n")+"\n");
+const csvEscape=v=>{const x=String(v??"");return /[",\\n\\r]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;};
+fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\\n")+"\\n");
 console.log(JSON.stringify(output,null,2));
