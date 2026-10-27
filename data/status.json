@@ -5,8 +5,8 @@
   "totoTargetsConfirmed": false,
   "round": null,
   "deadline": null,
-  "lastAttemptAt": "2026-10-27T17:59:20.028Z",
-  "lastSuccessfulFetch": "2026-10-27T17:59:20.028Z",
+  "lastAttemptAt": "2026-10-27T22:12:30.945Z",
+  "lastSuccessfulFetch": "2026-10-27T22:12:30.945Z",
   "lastError": null,
   "source": {
     "name": "k-addtimes/jleague_open_data",
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
-    "lastFetchedAt": "2026-10-27T17:59:20.028Z",
+    "lastFetchedAt": "2026-10-27T22:12:30.945Z",
     "round": 1666,
     "deadline": "2026-10-28T18:50:00+09:00",
     "fixtureCount": 0
