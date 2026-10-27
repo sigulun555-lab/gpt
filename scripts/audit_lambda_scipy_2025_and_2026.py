@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LAMBDAS = (10, 30)
 STARTS = (60, 100, 150)
 TOL = 1e-5
+EVAL_LIMIT = max(0, int(__import__("os").environ.get("AUDIT_MAX_EVAL_MATCHES", "0")))
 
 def load_2025():
     p = ROOT / "data/2025_schedule_with_ids.csv"
@@ -86,7 +87,7 @@ def audit(data, year):
         for lam in LAMBDAS:
             correct=0; brier=0.; ll=0.; draws=0; failed=0; maxgrad=0.; maxiter=0; failure_reasons={}
             # Every evaluation match is retained, including fits SciPy marks unsuccessful.
-            for i in range(start,len(rows)):
+            for i in range(start,min(len(rows), start + EVAL_LIMIT) if EVAL_LIMIT else len(rows)):
                 p,ok,status,nit,gn,fun=fit(rows[:i],lam)
                 if not ok:
                     failed+=1; failure_reasons[status]=failure_reasons.get(status,0)+1
@@ -95,7 +96,7 @@ def audit(data, year):
                 pr=predict(p,rows[i]); y=actual[i]; guess=int(np.argmax(pr))
                 correct+=int(guess==y); draws+=int(guess==1)
                 brier+=float(np.sum((pr-np.eye(3)[y])**2)); ll-=math.log(max(1e-15,float(pr[y])))
-            n=len(rows)-start
+            n=min(EVAL_LIMIT, len(rows)-start) if EVAL_LIMIT else len(rows)-start
             out[f"lambda{lam}"]={"evaluated":n,"used":n,"excluded":0,"accuracy":correct/n,
                 "brier":brier/n,"logLoss":ll/n,"drawPredictions":draws,"convergenceFailures":failed,
                 "failedByReason":failure_reasons,"tolerance":TOL,"maxConvergedGradientNorm":maxgrad,
@@ -105,6 +106,6 @@ def audit(data, year):
     return output
 
 result={"generatedAt":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "spec":"Independent SciPy L-BFGS-B implementation; same Poisson negative log-likelihood, L2 penalty, zero init except log(1.3) intercept, walk-forward splits, score grid 0..9. All evaluation matches retained even when optimizer reports failure; failure counts shown explicitly.",
+        "spec":"Independent SciPy L-BFGS-B implementation; same Poisson negative log-likelihood, L2 penalty, zero init except log(1.3) intercept, walk-forward splits, score grid 0..9. All evaluation matches retained even when optimizer reports failure; failure counts shown explicitly. eval cap=" + str(EVAL_LIMIT or "none"),
         "2025":audit(load_2025(),"2025"),"2026":audit(load_2026(),"2026")}
 print(json.dumps(result,ensure_ascii=False,indent=2))
