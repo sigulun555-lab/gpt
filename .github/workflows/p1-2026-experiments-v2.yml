@@ -1,0 +1,53 @@
+name: P1 2026 model experiments v2 (parallel audit only)
+on:
+  push:
+    branches: [audit/lambda-out-of-time-2025]
+    paths:
+      - "scripts/p1_2026_experiments.js"
+      - ".github/workflows/p1-2026-experiments-v2.yml"
+      - "data/history.json"
+      - "data/team_aliases.json"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  p1-shard:
+    name: P1 ${{ matrix.train_mode }} start=${{ matrix.start }} lambda=${{ matrix.lambda }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        train_mode: [2026_only, 2025_plus_2026]
+        start: [60, 100, 150]
+        lambda: [10, 30]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Download 2025 public schedule data
+        run: |
+          mkdir -p data
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
+            --output data/2025_schedule_with_ids.csv
+      - name: Run selected P1 shard
+        env:
+          P1_TRAIN_MODE: ${{ matrix.train_mode }}
+          P1_START: ${{ matrix.start }}
+          P1_LAMBDA: ${{ matrix.lambda }}
+        run: set -o pipefail; node scripts/p1_2026_experiments.js | tee p1-2026-console.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p1-part-${{ matrix.train_mode }}-s${{ matrix.start }}-l${{ matrix.lambda }}
+          path: |
+            p1-2026-results.json
+            p1-2026-metrics.csv
+            p1-2026-per-match.csv
+            p1-2026-fit-failures.csv
+            p1-2026-console.json
+          if-no-files-found: error
