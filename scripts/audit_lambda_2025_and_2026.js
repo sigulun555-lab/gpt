@@ -63,6 +63,8 @@ function run(data, labels) {
   let correct=0,brier=0,ll=0,draw=0,failed=0,used=0,iterationsAtLimit=0,gradientFailures=0,lineSearchFailures=0,otherFailures=0,failedByReason={},failureDetails=[],maxConvergedGradientNorm=0,maxConvergedIterations=0;
   for(let i=start;i<Math.min(matches.length, start + (evalLimit > 0 ? evalLimit : matches.length));i++){
    const f=fit(matches.slice(0,i),lam,tol);
+   const pr=pred(f.p,matches[i]);
+   diagnosticRows.push({year,start,lambda:lam,tolerance:tol,train_matches:i,date:matches[i].date,competition:matches[i].competition,home:teams[matches[i].home],away:teams[matches[i].away],p_home:pr[0],p_draw:pr[1],p_away:pr[2],objective:f.objective,gradient_l2:f.gradientNormL2,gradient_max_abs:f.gradientNormMaxAbs,converged:f.converged,termination_reason:f.status,iterations:f.iterations,scipy_message:""});
    if(!f.converged){failed++;failedByReason[f.status]=(failedByReason[f.status]||0)+1;
     if(f.status==="iteration_limit")iterationsAtLimit++;else if(f.status==="line_search_failure")lineSearchFailures++;else otherFailures++;
     failureDetails.push({trainMatches:i,evalDate:matches[i].date,evalHome:teams[matches[i].home],evalAway:teams[matches[i].away],reason:f.status,iterations:f.iterations,gradientNorm:f.gradientNorm});
