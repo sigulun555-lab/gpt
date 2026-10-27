@@ -67,4 +67,15 @@ jobs:
             lambda-audit-per-match-comparison.csv
             lambda-audit-per-match-comparison.json
           if-no-files-found: error
-\n      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: p1-2026-experiment-results\n          path: |\n            p1-2026-results.json\n            p1-2026-metrics.csv\n            p1-2026-per-match.csv\n            p1-2026-fit-failures.csv\n            p1-2026-console.json\n          if-no-files-found: warn\n
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p1-2026-experiment-results
+          path: |
+            p1-2026-results.json
+            p1-2026-metrics.csv
+            p1-2026-per-match.csv
+            p1-2026-fit-failures.csv
+            p1-2026-console.json
+          if-no-files-found: warn
