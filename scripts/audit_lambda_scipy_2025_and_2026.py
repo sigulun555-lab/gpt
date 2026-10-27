@@ -9,10 +9,12 @@ import numpy as np
 from scipy.optimize import minimize
 
 ROOT = Path(__file__).resolve().parents[1]
-LAMBDAS = (10, 30)
-STARTS = (60, 100, 150)
+LAMBDAS = (10,) if __import__("os").environ.get("AUDIT_SMOKE") == "1" else (10, 30)
+STARTS = (60,) if __import__("os").environ.get("AUDIT_SMOKE") == "1" else (60, 100, 150)
 TOL = 1e-5
 EVAL_LIMIT = max(0, int(__import__("os").environ.get("AUDIT_MAX_EVAL_MATCHES", "0")))
+MAX_ITERATIONS = max(1, int(__import__("os").environ.get("AUDIT_MAX_ITERATIONS", "2000")))
+AUDIT_SMOKE = __import__("os").environ.get("AUDIT_SMOKE") == "1"
 
 def load_2025():
     p = ROOT / "data/2025_schedule_with_ids.csv"
@@ -63,7 +65,7 @@ def audit(data, year):
     def fit(train, lam):
         p0=np.zeros(dim); p0[mi]=math.log(1.3)
         result=minimize(lambda p:fg(p,train,lam),p0,jac=True,method="L-BFGS-B",
-            options={"maxiter":2000,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10})
+            options={"maxiter":MAX_ITERATIONS,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10})
         gradnorm=float(np.linalg.norm(result.jac))
         # Treat SciPy's termination as converged only if success and gradient meets tolerance.
         converged=bool(result.success and gradnorm < TOL)
@@ -101,11 +103,11 @@ def audit(data, year):
                 "brier":brier/n,"logLoss":ll/n,"drawPredictions":draws,"convergenceFailures":failed,
                 "failedByReason":failure_reasons,"tolerance":TOL,"maxConvergedGradientNorm":maxgrad,
                 "maxConvergedIterations":maxiter,"optimizer":"scipy.optimize.minimize L-BFGS-B",
-                "options":{"maxiter":2000,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10}}
+                "options":{"maxiter":MAX_ITERATIONS,"maxls":60,"gtol":TOL,"ftol":1e-12,"maxcor":10}}
         output["byStart"][str(start)]=out
     return output
 
 result={"generatedAt":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "spec":"Independent SciPy L-BFGS-B implementation; same Poisson negative log-likelihood, L2 penalty, zero init except log(1.3) intercept, walk-forward splits, score grid 0..9. All evaluation matches retained even when optimizer reports failure; failure counts shown explicitly. eval cap=" + str(EVAL_LIMIT or "none"),
+        "spec":"Independent SciPy L-BFGS-B implementation; same Poisson negative log-likelihood, L2 penalty, zero init except log(1.3) intercept, walk-forward splits, score grid 0..9. All evaluation matches retained even when optimizer reports failure; failure counts shown explicitly. eval cap=" + str(EVAL_LIMIT or "none") + ", maxiter=" + str(MAX_ITERATIONS) + ", smoke=" + str(AUDIT_SMOKE),
         "2025":audit(load_2025(),"2025"),"2026":audit(load_2026(),"2026")}
 print(json.dumps(result,ensure_ascii=False,indent=2))
