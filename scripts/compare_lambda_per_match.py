@@ -18,7 +18,7 @@ def read(path):
 
 js=[r for r in read(JS) if float(r["tolerance"]) == 1e-5]
 sp=[r for r in read(SCIPY) if float(r["tolerance"]) == 1e-5]
-def key(r): return tuple(r[k] for k in KEY)
+def key(r): return tuple(format(float(r[k]), ".0e") if k == "tolerance" else r[k] for k in KEY)
 jm={key(r):r for r in js}; sm={key(r):r for r in sp}
 if len(jm)!=len(js) or len(sm)!=len(sp):
     raise SystemExit("Duplicate match keys found; refusing ambiguous join")
