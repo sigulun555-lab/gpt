@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 2
       matrix:
         train_mode: [2026_only, 2025_plus_2026]
         start: [60, 100, 150]
