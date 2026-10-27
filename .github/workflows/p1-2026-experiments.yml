@@ -28,7 +28,7 @@ jobs:
             https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/processed/2025_schedule_with_ids.csv \
             --output data/2025_schedule_with_ids.csv
       - name: Run P1 JavaScript walk-forward experiments
-        run: node scripts/p1_2026_experiments.js | tee p1-2026-console.json
+        run: set -o pipefail; node scripts/p1_2026_experiments.js | tee p1-2026-console.json
       - uses: actions/upload-artifact@v4
         with:
           name: p1-2026-experiment-results
