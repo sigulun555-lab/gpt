@@ -12,7 +12,7 @@ const dot=(a,b)=>{let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;};
 const maxabs=a=>a.reduce((m,v)=>Math.max(m,Math.abs(v)),0);
 const norm=a=>Math.sqrt(dot(a,a));
 const clampExp=x=>Math.exp(Math.max(-20,Math.min(20,x)));
-function makeModel(rows,kind){const teams=[...new Set(rows.flatMap(g=>[g.home,g.away]))].sort(),ti=new Map(teams.map((t,i)=>[t,i]));return {teams,rows:rows.map(g=>({...g,home:ti.get(g.home),away:ti.get(g.away)})),n:teams.length,kind,dim:(kind==="home_away"?4:2)*teams.length+2};}
+function makeModel(rows,kind,teamUniverse){const teams=[...new Set(teamUniverse||rows.flatMap(g=>[g.home,g.away]))].sort(),ti=new Map(teams.map((t,i)=>[t,i]));return {teams,rows:rows.map(g=>({...g,home:ti.get(g.home),away:ti.get(g.away)})),n:teams.length,kind,dim:(kind==="home_away"?4:2)*teams.length+2};}
 function objective(p,train,m,lambda,weights){const n=m.n,ha=m.kind==="home_away",mu=p[(ha?4:2)*n],adv=p[(ha?4:2)*n+1],g=Array(m.dim).fill(0);let f=0;
  for(let j=0;j<train.length;j++){const r=train[j],w=weights?weights[j]:1;let lh,la;
   if(ha){lh=clampExp(mu+adv+p[r.home]-p[3*n+r.away]);la=clampExp(mu+p[2*n+r.away]-p[n+r.home]);
@@ -37,12 +37,12 @@ function seeded(seed){let x=seed>>>0;return ()=>{x=(1664525*x+1013904223)>>>0;re
 function pairedCI(a,b,key,seed){const diffs=a.map((r,i)=>r[key]-b[i][key]),mean=diffs.reduce((s,v)=>s+v,0)/diffs.length,rng=seeded(seed),boots=[],n=diffs.length;for(let k=0;k<4000;k++){let s=0;for(let j=0;j<n;j++)s+=diffs[Math.floor(rng()*n)];boots.push(s/n);}boots.sort((x,y)=>x-y);return {difference:mean,ci95_low:boots[Math.floor(.025*boots.length)],ci95_high:boots[Math.floor(.975*boots.length)]};}
 const rows25=load2025(),rows26=load2026();
 const starts=[60,100,150],lambdas=[10,30],halflives=[60,120,240];
-const allResults=[],matchResults=[],fitFailures=[];
+const allResults=[],matchResults=[],fitFailures=[];\nconst teamUniverse=[...new Set(rows25.concat(rows26).flatMap(g=>[g.home,g.away]))];
 for(const trainMode of ["2026_only","2025_plus_2026"]){for(const start of starts){for(const lambda of lambdas){
  const evalRows=rows26.slice(start);const candidates=[{name:"baseline",kind:"standard",halfLife:null},{name:"home_away_attack_defense",kind:"home_away",halfLife:null},...halflives.map(h=>({name:"recency_half_life_"+h,kind:"standard",halfLife:h}))];
  const predictions=new Map(candidates.map(c=>[c.name,[]]));
  for(let i=start;i<rows26.length;i++){const current=rows26[i],train26=rows26.slice(0,i),train=(trainMode==="2025_plus_2026"?rows25:[]).concat(train26);const models=new Map();
-  for(const c of candidates){const m=makeModel(train,c.kind);const ti=new Map(m.teams.map((t,j)=>[t,j]));const mappedTrain=train.map(r=>({...r,home:ti.get(r.home),away:ti.get(r.away)}));const mappedEval={...current,home:ti.get(current.home),away:ti.get(current.away)};
+  for(const c of candidates){const m=makeModel(train,c.kind,teamUniverse);const ti=new Map(m.teams.map((t,j)=>[t,j]));const mappedTrain=train.map(r=>({...r,home:ti.get(r.home),away:ti.get(r.away)}));const mappedEval={...current,home:ti.get(current.home),away:ti.get(current.away)};
    if(mappedEval.home===undefined||mappedEval.away===undefined)throw new Error("evaluation team missing from training set at "+current.date+" "+current.home+"-"+current.away);
    let weights=null;if(c.halfLife){const dayDiff=d=>Math.max(0,(Date.parse(current.date+"T00:00:00Z")-Date.parse(d+"T00:00:00Z"))/86400000);weights=train.map(r=>Math.pow(2,-dayDiff(r.date)/c.halfLife));const avg=weights.reduce((s,v)=>s+v,0)/weights.length;weights=weights.map(w=>w/avg);}
    const f=fit(mappedTrain,m,lambda,weights),pr=predict(f.p,m,mappedEval),met=metric(pr,current);predictions.get(c.name).push({...met,date:current.date,competition:current.competition,home:current.home,away:current.away,p_home:pr[0],p_draw:pr[1],p_away:pr[2],objective:f.objective,gradient_max_abs:f.gradientMaxAbs,gradient_l2:f.gradientL2,converged:f.converged,termination_reason:f.status,iterations:f.iterations});
