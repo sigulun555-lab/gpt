@@ -51,3 +51,36 @@ jobs:
             p1-2026-fit-failures.csv
             p1-2026-console.json
           if-no-files-found: error
+
+  aggregate-results:
+    name: Aggregate and validate P1 shard outputs
+    needs: p1-shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/lambda-out-of-time-2025
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: p1-part-*
+          path: shard-artifacts
+          merge-multiple: false
+      - name: Aggregate and independently validate all shard outputs
+        env:
+          P1_SHARD_ARTIFACT_DIR: shard-artifacts
+        run: node scripts/aggregate_p1_2026_results.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p1-2026-experiment-results
+          path: |
+            p1-2026-results.json
+            p1-2026-metrics.csv
+            p1-2026-per-match.csv
+            p1-2026-fit-failures.csv
+            p1-2026-validation-manifest.json
+          if-no-files-found: error
+          retention-days: 90
