@@ -84,4 +84,7 @@ const output={generatedAt:new Date().toISOString(),spec:"walk-forward, starts 60
 const csvFields=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"];
 const csvEscape=v=>{const s=String(v??"");return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
 fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\n")+"\n");
+const csvFields=["year","start","lambda","tolerance","train_matches","date","competition","home","away","p_home","p_draw","p_away","objective","gradient_l2","gradient_max_abs","converged","termination_reason","iterations","scipy_message"];
+const csvEscape=v=>{const x=String(v??"");return /[",\n\r]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x;};
+fs.writeFileSync(path.join(__dirname,"../lambda-audit-js-per-match.csv"),[csvFields.join(","),...diagnosticRows.map(r=>csvFields.map(k=>csvEscape(r[k])).join(","))].join("\n")+"\n");
 console.log(JSON.stringify(output,null,2));
