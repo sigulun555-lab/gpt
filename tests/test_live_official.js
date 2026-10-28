@@ -59,9 +59,9 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     signal: AbortSignal.timeout(20000)
   });
   const detailHtml = await detailResponse.text();
-  const detailHeader = detailHtml.search(/第\\s*1668\\s*回[\\s\\S]{0,100}?toto\\s*GOAL\\s*3/i);
+  const detailHeader = detailHtml.search(/第\s*1668\s*回[\s\S]{0,100}?toto\s*GOAL\s*3/i);
   console.log('DEBUG GOAL3 detail HTTP/size', detailResponse.status, detailHtml.length, 'headerIndex', detailHeader);
-  if (detailHeader >= 0) console.log('DEBUG GOAL3 detail section', detailHtml.slice(Math.max(0, detailHeader - 800), Math.min(detailHtml.length, detailHeader + 3500)).replace(/\\s+/g, ' '));
+  if (detailHeader >= 0) console.log('DEBUG GOAL3 detail section', detailHtml.slice(Math.max(0, detailHeader - 800), Math.min(detailHtml.length, detailHeader + 3500)).replace(/\s+/g, ' '));
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
   const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\b[^>]*>/gi)]
     .map(m => m[0])
