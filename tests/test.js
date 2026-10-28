@@ -17,6 +17,20 @@ const officialShape=parseToto(officialShapeHtml,new Date('2026-10-28T00:00:00+09
 assert.equal(officialShape.fixtures.length,13,'official-shaped rows with date/time line breaks should parse all 13 fixtures');
 assert.deepEqual([officialShape.fixtures[0].number,officialShape.fixtures[0].dateLabel,officialShape.fixtures[0].home,officialShape.fixtures[0].away],[1,'10/31','Home0','Away0']);
 assert.equal(officialShape.fixtures[12].number,13);
+const officialRound1668=[
+ ['10/31','岡山','FC東京'],['10/31','水戸','広島'],['10/31','神戸','名古屋'],
+ ['10/31','鹿島','Ｃ大阪'],['10/31','柏','浦和'],['10/31','京都','清水'],
+ ['11/01','千葉','福岡'],['11/01','長崎','東京Ｖ'],['11/01','町田','Ｇ大阪'],
+ ['11/01','横浜FM','川崎Ｆ'],['10/31','仙台','大宮'],['10/31','新潟','富山'],
+ ['10/31','宮崎','大分']
+];
+const official1668Html='<div>〖開催回〗 第 1668 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+((i===2||i===3||i===4)?'15:00':'14:00')+'</td><td>会場'+i+'</td><td>'+m[1]+' VS '+m[2]+'</td></tr>').join('');
+const official1668Parsed=parseToto(official1668Html,new Date('2026-10-28T00:00:00+09:00'));
+assert.equal(official1668Parsed.round,1668);
+assert.equal(official1668Parsed.deadline,'2026-10-31T13:50:00+09:00');
+assert.equal(official1668Parsed.fixtures.length,13,'round 1668 official-listed fixture data should parse all 13 matches');
+assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[1],m[2]]));
+
 
 const goal3Rows=[
  ['10/28','水戸','その他データ','35.85%','0.40点'],
