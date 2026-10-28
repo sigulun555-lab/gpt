@@ -50,4 +50,67 @@ function backtest(history){
  }
  return {n,brier:n?brier/n:null,logloss:n?logloss/n:null,accuracy:n?correct/n:null,method:"chronological walk-forward"};
 }
-if(typeof module!=="undefined")module.exports={predict,backtest,canonical,goalProbabilities};
+
+function backtestGoal3(history){
+ const sorted=history.filter(m=>Number.isFinite(m.home_goals)&&Number.isFinite(m.away_goals)&&m.date).sort((a,b)=>a.date.localeCompare(b.date));
+ const adjusted=[],league=[],empirical=[];
+ const bin=g=>Math.max(0,Math.min(3,Math.floor(g)));
+ const empiricalProb=(prior,field)=>{
+  const counts=[1,1,1,1];
+  for(const m of prior)counts[bin(m[field])]++;
+  const total=counts.reduce((a,b)=>a+b,0);
+  return counts.map(v=>v/total);
+ };
+ for(let i=1;i<sorted.length;i++){
+  const m=sorted[i],prior=sorted.slice(0,i).filter(x=>x.date<m.date);
+  const p=predict(prior,m);
+  const leagueHome=Math.max(.15,Math.min(3.5,avg(prior.map(x=>x.home_goals))));
+  const leagueAway=Math.max(.15,Math.min(3.5,avg(prior.map(x=>x.away_goals))));
+  const key=i;
+  for(const side of ['home','away']){
+   const actual=bin(m[side+'_goals']);
+   const modelProb=side==='home'?p.homeGoalProbabilities:p.awayGoalProbabilities;
+   const leagueProb=goalProbabilities(side==='home'?leagueHome:leagueAway);
+   const empiricalP=empiricalProb(prior,side+'_goals');
+   adjusted.push({probabilities:modelProb,actual,key});
+   league.push({probabilities:leagueProb,actual,key});
+   empirical.push({probabilities:empiricalP,actual,key});
+  }
+ }
+ const summarize=records=>{
+  let correct=0,brier=0,logloss=0;
+  const byMatch=new Map();
+  for(const r of records){
+   const predicted=r.probabilities.reduce((best,value,index)=>value>r.probabilities[best]?index:best,0);
+   const hit=predicted===r.actual;
+   if(hit)correct++;
+   brier+=r.probabilities.reduce((sum,value,index)=>sum+(value-(index===r.actual?1:0))**2,0);
+   logloss-=Math.log(Math.max(1e-12,r.probabilities[r.actual]));
+   if(!byMatch.has(r.key))byMatch.set(r.key,[]);
+   byMatch.get(r.key).push(hit);
+  }
+  const targetCount=records.length,matchCount=byMatch.size;
+  return {
+   targetCount,
+   accuracy:targetCount?correct/targetCount:null,
+   brier:targetCount?brier/targetCount:null,
+   logloss:targetCount?logloss/targetCount:null,
+   exactBothSidesAccuracy:matchCount?[...byMatch.values()].filter(v=>v.length===2&&v.every(Boolean)).length/matchCount:null
+  };
+ };
+ return {
+  method:'chronological walk-forward; training uses matches with date strictly earlier than each target date',
+  target:'home and away goals categorized as 0, 1, 2, 3+',
+  sourceRows:sorted.length,
+  testMatches:Math.max(0,sorted.length-1),
+  teamGoalTargets:adjusted.length,
+  testStartDate:sorted[1]?.date||null,
+  testEndDate:sorted.length?sorted[sorted.length-1].date:null,
+  models:{
+   teamAdjustedPoisson:summarize(adjusted),
+   leagueMeanPoisson:summarize(league),
+   empiricalLaplaceBaseline:summarize(empirical)
+  }
+ };
+}
+if(typeof module!=="undefined")module.exports={predict,backtest,backtestGoal3,canonical,goalProbabilities};
