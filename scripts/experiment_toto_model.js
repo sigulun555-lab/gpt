@@ -71,14 +71,16 @@ function summarize(rows) {
 function runExperiment() {
   const sorted = history.filter(m => m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals))
     .slice().sort((a, b) => a.date.localeCompare(b.date));
-  const baseRows = [], candidateRows = [];
+  const baseRows = [], candidateRows = new Map([[3, []], [6, []], [10, []]]);
   for (const m of sorted) {
     const prior = sorted.filter(x => x.date < m.date);
     if (!prior.length) continue;
     const base = predict(prior, { date: m.date, home: m.home, away: m.away }).probabilities;
-    const candidate = predictCompetitionShrinkage(sorted, { date: m.date, home: m.home, away: m.away, competition: m.competition }).probabilities;
     baseRows.push({ match: m, p: base });
-    candidateRows.push({ match: m, p: candidate });
+    for (const k of candidateRows.keys()) {
+      const candidate = predictCompetitionShrinkage(sorted, { date: m.date, home: m.home, away: m.away, competition: m.competition }, k).probabilities;
+      candidateRows.get(k).push({ match: m, p: candidate });
+    }
   }
   const predictions = fixturesFile.fixtures.map(f => {
     const fixture = { ...f, date: f.date, competition: f.competition };
@@ -102,7 +104,9 @@ function runExperiment() {
     evaluation: {
       method: 'chronological walk-forward; same-day/future rows excluded; scores are mean per match; competition-specific candidate uses same competition only',
       baselineCurrentProduction: summarize(baseRows),
-      candidateCompetitionShrinkageK6: summarize(candidateRows),
+      candidateCompetitionShrinkageK3: summarize(candidateRows.get(3)),
+      candidateCompetitionShrinkageK6: summarize(candidateRows.get(6)),
+      candidateCompetitionShrinkageK10: summarize(candidateRows.get(10)),
       caveat: 'This is a model-selection experiment on the currently stored 2026 sample, not proof of future improvement. The candidate is not connected to production.'
     },
     predictions
