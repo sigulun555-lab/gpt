@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {csv,date,score,parseSchedule,parseToto,build}=require('../scripts/auto_pipeline.js');
-const {predict}=require('../model.js');
+const {predict,backtestGoal3}=require('../model.js');
 assert.deepEqual(csv('"2026","J1","round","2026/10/22","2026-10-22T19:00:00+09:00","Home","2-1","Away"')[0].slice(0,4),['2026','J1','round','2026/10/22']);
 assert.equal(date('2026/1/9'),'2026-01-09');
 assert.deepEqual(score('2-1'),{home_goals:2,away_goals:1});
@@ -79,3 +79,35 @@ for(const p of [aliasPrediction.homeGoalProbabilities,aliasPrediction.awayGoalPr
 assert.ok(Math.abs(Object.values(aliasPrediction.probabilities).reduce((a,b)=>a+b,0)-1)<1e-9);
 assert.equal(goalProbabilities(1).length,4);
 console.log('PASS team alias normalization and shared score/1X2 probability outputs');
+
+const goal3BacktestHistory=[
+ {date:'2025-01-01',home:'Home',away:'Away',home_goals:0,away_goals:1},
+ {date:'2025-01-08',home:'Away',away:'Home',home_goals:2,away_goals:1},
+ {date:'2025-01-15',home:'Home',away:'Away',home_goals:3,away_goals:0},
+ {date:'2025-01-22',home:'Away',away:'Home',home_goals:2,away_goals:2}
+];
+const goal3Bt=backtestGoal3(goal3BacktestHistory);
+assert.equal(goal3Bt.sourceRows,4);
+assert.equal(goal3Bt.testMatches,3);
+assert.equal(goal3Bt.teamGoalTargets,6);
+assert.equal(goal3Bt.testStartDate,'2025-01-08');
+assert.equal(goal3Bt.testEndDate,'2025-01-22');
+assert.match(goal3Bt.method,/strictly earlier/);
+for(const modelName of ['teamAdjustedPoisson','leagueMeanPoisson','empiricalLaplaceBaseline']){
+ const metrics=goal3Bt.models[modelName];
+ assert.equal(metrics.targetCount,6);
+ assert.ok(Number.isFinite(metrics.accuracy)&&metrics.accuracy>=0&&metrics.accuracy<=1);
+ assert.ok(Number.isFinite(metrics.brier)&&metrics.brier>=0);
+ assert.ok(Number.isFinite(metrics.logloss)&&metrics.logloss>=0);
+ assert.ok(Number.isFinite(metrics.exactBothSidesAccuracy)&&metrics.exactBothSidesAccuracy>=0&&metrics.exactBothSidesAccuracy<=1);
+}
+const leakTarget={date:'2025-01-15',home:'Home',away:'Away'};
+const earlierOnly=goal3BacktestHistory.filter(m=>m.date<leakTarget.date);
+const forecastEarlier=predict(earlierOnly,leakTarget);
+const forecastWithLaterRows=predict([...goal3BacktestHistory,
+ {date:'2025-01-15',home:'Home',away:'Away',home_goals:99,away_goals:99},
+ {date:'2025-02-01',home:'Home',away:'Away',home_goals:99,away_goals:99}
+],leakTarget);
+assert.deepEqual(forecastWithLaterRows.homeGoalProbabilities,forecastEarlier.homeGoalProbabilities,'same-day and future scores must not leak into GOAL3 probabilities');
+assert.deepEqual(forecastWithLaterRows.awayGoalProbabilities,forecastEarlier.awayGoalProbabilities,'same-day and future scores must not leak into GOAL3 probabilities');
+console.log('PASS GOAL3 chronological backtest metrics, baselines, and strict no-same-day/future-leakage regression');
