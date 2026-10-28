@@ -6,6 +6,8 @@ const { predict, canonical } = require('../model.js');
 const ROOT = path.resolve(__dirname, '..');
 const history = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'history.json'), 'utf8')).history;
 const fixturesFile = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'toto_round_1668.json'), 'utf8'));
+const marketSnapshot = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'toto_round_1668_market_snapshot.json'), 'utf8'));
+const marketByMatch = new Map(marketSnapshot.probabilities.map(x => [x.matchNumber, x]));
 const KEYS = ['1', '0', '2'];
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1.25;
@@ -85,21 +87,34 @@ function runExperiment() {
   const predictions = fixturesFile.fixtures.map(f => {
     const fixture = { ...f, date: f.date, competition: f.competition };
     const base = predict(sorted, { date: fixture.date, home: fixture.home, away: fixture.away });
-    const candidate = predictCompetitionShrinkage(sorted, fixture);
+    const candidate = predictCompetitionShrinkage(sorted, fixture, 6);
+    const candidateK10 = predictCompetitionShrinkage(sorted, fixture, 10);
+    const market = marketByMatch.get(fixture.matchNumber);
+    const trialBlend = {
+      '1': 0.7 * market.home + 0.3 * candidateK10.probabilities['1'],
+      '0': 0.7 * market.draw + 0.3 * candidateK10.probabilities['0'],
+      '2': 0.7 * market.away + 0.3 * candidateK10.probabilities['2']
+    };
     return {
       matchNumber: fixture.matchNumber, date: fixture.date, competition: fixture.competition,
       home: fixture.home, away: fixture.away,
       baseline: { probabilities: base.probabilities, homeExpectedGoals: base.homeExpectedGoals, awayExpectedGoals: base.awayExpectedGoals },
       candidate: { probabilities: candidate.probabilities, homeExpectedGoals: candidate.homeLambda, awayExpectedGoals: candidate.awayLambda },
+      candidateK10: { probabilities: candidateK10.probabilities, homeExpectedGoals: candidateK10.homeLambda, awayExpectedGoals: candidateK10.awayLambda },
+      marketVoteShare: { '1': market.home, '0': market.draw, '2': market.away },
+      marketSnapshotAt: marketSnapshot.retrievedAt,
+      trialBlend70Market30K10: trialBlend,
       candidateHistory: { home: candidate.historyHomeMatches, away: candidate.historyAwayMatches },
-      topPick: Object.keys(candidate.probabilities).reduce((best, k) => candidate.probabilities[k] > candidate.probabilities[best] ? k : best, '1')
+      topPick: Object.keys(candidate.probabilities).reduce((best, k) => candidate.probabilities[k] > candidate.probabilities[best] ? k : best, '1'),
+      trialBlendTopPick: Object.keys(trialBlend).reduce((best, k) => trialBlend[k] > trialBlend[best] ? k : best, '1')
     };
   });
   return {
     generatedAt: new Date().toISOString(),
     round: fixturesFile.round,
     deadline: fixturesFile.deadline,
-    source: 'data/history.json (community J.League CSV mirror); not official toto market odds',
+    source: 'data/history.json (community J.League CSV mirror); market snapshot separately sourced from official toto-dream.com vote shares',
+    marketSnapshot: { retrievedAt: marketSnapshot.retrievedAt, sourceUrl: marketSnapshot.sourceUrl, interpretation: marketSnapshot.interpretation },
     historyRows: sorted.length,
     evaluation: {
       method: 'chronological walk-forward; same-day/future rows excluded; scores are mean per match; competition-specific candidate uses same competition only',
