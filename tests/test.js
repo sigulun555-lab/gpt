@@ -29,7 +29,7 @@ const official1668Parsed=parseToto(official1668Html,new Date('2026-10-28T00:00:0
 assert.equal(official1668Parsed.round,1668);
 assert.equal(official1668Parsed.deadline,'2026-10-31T13:50:00+09:00');
 assert.equal(official1668Parsed.fixtures.length,13,'round 1668 official-listed fixture data should parse all 13 matches');
-assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[3],m[4]]));
+assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[2],m[3]]));
 
 
 const goal3Rows=[
