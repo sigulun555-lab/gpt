@@ -14,7 +14,9 @@ for (const p of report.predictions) {
   }
 }
 assert.ok(report.evaluation.baselineCurrentProduction.n > 100);
+assert.equal(report.evaluation.baselineCurrentProduction.n, report.evaluation.candidateCompetitionShrinkageK3.n);
 assert.equal(report.evaluation.baselineCurrentProduction.n, report.evaluation.candidateCompetitionShrinkageK6.n);
+assert.equal(report.evaluation.baselineCurrentProduction.n, report.evaluation.candidateCompetitionShrinkageK10.n);
 console.log(JSON.stringify({
   round: report.round,
   evaluation: report.evaluation,
