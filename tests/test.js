@@ -121,6 +121,16 @@ for(const metrics of Object.values(historicalGoal3Bt.models)){
  assert.equal(metrics.targetCount,historicalGoal3Bt.teamGoalTargets);
  assert.ok(Number.isFinite(metrics.accuracy)&&Number.isFinite(metrics.brier)&&Number.isFinite(metrics.logloss));
 }
+const savedGoal3Bt=require('../data/goal3_backtest.json');
+assert.equal(savedGoal3Bt.sourceRows,historicalGoal3Bt.sourceRows,'saved GOAL3 backtest must use the same history snapshot');
+assert.equal(savedGoal3Bt.testMatches,historicalGoal3Bt.testMatches,'saved GOAL3 backtest must score every match');
+assert.equal(savedGoal3Bt.teamGoalTargets,historicalGoal3Bt.teamGoalTargets,'saved GOAL3 backtest target count must match recomputation');
+for(const modelName of Object.keys(historicalGoal3Bt.models)){
+ for(const metricName of ['targetCount','accuracy','brier','logloss','exactBothSidesAccuracy']){
+  assert.ok(Math.abs(savedGoal3Bt.models[modelName][metricName]-historicalGoal3Bt.models[modelName][metricName])<1e-12,
+   'saved GOAL3 backtest metric mismatch: '+modelName+'.'+metricName);
+ }
+}
 console.log('GOAL3 HISTORICAL BACKTEST '+JSON.stringify({
  period:[historicalGoal3Bt.testStartDate,historicalGoal3Bt.testEndDate],
  sourceRows:historicalGoal3Bt.sourceRows,
