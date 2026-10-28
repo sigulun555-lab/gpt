@@ -70,6 +70,14 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   const roundTextContexts = [...goal3Html.matchAll(/開催回|第1666回|第1668回/g)]
     .slice(0, 20)
     .map(m => goal3Html.slice(Math.max(0, m.index - 90), Math.min(goal3Html.length, m.index + 150)).replace(/\s+/g, ' '));
+  const formTags = [...goal3Html.matchAll(/<form\b[^>]*>/gi)].map(m => m[0]).slice(0, 20);
+  const inputTags = [...goal3Html.matchAll(/<input\b[^>]*>/gi)].map(m => m[0]).slice(0, 80);
+  const marketContexts = [...goal3Html.matchAll(/totoGOAL3|toto\s*マルチ|くじ種類/g)]
+    .slice(0, 30)
+    .map(m => goal3Html.slice(Math.max(0, m.index - 160), Math.min(goal3Html.length, m.index + 220)).replace(/\s+/g, ' '));
+  console.log('DEBUG GOAL3 form tags', JSON.stringify(formTags));
+  console.log('DEBUG GOAL3 input tags', JSON.stringify(inputTags));
+  console.log('DEBUG GOAL3 market contexts', JSON.stringify(marketContexts));
   console.log('DEBUG GOAL3 round control tags', JSON.stringify(roundControlTags));
   console.log('DEBUG GOAL3 round text contexts', JSON.stringify(roundTextContexts));
   assert.equal(goal3.round, 1666, 'official selected GOAL3 round should be parsed');
