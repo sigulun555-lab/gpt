@@ -275,6 +275,8 @@ if __name__ == "__main__":
         print(f"=== mode: {mode} ===", file=sys.stderr)
         results[mode] = run(mode)
         for name, s in results[mode].items():
+            if name == "_metadata":
+                continue
             print(f"  {name:16s} acc={s['accuracy']:.4f} brier={s['brier']:.4f} logloss={s['logloss']:.4f}", file=sys.stderr)
     json.dump(results, open(args.out, "w"), ensure_ascii=False, indent=2)
     print("done")

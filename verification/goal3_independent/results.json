@@ -27,6 +27,20 @@
       "brier": 0.7587747781721378,
       "logloss": 1.4100489152711153,
       "exactBothSidesAccuracy": 0.10290237467018469
+    },
+    "_metadata": {
+      "mode": "2026only",
+      "targetMatches": 379,
+      "targetDateStart": "2026-08-07",
+      "targetDateEnd": "2026-10-25",
+      "history2026Rows": 380,
+      "history2025Rows": 1140,
+      "shrinkageMLEFitDiagnostics": {
+        "fitCount": 379,
+        "successCount": 379,
+        "failureCount": 0,
+        "failures": []
+      }
     }
   },
   "2025plus2026": {
@@ -57,6 +71,20 @@
       "brier": 0.7354082796485613,
       "logloss": 1.3608174735800824,
       "exactBothSidesAccuracy": 0.09234828496042216
+    },
+    "_metadata": {
+      "mode": "2025plus2026",
+      "targetMatches": 379,
+      "targetDateStart": "2026-08-07",
+      "targetDateEnd": "2026-10-25",
+      "history2026Rows": 380,
+      "history2025Rows": 1140,
+      "shrinkageMLEFitDiagnostics": {
+        "fitCount": 379,
+        "successCount": 379,
+        "failureCount": 0,
+        "failures": []
+      }
     }
   }
 }
