@@ -41,8 +41,17 @@ jobs:
         id: pipeline
         continue-on-error: true
         run: npm run update
-      - name: Commit status and generated data
+      - name: Upload generated data for inspection
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toto-generated-data-${{ github.run_id }}
+          path: data/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Commit status and generated data
+        id: publish
+        if: always() && github.ref == 'refs/heads/main'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -52,13 +61,15 @@ jobs:
           else
             git commit -m "chore: refresh toto data and predictions [skip ci]"
             git pull --rebase -X theirs origin main
-            git push
+            git push origin HEAD:main
           fi
-      - name: Report unsuccessful source parsing
-        if: steps.pipeline.outcome != 'success'
-        run: echo 'Data source fetch/parse did not complete successfully. See data/status.json and logs.' 
+      - name: Report unsuccessful pipeline or publish
+        if: always() && (steps.pipeline.outcome != 'success' || (github.ref == 'refs/heads/main' && steps.publish.outcome != 'success'))
+        run: |
+          echo 'Pipeline or data publish failed. Inspect the uploaded toto-generated-data artifact and job logs.'
+          exit 1
   deploy:
-    if: always() && needs.update.result != 'cancelled'
+    if: github.ref == 'refs/heads/main' && always() && needs.update.result != 'cancelled'
     needs: update
     runs-on: ubuntu-latest
     permissions:
