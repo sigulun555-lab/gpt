@@ -11,9 +11,53 @@ const p=predict(hist,{date:'2025-02-01',home:'Home',away:'Away'}).probabilities;
 assert.ok(Math.abs(p['1']+p['0']+p['2']-1)<1e-9);assert.ok(Object.values(p).every(x=>x>=0&&x<=1));
 const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Date('2026-10-22T00:00:00Z'));assert.equal(noTargets.fixtures.length,0);
 const html='<div>〖開催回〗 第 999 回 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
-const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);
+const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);assert.equal(parsed.marketType,'toto');
+const officialShapeHtml='<div>〖開催回〗 第 1000 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>'+(i<5?'10/31':'11/01')+'<br>14:00</td><td>会場'+i+'</td><td>Home'+i+'</td><td>VS</td><td>Away'+i+'</td></tr>').join('');
+const officialShape=parseToto(officialShapeHtml,new Date('2026-10-28T00:00:00+09:00'));
+assert.equal(officialShape.fixtures.length,13,'official-shaped rows with date/time line breaks should parse all 13 fixtures');
+assert.deepEqual([officialShape.fixtures[0].number,officialShape.fixtures[0].dateLabel,officialShape.fixtures[0].home,officialShape.fixtures[0].away],[1,'10/31','Home0','Away0']);
+assert.equal(officialShape.fixtures[12].number,13);
+const officialRound1668=[
+ ['10/31','14:00','岡山','FC東京'],['10/31','14:00','水戸','広島'],['10/31','15:00','神戸','名古屋'],
+ ['10/31','15:00','鹿島','Ｃ大阪'],['10/31','16:00','柏','浦和'],['10/31','14:00','京都','清水'],
+ ['11/01','14:00','千葉','福岡'],['11/01','14:00','長崎','東京Ｖ'],['11/01','16:00','町田','Ｇ大阪'],
+ ['11/01','13:00','横浜FM','川崎Ｆ'],['10/31','14:00','仙台','大宮'],['10/31','14:00','新潟','富山'],
+ ['10/31','14:00','宮崎','大分']
+];
+const official1668Html='<div>〖開催回〗 第 1668 回 toto 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div><table>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+m[1]+'</td><td>会場'+i+'</td><td>'+m[2]+'</td><td>VS</td><td>'+m[3]+'</td><td>データ</td></tr>').join('')+'</table>';
+const official1668Parsed=parseToto(official1668Html,new Date('2026-10-28T00:00:00+09:00'));
+assert.equal(official1668Parsed.round,1668);
+assert.equal(official1668Parsed.deadline,'2026-10-31T13:50:00+09:00');
+assert.equal(official1668Parsed.fixtures.length,13,'round 1668 official-listed fixture data should parse all 13 matches');
+assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[2],m[3]]));
+
+
+const goal3Rows=[
+ ['10/28','水戸','その他データ','35.85%','0.40点'],
+ ['','Ｃ大阪','その他データ','16.83%','1.60点'],
+ ['10/28','横浜FM','その他データ','24.29%','1.00点'],
+ ['','広島','その他データ','16.88%','2.00点'],
+ ['10/28','名古屋','その他データ','20.03%','2.00点'],
+ ['','浦和','その他データ','18.68%','1.80点']
+];
+const goal3Html='<div>〖開催回〗 第 1666 回 〖くじ〗 totoGOAL3 マルチ 販売期間 2026/10/21 08:00 ～ 2026/10/28 18:50</div>'+goal3Rows.map(cells=>'<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('');
+const goal3Parsed=parseToto(goal3Html,new Date('2026-10-22T00:00:00Z'));
+assert.equal(goal3Parsed.marketType,'totoGOAL3');
+assert.equal(goal3Parsed.round,1666);
+assert.equal(goal3Parsed.deadline,'2026-10-28T18:50:00+09:00');
+assert.equal(goal3Parsed.fixtures.length,3,'GOAL3 should normalize six team rows to three matches');
+assert.deepEqual(goal3Parsed.fixtures.map(f=>[f.number,f.home,f.away]),[[1,'水戸','Ｃ大阪'],[2,'横浜FM','広島'],[3,'名古屋','浦和']]);
+const goal3Built=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"',goal3Html,new Date('2026-10-22T00:00:00Z'));
+assert.equal(goal3Built.payload.totoTargetsConfirmed,true);
+assert.equal(goal3Built.fixtures.fixtures.length,3);
+assert.deepEqual(Object.keys(goal3Built.fixtures.fixtures[0]).sort(),['away','deadline','home','marketType','matchNumber','round'].sort());
+assert.equal(goal3Built.fixtures.fixtures[0].marketType,'totoGOAL3');
+assert.equal(goal3Built.fixtures.fixtures[0].matchNumber,1);
+assert.equal(goal3Built.fixtures.fixtures[0].round,1666);
+assert.equal(goal3Built.fixtures.fixtures[0].deadline,'2026-10-28T18:50:00+09:00');
+
 const notConfirmed=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"','<html>none</html>',new Date('2026-10-22T00:00:00Z'));assert.equal(notConfirmed.payload.predictionsGenerated,false);assert.equal(notConfirmed.payload.predictions.length,0);
-console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, and safe no-target behavior');
+console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, totoGOAL3 six-team-row normalization, fixture-only data contract, and safe no-target behavior');
 
 const {canonical,goalProbabilities}=require('../model.js');
 const aliases=require('../data/team_aliases.json').aliases;
