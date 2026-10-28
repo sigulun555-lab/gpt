@@ -12,6 +12,12 @@ assert.ok(Math.abs(p['1']+p['0']+p['2']-1)<1e-9);assert.ok(Object.values(p).ever
 const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Date('2026-10-22T00:00:00Z'));assert.equal(noTargets.fixtures.length,0);
 const html='<div>〖開催回〗 第 999 回 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
 const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);assert.equal(parsed.marketType,'toto');
+const officialShapeHtml='<div>〖開催回〗 第 1000 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>'+(i<5?'10/31':'11/01')+'<br>14:00</td><td>会場'+i+'</td><td>Home'+i+'</td><td>VS</td><td>Away'+i+'</td></tr>').join('');
+const officialShape=parseToto(officialShapeHtml,new Date('2026-10-28T00:00:00+09:00'));
+assert.equal(officialShape.fixtures.length,13,'official-shaped rows with date/time line breaks should parse all 13 fixtures');
+assert.deepEqual([officialShape.fixtures[0].number,officialShape.fixtures[0].dateLabel,officialShape.fixtures[0].home,officialShape.fixtures[0].away],[1,'10/31','Home0','Away0']);
+assert.equal(officialShape.fixtures[12].number,13);
+
 const goal3Rows=[
  ['10/28','水戸','その他データ','35.85%','0.40点'],
  ['','Ｃ大阪','その他データ','16.83%','1.60点'],
