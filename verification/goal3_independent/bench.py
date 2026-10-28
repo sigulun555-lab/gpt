@@ -212,7 +212,7 @@ def run(mode):
     records = {"leagueMean": [], "empirical": [], "simpleTeamAdj": [], "shrinkageMLE": []}
     fit_diagnostics = {"fitCount": 0, "successCount": 0, "failureCount": 0,
                        "failures": []}
-    for i in range(1, len(sorted_2026)):
+    for i in range(0, len(sorted_2026)):
         m = sorted_2026[i]
         prior_2026 = [x for x in sorted_2026[:i] if x["date"] < m["date"]]
         if mode == "2026only":
@@ -220,13 +220,13 @@ def run(mode):
         else:
             prior = h2025 + prior_2026
         # Do NOT skip empty-prior steps: model.js's backtestGoal3 evaluates
-        # every match from sorted[1] onward regardless of prior size, and
+        # every match from sorted[0] onward regardless of prior size, and
         # every helper here already has a defined fallback for prior=[]
         # (avg() defaults to 1.25, empirical_probs falls back to a uniform
         # Laplace prior, fit_shrinkage returns params=None -> neutral 1.25).
         # Skipping empty-prior steps silently shrinks the evaluation set
-        # (one match in 2026-only mode: the 2026-08-07 season opener, where
-        # several matches share the same date so prior_2026 is empty) and
+        # (the 2026-08-07 season opener has no earlier 2026-only data; the
+        # defined neutral/uniform fallbacks are therefore evaluated) and
         # was the exact source of the ~0.001-scale mismatch against GPT's
         # reported numbers.
         lm_h, lm_a = league_mean_probs(prior)
@@ -259,8 +259,8 @@ def run(mode):
     result = {name: summarize(recs) for name, recs in records.items()}
     result["_metadata"] = {
         "mode": mode,
-        "targetMatches": len(sorted_2026) - 1,
-        "targetDateStart": sorted_2026[1]["date"] if len(sorted_2026) > 1 else None,
+        "targetMatches": len(sorted_2026),
+        "targetDateStart": sorted_2026[0]["date"] if sorted_2026 else None,
         "targetDateEnd": sorted_2026[-1]["date"] if len(sorted_2026) > 1 else None,
         "history2026Rows": len(h2026),
         "history2025Rows": len(h2025),
