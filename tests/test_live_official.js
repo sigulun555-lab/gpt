@@ -29,7 +29,7 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   assert.equal(parsed.deadline, '2026-10-31T13:50:00+09:00', 'official online deadline should be parsed');
   assert.equal(parsed.fixtures.length, 13, 'all 13 official matches should be parsed');
   console.log('LIVE_PARSED_FIXTURES', JSON.stringify(parsed.fixtures.map(f => [f.number, f.dateLabel, f.home, f.away])));
-  console.log('LIVE_VS_ROWS', JSON.stringify([...html.matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)].map(m => m[1].replace(/<[^>]*>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/[\\s\\u3000]+/g,' ').trim()).filter(s => /\\bVS\\b/i.test(s)).slice(0,18)));
+  console.log('LIVE_VS_ROWS', JSON.stringify([...html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].map(m => m[1].replace(/<[^>]*>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/[\s\u3000]+/g,' ').trim()).filter(s => /\bVS\b/i.test(s)).slice(0,18)));
 
   assert.deepEqual(
     parsed.fixtures.map(f => [f.home, f.away]),
