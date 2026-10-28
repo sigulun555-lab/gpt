@@ -22,3 +22,20 @@ jobs:
       - run: npm test
       - name: Test against live official toto HTML
         run: node tests/test_live_official.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install nested validation dependencies
+        run: python -m pip install --upgrade pip numpy scipy
+      - name: Test nested GOAL3 validation
+        run: python3 -m unittest verification/goal3_independent/test_nested_validation.py
+      - name: Run nested GOAL3 validation on real data
+        run: python3 verification/goal3_independent/nested_validation.py
+      - name: Upload nested validation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nested-goal3-validation-results
+          path: verification/goal3_independent/nested_results.json
+          if-no-files-found: warn
+          retention-days: 30
