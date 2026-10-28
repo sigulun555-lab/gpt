@@ -10,7 +10,7 @@ function date(s){const m=String(s||'').match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})
 function score(s){const m=String(s||'').match(/^(\d+)\s*[-–－]\s*(\d+)$/);return m?{home_goals:+m[1],away_goals:+m[2]}:null;}
 function parseSchedule(text){return csv(text).map(r=>({date:date(r[3]),competition:r[1]||'',round:r[2]||'',home:(r[5]||'').trim(),score:r[6]||'',away:(r[7]||'').trim(),...score(r[6])})).filter(m=>m.date&&m.home&&m.away&&m.home!==m.away);}
 function decode(s){return String(s||'').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n));}
-function textOf(s){return decode(String(s||'').replace(/<script\b[\s\S]*?<\/script>/gi,' ').replace(/<style\b[\s\S]*?<\/style>/gi,' ').replace(/<\/(?:tr|td|th|div|p|li|option|h[1-6])\s*>/gi,' ').replace(/<[^>]*>/g,' ')).replace(/[\u3000\s]+/g,' ').trim();}
+function textOf(s){return decode(String(s||'').replace(/<br\s*\/?>/gi,' ').replace(/<script\b[\s\S]*?<\/script>/gi,' ').replace(/<style\b[\s\S]*?<\/style>/gi,' ').replace(/<\/(?:tr|td|th|div|p|li|option|h[1-6])\s*>/gi,' ').replace(/<[^>]*>/g,' ')).replace(/[\u3000\s]+/g,' ').trim();}
 function targetDate(md,now){const m=String(md).match(/^(\d{1,2})\/(\d{1,2})$/);if(!m)return '';const tokyo=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit'}).formatToParts(now),p=Object.fromEntries(tokyo.map(x=>[x.type,x.value]));let y=+p.year;if(+m[1]<+p.month)y++;return y+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');}
 function parseGoal3TeamFromRow(rowHtml){
  const rowText=textOf(rowHtml);
