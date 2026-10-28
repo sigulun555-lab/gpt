@@ -10,21 +10,21 @@
     "teamAdjustedPoisson": {
       "targetCount": 760,
       "accuracy": 0.2802631578947368,
-      "brier": 0.833626095702804,
+      "brier": 0.833626095702807,
       "logloss": 1.6357884822870776,
       "exactBothSidesAccuracy": 0.09736842105263158
     },
     "leagueMeanPoisson": {
       "targetCount": 760,
       "accuracy": 0.3144736842105263,
-      "brier": 0.7651159004508612,
+      "brier": 0.7651159004508575,
       "logloss": 1.4261266050033243,
       "exactBothSidesAccuracy": 0.09736842105263158
     },
     "empiricalLaplaceBaseline": {
       "targetCount": 760,
       "accuracy": 0.2986842105263158,
-      "brier": 0.7515710412937521,
+      "brier": 0.7515710412937514,
       "logloss": 1.3873674657942214,
       "exactBothSidesAccuracy": 0.08157894736842106
     }
