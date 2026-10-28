@@ -27,8 +27,9 @@ function parseGoal3TeamFromRow(rowHtml){
 }
 function parseToto(html,now=new Date()){
  const plain=textOf(html),rm=plain.match(/〖開催回〗\s*第\s*(\d+)\s*回/)||plain.match(/開催回.{0,180}?第\s*(\d+)\s*回/)||plain.match(/第\s*(\d+)\s*回\s*totoくじ情報/),round=rm?+rm[1]:null;
+ const selectedMarket=plain.match(/〖くじ〗\s*(toto\s*GOAL\s*3|toto)/i);
  const marketHeader=plain.match(/第\s*\d+\s*回\s*(toto\s*GOAL\s*3|toto)\s*くじ情報/i);
- const marketType=marketHeader?( /GOAL\s*3/i.test(marketHeader[1])?'totoGOAL3':'toto'):(/〖くじ〗\s*toto\s*GOAL\s*3/i.test(plain)?'totoGOAL3':'toto');
+ const marketType=selectedMarket?(/GOAL\s*3/i.test(selectedMarket[1])?'totoGOAL3':'toto'):marketHeader?(/GOAL\s*3/i.test(marketHeader[1])?'totoGOAL3':'toto'):(/toto\s*GOAL\s*3/i.test(plain)?'totoGOAL3':'toto');
  const sale=plain.match(/販売期間\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})\s*[～〜~\-]\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})/);
  const saleEnd=plain.match(/販売終了日\s*(\d{4})年(\d{1,2})月(\d{1,2})日[\s\S]{0,100}?当サイト\s*\(ネット決済\)\s*(\d{1,2}):(\d{2})/);
  const saleBegin=plain.match(/販売開始日\s*(\d{4})年(\d{1,2})月(\d{1,2})日(?:\([^)]*\))?\s*(\d{1,2}):(\d{2})/);
