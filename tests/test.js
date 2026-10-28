@@ -128,3 +128,61 @@ console.log('GOAL3 HISTORICAL BACKTEST '+JSON.stringify({
  teamGoalTargets:historicalGoal3Bt.teamGoalTargets,
  models:historicalGoal3Bt.models
 }));
+
+
+// Exercise the actual app.js rendering logic with a minimal DOM shim. This complements
+// parser tests and verifies the market-specific fixture counts and probability labels.
+const vm = require('node:vm');
+class TestElement {
+  constructor(tagName='div') { this.tagName=tagName; this.children=[]; this._text=''; this.className=''; this.listeners={}; }
+  set textContent(value) { this._text=String(value ?? ''); this.children=[]; }
+  get textContent() { return this._text + this.children.map(child => child.textContent || '').join(''); }
+  append(...nodes) { this.children.push(...nodes); }
+  replaceChildren(...nodes) { this.children=[]; this._text=''; this.append(...nodes); }
+  addEventListener(name, callback) { this.listeners[name]=callback; }
+}
+function createTestDocument() {
+  const elements = new Map();
+  return {
+    getElementById(id) { if(!elements.has(id)) elements.set(id,new TestElement(id)); return elements.get(id); },
+    createElement(tag) { return new TestElement(tag); },
+    createTextNode(text) { const node=new TestElement('#text'); node.textContent=text; return node; },
+    elements
+  };
+}
+async function renderAppWithPayload(marketType) {
+  const document=createTestDocument();
+  const isGoal3=marketType==='totoGOAL3';
+  const predictions=Array.from({length:isGoal3?3:13},(_,i)=>({
+    number:i+1, date:'2026-10-28', home:'Home'+(i+1), away:'Away'+(i+1),
+    prediction:isGoal3
+      ? {homeGoalProbabilities:[0.1,0.2,0.3,0.4],awayGoalProbabilities:[0.4,0.3,0.2,0.1]}
+      : {probabilities:{'1':0.5,'0':0.25,'2':0.25}}
+  }));
+  const status={predictionsGenerated:true,totoTargetsConfirmed:true,lastAttemptAt:'2026-10-28T02:00:00Z',lastSuccessfulFetch:'2026-10-28T02:00:00Z',warnings:[]};
+  const payload={round:isGoal3?1666:1668,deadline:'2026-10-28T18:50:00+09:00',generatedAt:'2026-10-28T02:00:00Z',totoSource:{marketType},predictions,warnings:[]};
+  const fetch=async url=>({ok:true,json:async()=>url.includes('status.json')?status:payload});
+  vm.runInNewContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'..','app.js'),'utf8'),{document,fetch,console});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  return document;
+}
+(async()=>{
+  const goal3Doc=await renderAppWithPayload('totoGOAL3');
+  assert.equal(goal3Doc.getElementById('badge').textContent,'予想更新済み');
+  assert.equal(goal3Doc.getElementById('roundTitle').textContent,'第1666回 totoGOAL3 予想');
+  const goal3Cards=goal3Doc.getElementById('fixtures');
+  assert.equal(goal3Cards.children.length,3,'GOAL3 UI must render exactly three fixture cards');
+  assert.match(goal3Cards.textContent,/ホーム得点/);
+  assert.match(goal3Cards.textContent,/アウェイ得点/);
+  for(const label of ['0点','1点','2点','3+点']) assert.ok(goal3Cards.textContent.includes(label),'GOAL3 UI must show '+label);
+  assert.equal(goal3Cards.children[0].children[2].children.length,10,'each GOAL3 card must show two headings and four bins per side');
+
+  const totoDoc=await renderAppWithPayload('toto');
+  assert.equal(totoDoc.getElementById('badge').textContent,'予想更新済み');
+  assert.equal(totoDoc.getElementById('roundTitle').textContent,'第1668回 toto 予想');
+  const totoCards=totoDoc.getElementById('fixtures');
+  assert.equal(totoCards.children.length,13,'standard toto UI must continue to render all thirteen fixtures');
+  for(const label of ['ホーム勝ち','引き分け','アウェイ勝ち']) assert.ok(totoCards.textContent.includes(label),'standard toto UI must show '+label);
+  assert.equal(totoCards.children[0].children[2].children.length,3,'each standard toto card must show three 1X2 probabilities');
+  console.log('PASS app.js UI rendering: GOAL3 3 fixtures with goal bins and standard toto 13 fixtures with 1X2 labels');
+})().catch(error=>{console.error(error);process.exitCode=1;});
