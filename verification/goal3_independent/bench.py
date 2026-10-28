@@ -209,8 +209,16 @@ def run(mode):
             prior = prior_2026
         else:
             prior = h2025 + prior_2026
-        if not prior:
-            continue
+        # Do NOT skip empty-prior steps: model.js's backtestGoal3 evaluates
+        # every match from sorted[1] onward regardless of prior size, and
+        # every helper here already has a defined fallback for prior=[]
+        # (avg() defaults to 1.25, empirical_probs falls back to a uniform
+        # Laplace prior, fit_shrinkage returns params=None -> neutral 1.25).
+        # Skipping empty-prior steps silently shrinks the evaluation set
+        # (one match in 2026-only mode: the 2026-08-07 season opener, where
+        # several matches share the same date so prior_2026 is empty) and
+        # was the exact source of the ~0.001-scale mismatch against GPT's
+        # reported numbers.
         lm_h, lm_a = league_mean_probs(prior)
         emp_h = empirical_probs(prior, "home_goals")
         emp_a = empirical_probs(prior, "away_goals")
