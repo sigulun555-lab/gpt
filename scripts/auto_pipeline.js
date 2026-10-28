@@ -59,7 +59,7 @@ function parseToto(html,now=new Date()){
    if(home&&away&&home!==away)fixtures.push({number:n,marketType,date:targetDate(m[2],now),dateLabel:m[2],home,away,source:'toto_official_page',sourceUrl:TOTO_URL});
   }
  }
- const unique=[...new Map(fixtures.map(f=>[f.number,f])).values()].sort((a,b)=>a.number-b.number);
+ const uniqueMap=new Map();for(const f of fixtures)if(!uniqueMap.has(f.number))uniqueMap.set(f.number,f);const unique=[...uniqueMap.values()].sort((a,b)=>a.number-b.number);
  return {round,marketType,deadline:iso(sale&&sale[2])||saleEndIso,saleStart:iso(sale&&sale[1])||saleBeginIso,fixtures:unique,parsedAt:now.toISOString()};
 }
 async function get(url,accept){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);try{const r=await fetch(url,{headers:{Accept:accept,'User-Agent':'JLeagueTotoPredictor/0.1 (+scheduled data pipeline)'},signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status+' from '+new URL(url).hostname);const s=await r.text();if(s.length<100)throw Error('Unexpectedly short response from '+url);return s;}finally{clearTimeout(t);}}
