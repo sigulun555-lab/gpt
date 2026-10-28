@@ -28,6 +28,7 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   assert.equal(parsed.marketType, 'toto', 'official page should be identified as standard toto');
   assert.equal(parsed.deadline, '2026-10-31T13:50:00+09:00', 'official online deadline should be parsed');
   assert.equal(parsed.fixtures.length, 13, 'all 13 official matches should be parsed');
+  console.log('LIVE_PARSED_FIXTURES', JSON.stringify(parsed.fixtures.map(f => [f.number, f.dateLabel, f.home, f.away])));
   assert.deepEqual(
     parsed.fixtures.map(f => [f.home, f.away]),
     expected,
