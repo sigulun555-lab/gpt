@@ -18,18 +18,26 @@ assert.equal(officialShape.fixtures.length,13,'official-shaped rows with date/ti
 assert.deepEqual([officialShape.fixtures[0].number,officialShape.fixtures[0].dateLabel,officialShape.fixtures[0].home,officialShape.fixtures[0].away],[1,'10/31','Home0','Away0']);
 assert.equal(officialShape.fixtures[12].number,13);
 const officialRound1668=[
- ['10/31','岡山','FC東京'],['10/31','水戸','広島'],['10/31','神戸','名古屋'],
- ['10/31','鹿島','Ｃ大阪'],['10/31','柏','浦和'],['10/31','京都','清水'],
- ['11/01','千葉','福岡'],['11/01','長崎','東京Ｖ'],['11/01','町田','Ｇ大阪'],
- ['11/01','横浜FM','川崎Ｆ'],['10/31','仙台','大宮'],['10/31','新潟','富山'],
- ['10/31','宮崎','大分']
+ ['10/31','14:00','ＪＦＥス','ファジアーノ岡山','ＦＣ東京'],
+ ['10/31','14:00','水戸信ス','水戸ホーリーホック','サンフレッチェ広島'],
+ ['10/31','15:00','ノエスタ','ヴィッセル神戸','名古屋グランパス'],
+ ['10/31','15:00','メルスタ','鹿島アントラーズ','セレッソ大阪'],
+ ['10/31','16:00','三協Ｆ柏','柏レイソル','浦和レッズ'],
+ ['10/31','14:00','サンガＳ','京都サンガF.C.','清水エスパルス'],
+ ['11/01','14:00','フクアリ','ジェフユナイテッド千葉','アビスパ福岡'],
+ ['11/01','14:00','ピースタ','Ｖ・ファーレン長崎','東京ヴェルディ'],
+ ['11/01','16:00','Ｇスタ','ＦＣ町田ゼルビア','ガンバ大阪'],
+ ['11/01','13:00','日産ス','横浜Ｆ・マリノス','川崎フロンターレ'],
+ ['10/31','14:00','ユアスタ','ベガルタ仙台','ＲＢ大宮アルディージャ'],
+ ['10/31','14:00','デンカＳ','アルビレックス新潟','カターレ富山'],
+ ['10/31','14:00','いちご','テゲバジャーロ宮崎','大分トリニータ']
 ];
-const official1668Html='<div>〖開催回〗 第 1668 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+((i===2||i===3||i===4)?'15:00':'14:00')+'</td><td>会場'+i+'</td><td>'+m[1]+' VS '+m[2]+'</td></tr>').join('');
+const official1668Html='<div>〖開催回〗 第 1668 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+m[1]+'</td><td>'+m[2]+'</td><td>'+m[3]+'</td><td>VS</td><td>'+m[4]+'</td><td>データ</td></tr>').join('');
 const official1668Parsed=parseToto(official1668Html,new Date('2026-10-28T00:00:00+09:00'));
 assert.equal(official1668Parsed.round,1668);
 assert.equal(official1668Parsed.deadline,'2026-10-31T13:50:00+09:00');
 assert.equal(official1668Parsed.fixtures.length,13,'round 1668 official-listed fixture data should parse all 13 matches');
-assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[1],m[2]]));
+assert.deepEqual(official1668Parsed.fixtures.map(f=>[f.number,f.dateLabel,f.home,f.away]),officialRound1668.map((m,i)=>[i+1,m[0],m[3],m[4]]));
 
 
 const goal3Rows=[
