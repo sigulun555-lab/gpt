@@ -26,7 +26,18 @@ function parseGoal3TeamFromRow(rowHtml){
  return null;
 }
 function parseToto(html,now=new Date()){
- const plain=textOf(html),rm=plain.match(/〖開催回〗\s*第\s*(\d+)\s*回/)||plain.match(/開催回.{0,180}?第\s*(\d+)\s*回/)||plain.match(/第\s*(\d+)\s*回\s*totoくじ情報/),round=rm?+rm[1]:null;
+ const plain=textOf(html);
+ // Prefer the round explicitly selected in the official form. The page can also
+ // list another round in its selector/navigation, so a broad "開催回 ... 第N回"
+ // text search can accidentally pick an unselected round.
+ const selectedOption=[...String(html).matchAll(/<option\\b([^>]*)>([\\s\\S]*?)<\\/option>/gi)]
+  .find(([,attrs,label])=>/\\bselected(?:\\s|=|$)/i.test(attrs)&&/第\\s*\\d+\\s*回/.test(textOf(label)));
+ const selectedOptionMatch=selectedOption&&textOf(selectedOption[2]).match(/第\\s*(\\d+)\\s*回/);
+ const selectedInputAttrs=[...String(html).matchAll(/<input\\b([^>]*)>/gi)].map(m=>m[1])
+  .find(attrs=>/\\bname=[\\"'](?:holdCntId|kaiCntId|roundNo)[\\"']/i.test(attrs)&&/\\bvalue=[\\"']\\d+[\\"']/i.test(attrs));
+ const selectedInputMatch=selectedInputAttrs&&selectedInputAttrs.match(/\\bvalue=[\\"'](\\d+)[\\"']/i);
+ const rm=plain.match(/〖開催回〗\\s*第\\s*(\\d+)\\s*回/)||plain.match(/【開催回】\\s*第\\s*(\\d+)\\s*回/)||plain.match(/第\\s*(\\d+)\\s*回\\s*totoくじ情報/);
+ const round=selectedOptionMatch?+selectedOptionMatch[1]:selectedInputMatch?+selectedInputMatch[1]:rm?+rm[1]:null;
  const selectedMarket=plain.match(/〖くじ〗\s*(toto\s*GOAL\s*3|toto)/i);
  const marketHeader=plain.match(/第\s*\d+\s*回\s*(toto\s*GOAL\s*3|toto)\s*くじ情報/i);
  const marketType=selectedMarket?(/GOAL\s*3/i.test(selectedMarket[1])?'totoGOAL3':'toto'):marketHeader?(/GOAL\s*3/i.test(marketHeader[1])?'totoGOAL3':'toto'):(/toto\s*GOAL\s*3/i.test(plain)?'totoGOAL3':'toto');
