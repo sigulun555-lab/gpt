@@ -1,12 +1,12 @@
 {
-  "status": "toto_targets_unconfirmed",
+  "status": "predictions_generated",
   "liveData": true,
-  "predictionsGenerated": false,
-  "totoTargetsConfirmed": false,
-  "round": null,
-  "deadline": null,
-  "lastAttemptAt": "2026-10-27T22:12:30.945Z",
-  "lastSuccessfulFetch": "2026-10-27T22:12:30.945Z",
+  "predictionsGenerated": true,
+  "totoTargetsConfirmed": true,
+  "round": 1666,
+  "deadline": "2026-10-28T18:50:00+09:00",
+  "lastAttemptAt": "2026-10-28T02:06:06.586Z",
+  "lastSuccessfulFetch": "2026-10-28T02:06:06.586Z",
   "lastError": null,
   "source": {
     "name": "k-addtimes/jleague_open_data",
@@ -16,19 +16,20 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form",
-    "lastFetchedAt": "2026-10-27T22:12:30.945Z",
+    "lastFetchedAt": "2026-10-28T02:06:06.586Z",
+    "marketType": "totoGOAL3",
     "round": 1666,
     "deadline": "2026-10-28T18:50:00+09:00",
-    "fixtureCount": 0
+    "fixtureCount": 3,
+    "teamTargetCount": 6
   },
   "counts": {
     "scheduleRows": 1140,
     "historyMatches": 380,
-    "totoFixtures": 0,
-    "predictions": 0
+    "totoFixtures": 3,
+    "predictions": 3
   },
   "warnings": [
-    "公式totoページから開催回・締切・対象13試合を完全確認できないため予想を公開していません。解析数=0",
     "負傷・欠場・出場停止情報は未取得です。",
     "予測モデルはベースラインであり、的中を保証しません。"
   ]
