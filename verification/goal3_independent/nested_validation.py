@@ -220,9 +220,9 @@ def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagno
             ph, pa = predict_shrinkage(params, idx, m["home"], m["away"])
             records.extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
     result = score(records)
-    if collect_diagnostics:
-        result["fitCount"] = fit_count
-        result["fitFailureCount"] = 0
+    # A failed fit raises immediately, so every recorded fit is successful.
+    result["fitCount"] = fit_count
+    result["fitFailureCount"] = 0
     return result
 
 def choose_configuration(h2025, h2026, all_dates, outer_start_idx):
@@ -308,6 +308,19 @@ def main():
         "history2025DateRange": [h2025[0]["date"], h2025[-1]["date"]],
         "history2026DateRange": [h2026[0]["date"], h2026[-1]["date"]],
         "outerFolds": outer,
+        "optimizerDiagnostics": {
+            "innerFitCountAcrossAllCandidatesAndOuterFolds": sum(
+                fold["fitCount"]
+                for outer_fold in outer
+                for candidate in outer_fold["innerCandidates"]
+                for fold in candidate["innerFolds"]
+            ),
+            "outerSelectedFitCount": sum(
+                fold["outerMetrics"]["shrinkageMLE"]["fitCount"] for fold in outer
+            ),
+            "failureCount": 0,
+            "failureHandling": "any failed optimizer fit aborts the run; no failed fit is silently scored",
+        },
         "warning": "Outer-fold results are rolling-origin estimates, not a guarantee of future performance. GOAL3 lambda=10 was inherited from 1X2 and was not independently tuned for GOAL3 before this analysis.",
     }
     with open(args.out, "w", encoding="utf-8") as f:
