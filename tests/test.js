@@ -111,3 +111,20 @@ const forecastWithLaterRows=predict([...goal3BacktestHistory,
 assert.deepEqual(forecastWithLaterRows.homeGoalProbabilities,forecastEarlier.homeGoalProbabilities,'same-day and future scores must not leak into GOAL3 probabilities');
 assert.deepEqual(forecastWithLaterRows.awayGoalProbabilities,forecastEarlier.awayGoalProbabilities,'same-day and future scores must not leak into GOAL3 probabilities');
 console.log('PASS GOAL3 chronological backtest metrics, baselines, and strict no-same-day/future-leakage regression');
+
+const historicalRows=require('../data/history.json').history;
+const historicalGoal3Bt=backtestGoal3(historicalRows);
+assert.equal(historicalGoal3Bt.sourceRows,historicalRows.filter(m=>Number.isFinite(m.home_goals)&&Number.isFinite(m.away_goals)&&m.date).length);
+assert.equal(historicalGoal3Bt.teamGoalTargets,historicalGoal3Bt.testMatches*2);
+assert.ok(historicalGoal3Bt.testMatches>100,'historical GOAL3 evaluation should cover a useful sample');
+for(const metrics of Object.values(historicalGoal3Bt.models)){
+ assert.equal(metrics.targetCount,historicalGoal3Bt.teamGoalTargets);
+ assert.ok(Number.isFinite(metrics.accuracy)&&Number.isFinite(metrics.brier)&&Number.isFinite(metrics.logloss));
+}
+console.log('GOAL3 HISTORICAL BACKTEST '+JSON.stringify({
+ period:[historicalGoal3Bt.testStartDate,historicalGoal3Bt.testEndDate],
+ sourceRows:historicalGoal3Bt.sourceRows,
+ testMatches:historicalGoal3Bt.testMatches,
+ teamGoalTargets:historicalGoal3Bt.teamGoalTargets,
+ models:historicalGoal3Bt.models
+}));
