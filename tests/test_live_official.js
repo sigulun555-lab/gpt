@@ -55,13 +55,13 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official purchase page HTML should be non-empty');
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\\b[^>]*>/gi)]
+  const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\b[^>]*>/gi)]
     .map(m => m[0])
     .filter(tag => /hold|kai|round|1666|1668|selected/i.test(tag))
     .slice(0, 60);
   const roundTextContexts = [...goal3Html.matchAll(/開催回|第1666回|第1668回/g)]
     .slice(0, 20)
-    .map(m => goal3Html.slice(Math.max(0, m.index - 90), Math.min(goal3Html.length, m.index + 150)).replace(/\\s+/g, ' '));
+    .map(m => goal3Html.slice(Math.max(0, m.index - 90), Math.min(goal3Html.length, m.index + 150)).replace(/\s+/g, ' '));
   console.log('DEBUG GOAL3 round control tags', JSON.stringify(roundControlTags));
   console.log('DEBUG GOAL3 round text contexts', JSON.stringify(roundTextContexts));
   assert.equal(goal3.round, 1666, 'official selected GOAL3 round should be parsed');
