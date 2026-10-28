@@ -1,0 +1,62 @@
+{
+  "2026only": {
+    "leagueMean": {
+      "targetCount": 756,
+      "accuracy": 0.31613756613756616,
+      "brier": 0.7637954575848297,
+      "logloss": 1.4229394305974004,
+      "exactBothSidesAccuracy": 0.09788359788359788
+    },
+    "empirical": {
+      "targetCount": 756,
+      "accuracy": 0.3002645502645503,
+      "brier": 0.751579353681549,
+      "logloss": 1.3873731435967314,
+      "exactBothSidesAccuracy": 0.082010582010582
+    },
+    "simpleTeamAdj": {
+      "targetCount": 756,
+      "accuracy": 0.28174603174603174,
+      "brier": 0.8326681406423445,
+      "logloss": 1.6337106299831836,
+      "exactBothSidesAccuracy": 0.09788359788359788
+    },
+    "shrinkageMLE": {
+      "targetCount": 756,
+      "accuracy": 0.32275132275132273,
+      "brier": 0.7580977812833599,
+      "logloss": 1.4084127944974336,
+      "exactBothSidesAccuracy": 0.10317460317460317
+    }
+  },
+  "2025plus2026": {
+    "leagueMean": {
+      "targetCount": 758,
+      "accuracy": 0.33509234828496043,
+      "brier": 0.7358231220697565,
+      "logloss": 1.359188750830598,
+      "exactBothSidesAccuracy": 0.10554089709762533
+    },
+    "empirical": {
+      "targetCount": 758,
+      "accuracy": 0.33509234828496043,
+      "brier": 0.7372389767099156,
+      "logloss": 1.3611308719126525,
+      "exactBothSidesAccuracy": 0.10554089709762533
+    },
+    "simpleTeamAdj": {
+      "targetCount": 758,
+      "accuracy": 0.3179419525065963,
+      "brier": 0.7572533921779581,
+      "logloss": 1.4184361287218432,
+      "exactBothSidesAccuracy": 0.10554089709762533
+    },
+    "shrinkageMLE": {
+      "targetCount": 758,
+      "accuracy": 0.3337730870712401,
+      "brier": 0.7354082796485613,
+      "logloss": 1.3608174735800824,
+      "exactBothSidesAccuracy": 0.09234828496042216
+    }
+  }
+}
