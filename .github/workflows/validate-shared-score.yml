@@ -22,3 +22,16 @@ jobs:
       - run: npm test
       - name: Test against live official toto HTML
         run: node tests/test_live_official.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install independent benchmark dependencies
+        run: python -m pip install numpy scipy
+      - name: Run independent GOAL3 benchmark
+        run: python verification/goal3_independent/bench.py
+      - name: Upload independent GOAL3 benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-goal3-benchmark
+          path: verification/goal3_independent/results.json
+          if-no-files-found: error

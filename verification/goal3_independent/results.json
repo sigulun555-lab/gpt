@@ -1,0 +1,90 @@
+{
+  "2026only": {
+    "leagueMean": {
+      "targetCount": 760,
+      "accuracy": 0.3144736842105263,
+      "brier": 0.7651159004508575,
+      "logloss": 1.4261266050033243,
+      "exactBothSidesAccuracy": 0.09736842105263158
+    },
+    "empirical": {
+      "targetCount": 760,
+      "accuracy": 0.2986842105263158,
+      "brier": 0.7515710412937514,
+      "logloss": 1.3873674657942214,
+      "exactBothSidesAccuracy": 0.08157894736842106
+    },
+    "simpleTeamAdj": {
+      "targetCount": 760,
+      "accuracy": 0.2802631578947368,
+      "brier": 0.8336260957028069,
+      "logloss": 1.6357884822870776,
+      "exactBothSidesAccuracy": 0.09736842105263158
+    },
+    "shrinkageMLE": {
+      "targetCount": 760,
+      "accuracy": 0.32105263157894737,
+      "brier": 0.7594482119193957,
+      "logloss": 1.4116764248828313,
+      "exactBothSidesAccuracy": 0.10263157894736842
+    },
+    "_metadata": {
+      "mode": "2026only",
+      "targetMatches": 380,
+      "targetDateStart": "2026-08-07",
+      "targetDateEnd": "2026-10-25",
+      "history2026Rows": 380,
+      "history2025Rows": 1140,
+      "shrinkageMLEFitDiagnostics": {
+        "fitCount": 380,
+        "successCount": 380,
+        "failureCount": 0,
+        "failures": []
+      }
+    }
+  },
+  "2025plus2026": {
+    "leagueMean": {
+      "targetCount": 760,
+      "accuracy": 0.33421052631578946,
+      "brier": 0.7365769720852035,
+      "logloss": 1.3610396766086554,
+      "exactBothSidesAccuracy": 0.10526315789473684
+    },
+    "empirical": {
+      "targetCount": 760,
+      "accuracy": 0.33421052631578946,
+      "brier": 0.7379865799629713,
+      "logloss": 1.3629387357443736,
+      "exactBothSidesAccuracy": 0.10526315789473684
+    },
+    "simpleTeamAdj": {
+      "targetCount": 760,
+      "accuracy": 0.3171052631578947,
+      "brier": 0.7582391374643492,
+      "logloss": 1.4214870189684807,
+      "exactBothSidesAccuracy": 0.10526315789473684
+    },
+    "shrinkageMLE": {
+      "targetCount": 760,
+      "accuracy": 0.33289473684210524,
+      "brier": 0.7362426645788549,
+      "logloss": 1.3629611465507123,
+      "exactBothSidesAccuracy": 0.09210526315789473
+    },
+    "_metadata": {
+      "mode": "2025plus2026",
+      "targetMatches": 380,
+      "targetDateStart": "2026-08-07",
+      "targetDateEnd": "2026-10-25",
+      "history2026Rows": 380,
+      "history2025Rows": 1140,
+      "shrinkageMLEFitDiagnostics": {
+        "fitCount": 380,
+        "successCount": 380,
+        "failureCount": 0,
+        "failures": []
+      }
+    }
+  }
+}
