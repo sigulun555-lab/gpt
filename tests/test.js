@@ -88,14 +88,14 @@ const goal3BacktestHistory=[
 ];
 const goal3Bt=backtestGoal3(goal3BacktestHistory);
 assert.equal(goal3Bt.sourceRows,4);
-assert.equal(goal3Bt.testMatches,3);
-assert.equal(goal3Bt.teamGoalTargets,6);
-assert.equal(goal3Bt.testStartDate,'2025-01-08');
+assert.equal(goal3Bt.testMatches,4,'backtest should include every scored match, including the first fallback prediction');
+assert.equal(goal3Bt.teamGoalTargets,8);
+assert.equal(goal3Bt.testStartDate,'2025-01-01');
 assert.equal(goal3Bt.testEndDate,'2025-01-22');
 assert.match(goal3Bt.method,/strictly earlier/);
 for(const modelName of ['teamAdjustedPoisson','leagueMeanPoisson','empiricalLaplaceBaseline']){
  const metrics=goal3Bt.models[modelName];
- assert.equal(metrics.targetCount,6);
+ assert.equal(metrics.targetCount,8);
  assert.ok(Number.isFinite(metrics.accuracy)&&metrics.accuracy>=0&&metrics.accuracy<=1);
  assert.ok(Number.isFinite(metrics.brier)&&metrics.brier>=0);
  assert.ok(Number.isFinite(metrics.logloss)&&metrics.logloss>=0);
@@ -120,6 +120,16 @@ assert.ok(historicalGoal3Bt.testMatches>100,'historical GOAL3 evaluation should 
 for(const metrics of Object.values(historicalGoal3Bt.models)){
  assert.equal(metrics.targetCount,historicalGoal3Bt.teamGoalTargets);
  assert.ok(Number.isFinite(metrics.accuracy)&&Number.isFinite(metrics.brier)&&Number.isFinite(metrics.logloss));
+}
+const savedGoal3Bt=require('../data/goal3_backtest.json');
+assert.equal(savedGoal3Bt.sourceRows,historicalGoal3Bt.sourceRows,'saved GOAL3 backtest must use the same history snapshot');
+assert.equal(savedGoal3Bt.testMatches,historicalGoal3Bt.testMatches,'saved GOAL3 backtest must score every match');
+assert.equal(savedGoal3Bt.teamGoalTargets,historicalGoal3Bt.teamGoalTargets,'saved GOAL3 backtest target count must match recomputation');
+for(const modelName of Object.keys(historicalGoal3Bt.models)){
+ for(const metricName of ['targetCount','accuracy','brier','logloss','exactBothSidesAccuracy']){
+  assert.ok(Math.abs(savedGoal3Bt.models[modelName][metricName]-historicalGoal3Bt.models[modelName][metricName])<1e-12,
+   'saved GOAL3 backtest metric mismatch: '+modelName+'.'+metricName);
+ }
 }
 console.log('GOAL3 HISTORICAL BACKTEST '+JSON.stringify({
  period:[historicalGoal3Bt.testStartDate,historicalGoal3Bt.testEndDate],

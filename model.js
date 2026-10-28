@@ -61,7 +61,7 @@ function backtestGoal3(history){
   const total=counts.reduce((a,b)=>a+b,0);
   return counts.map(v=>v/total);
  };
- for(let i=1;i<sorted.length;i++){
+ for(let i=0;i<sorted.length;i++){
   const m=sorted[i],prior=sorted.slice(0,i).filter(x=>x.date<m.date);
   const p=predict(prior,m);
   const leagueHome=Math.max(.15,Math.min(3.5,avg(prior.map(x=>x.home_goals))));
@@ -102,9 +102,9 @@ function backtestGoal3(history){
   method:'chronological walk-forward; training uses matches with date strictly earlier than each target date',
   target:'home and away goals categorized as 0, 1, 2, 3+',
   sourceRows:sorted.length,
-  testMatches:Math.max(0,sorted.length-1),
+  testMatches:sorted.length,
   teamGoalTargets:adjusted.length,
-  testStartDate:sorted[1]?.date||null,
+  testStartDate:sorted[0]?.date||null,
   testEndDate:sorted.length?sorted[sorted.length-1].date:null,
   models:{
    teamAdjustedPoisson:summarize(adjusted),
