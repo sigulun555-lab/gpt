@@ -1,29 +1,4 @@
 {
   "schemaVersion": 1,
-  "fixtures": [
-    {
-      "marketType": "totoGOAL3",
-      "matchNumber": 1,
-      "home": "水戸",
-      "away": "Ｃ大阪",
-      "round": 1666,
-      "deadline": "2026-10-28T18:50:00+09:00"
-    },
-    {
-      "marketType": "totoGOAL3",
-      "matchNumber": 2,
-      "home": "横浜FM",
-      "away": "広島",
-      "round": 1666,
-      "deadline": "2026-10-28T18:50:00+09:00"
-    },
-    {
-      "marketType": "totoGOAL3",
-      "matchNumber": 3,
-      "home": "名古屋",
-      "away": "浦和",
-      "round": 1666,
-      "deadline": "2026-10-28T18:50:00+09:00"
-    }
-  ]
+  "fixtures": []
 }
