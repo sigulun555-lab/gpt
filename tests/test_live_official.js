@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const { parseToto } = require('../scripts/auto_pipeline.js');
 
-// Regression: the currently selected round must win over a newer round listed elsewhere.
+// Regression: the selected round must win over a newer round listed in navigation.
 {
   const html = '<label>開催回</label><select name="holdCntId"><option value="1668">第1668回</option><option value="1666" selected="selected">第1666回</option></select><div>第1668回 totoくじ情報</div><div>〖くじ〗 totoGOAL3</div>';
   assert.equal(parseToto(html, new Date('2026-10-28T00:00:00+09:00')).round, 1666,
@@ -10,113 +10,50 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
 }
 
 (async () => {
-  const url = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'text/html,application/xhtml+xml,*/*',
-      'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)'
-    },
-    signal: AbortSignal.timeout(20000)
-  });
-  assert.equal(response.ok, true, 'official toto page should return HTTP success');
-  const html = await response.text();
-  assert.ok(html.length > 1000, 'official toto page HTML should be non-empty');
+  const headers = {
+    Accept: 'text/html,application/xhtml+xml,*/*',
+    'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)'
+  };
+  const options = { headers, signal: AbortSignal.timeout(20000) };
 
-  // Freeze the parser's reference date so month/year normalization is deterministic.
-  const parsed = parseToto(html, new Date('2026-10-28T00:00:00+09:00'));
-  const expected = [
+  // Standard toto remains supported and must be distinguished from GOAL3.
+  const totoUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
+  const totoResponse = await fetch(totoUrl, options);
+  assert.equal(totoResponse.ok, true, 'official standard-toto page should return HTTP success');
+  const totoHtml = await totoResponse.text();
+  assert.ok(totoHtml.length > 1000, 'official standard-toto HTML should be non-empty');
+  const toto = parseToto(totoHtml, new Date('2026-10-28T00:00:00+09:00'));
+  const expectedToto = [
     ['岡山', 'FC東京'], ['水戸', '広島'], ['神戸', '名古屋'],
     ['鹿島', 'Ｃ大阪'], ['柏', '浦和'], ['京都', '清水'],
     ['千葉', '福岡'], ['長崎', '東京Ｖ'], ['町田', 'Ｇ大阪'],
     ['横浜FM', '川崎Ｆ'], ['仙台', '大宮'], ['新潟', '富山'],
     ['宮崎', '大分']
   ];
-  assert.equal(parsed.round, 1668, 'official page round should be parsed');
-  assert.equal(parsed.marketType, 'toto', 'official page should be identified as standard toto');
-  assert.equal(parsed.deadline, '2026-10-31T13:50:00+09:00', 'official online deadline should be parsed');
-  assert.equal(parsed.fixtures.length, 13, 'all 13 official matches should be parsed');
-
-  assert.deepEqual(
-    parsed.fixtures.map(f => [f.home, f.away]),
-    expected,
-    'all official home/away pairs should match in order'
-  );
+  assert.equal(toto.round, 1668, 'official standard-toto round should be parsed');
+  assert.equal(toto.marketType, 'toto', 'commodityId=01 should be identified as standard toto');
+  assert.equal(toto.deadline, '2026-10-31T13:50:00+09:00', 'standard-toto deadline should be parsed');
+  assert.equal(toto.fixtures.length, 13, 'all 13 standard-toto fixtures should be parsed');
+  assert.deepEqual(toto.fixtures.map(f => [f.home, f.away]), expectedToto,
+    'standard-toto home/away pairs should match in order');
   console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
 
-  const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form';
-  const goal3Response = await fetch(goal3Url, {
-    headers: {
-      Accept: 'text/html,application/xhtml+xml,*/*',
-      'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)'
-    },
-    signal: AbortSignal.timeout(20000)
-  });
-  assert.equal(goal3Response.ok, true, 'official purchase page should return HTTP success');
+  // Explicitly choose commodityId=02 (totoGOAL3) while allowing the official page
+  // to supply its current round; do not rely on the page's default commodityId=01.
+  const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1';
+  const goal3Response = await fetch(goal3Url, options);
+  assert.equal(goal3Response.ok, true, 'official GOAL3 selection page should return HTTP success');
   const goal3Html = await goal3Response.text();
-  assert.ok(goal3Html.length > 1000, 'official purchase page HTML should be non-empty');
-  const detailResponse = await fetch('https://sp.toto-dream.com/dcs/subos/screen/si01/ssin026/PGSSIN02601InittotoSP.form?holdCntId=1668', {
-    headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
-    signal: AbortSignal.timeout(20000)
-  });
-  const detailHtml = await detailResponse.text();
-  const detailHeader = detailHtml.search(/第\s*1668\s*回[\s\S]{0,100}?toto\s*GOAL\s*3/i);
-  console.log('DEBUG GOAL3 detail HTTP/size', detailResponse.status, detailHtml.length, 'headerIndex', detailHeader);
-  if (detailHeader >= 0) console.log('DEBUG GOAL3 detail section', detailHtml.slice(Math.max(0, detailHeader - 800), Math.min(detailHtml.length, detailHeader + 3500)).replace(/\s+/g, ' '));
-  const noRoundGoal3Response = await fetch('https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1', {
-    headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
-    signal: AbortSignal.timeout(20000)
-  });
-  const noRoundGoal3Html = await noRoundGoal3Response.text();
-  const noRoundGoal3 = parseToto(noRoundGoal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  console.log('DEBUG GOAL3 query without round', JSON.stringify({
-    status: noRoundGoal3Response.status, round: noRoundGoal3.round, marketType: noRoundGoal3.marketType,
-    deadline: noRoundGoal3.deadline, fixtureCount: noRoundGoal3.fixtures.length,
-    fixtures: noRoundGoal3.fixtures.map(f=>[f.home,f.away]),
-    selectedInputs: [...noRoundGoal3Html.matchAll(/<input\b[^>]*>/gi)].map(m=>m[0]).filter(s=>/holdCntId|commodityId|gameAssortment/i.test(s)).slice(0,10)
-  }));
-  const forcedGoal3Response = await fetch('https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?holdCntId=1668&commodityId=02&gameAssortment=1', {
-    headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
-    signal: AbortSignal.timeout(20000)
-  });
-  const forcedGoal3Html = await forcedGoal3Response.text();
-  const forcedGoal3 = parseToto(forcedGoal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  console.log('DEBUG forced GOAL3 query', JSON.stringify({
-    status: forcedGoal3Response.status, length: forcedGoal3Html.length,
-    round: forcedGoal3.round, marketType: forcedGoal3.marketType,
-    deadline: forcedGoal3.deadline, fixtureCount: forcedGoal3.fixtures.length,
-    fixtures: forcedGoal3.fixtures.map(f => [f.home, f.away]),
-    selectedInputs: [...forcedGoal3Html.matchAll(/<input\b[^>]*>/gi)].map(m=>m[0]).filter(s=>/holdCntId|commodityId|gameAssortment/i.test(s)).slice(0,10),
-    summaryContexts: [...forcedGoal3Html.matchAll(/くじ.{0,30}/g)].slice(0,5).map(m=>m[0])
-  }));
+  assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\b[^>]*>/gi)]
-    .map(m => m[0])
-    .filter(tag => /hold|kai|round|1666|1668|selected/i.test(tag))
-    .slice(0, 60);
-  const roundTextContexts = [...goal3Html.matchAll(/開催回|第1666回|第1668回/g)]
-    .slice(0, 20)
-    .map(m => goal3Html.slice(Math.max(0, m.index - 90), Math.min(goal3Html.length, m.index + 150)).replace(/\s+/g, ' '));
-  const formTags = [...goal3Html.matchAll(/<form\b[^>]*>/gi)].map(m => m[0]).slice(0, 20);
-  const inputTags = [...goal3Html.matchAll(/<input\b[^>]*>/gi)].map(m => m[0]).slice(0, 80);
-  const marketContexts = [...goal3Html.matchAll(/totoGOAL3|toto\s*マルチ|くじ種類/g)]
-    .slice(0, 30)
-    .map(m => goal3Html.slice(Math.max(0, m.index - 160), Math.min(goal3Html.length, m.index + 220)).replace(/\s+/g, ' '));
-  console.log('DEBUG GOAL3 form tags', JSON.stringify(formTags));
-  console.log('DEBUG GOAL3 input tags', JSON.stringify(inputTags));
-  console.log('DEBUG GOAL3 market contexts', JSON.stringify(marketContexts));
-  console.log('DEBUG GOAL3 round control tags', JSON.stringify(roundControlTags));
-  console.log('DEBUG GOAL3 round text contexts', JSON.stringify(roundTextContexts));
-  assert.equal(goal3.round, 1666, 'official selected GOAL3 round should be parsed');
-  assert.equal(goal3.marketType, 'totoGOAL3', 'selected official product should be identified as totoGOAL3');
-  assert.equal(goal3.deadline, '2026-10-28T18:50:00+09:00', 'official GOAL3 deadline should be parsed');
-  assert.equal(goal3.fixtures.length, 3, 'official GOAL3 page should normalize six team rows to three matches');
-  assert.deepEqual(
-    goal3.fixtures.map(f => [f.home, f.away]),
-    [['水戸', 'Ｃ大阪'], ['横浜FM', '広島'], ['名古屋', '浦和']],
-    'official GOAL3 home/away pairs should match in order'
-  );
-  console.log('PASS live official totoGOAL3 HTML: round 1666, deadline, and all 3 fixtures');
-
+  assert.equal(goal3.round, 1668, 'current official GOAL3 round should be parsed from the selected form');
+  assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
+  assert.equal(goal3.deadline, '2026-10-31T13:50:00+09:00', 'official GOAL3 online deadline should be parsed');
+  assert.equal(goal3.fixtures.length, 3, 'GOAL3 should normalize six team rows to three matches');
+  assert.deepEqual(goal3.fixtures.map(f => [f.home, f.away]), [
+    ['岡山', 'FC東京'], ['神戸', '名古屋'], ['柏', '浦和']
+  ], 'official GOAL3 home/away pairs should match in order');
+  console.log('PASS live official totoGOAL3 HTML: round 1668, deadline, and all 3 fixtures');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
