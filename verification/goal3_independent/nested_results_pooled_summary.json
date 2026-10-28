@@ -1,0 +1,58 @@
+{
+  "pooledOuterMetrics": {
+    "shrinkageMLE": {
+      "targetCount": 382,
+      "brier": 0.72313,
+      "logloss": 1.32941,
+      "accuracy": 0.36387
+    },
+    "leagueMean": {
+      "targetCount": 382,
+      "brier": 0.73211,
+      "logloss": 1.35168,
+      "accuracy": 0.3534
+    },
+    "empiricalLaplace": {
+      "targetCount": 382,
+      "brier": 0.73223,
+      "logloss": 1.35277,
+      "accuracy": 0.3534
+    },
+    "simpleTeamAdjusted": {
+      "targetCount": 382,
+      "brier": 0.72916,
+      "logloss": 1.33908,
+      "accuracy": 0.34555
+    }
+  },
+  "shrinkageMLEFitFailures": 0,
+  "shrinkageMLEFitCount": 16,
+  "perFoldSelection": [
+    {
+      "fold": 1,
+      "testStart": "2026-09-14",
+      "testEnd": "2026-09-26",
+      "window": "2025_plus_2026",
+      "lambda": 100.0
+    },
+    {
+      "fold": 2,
+      "testStart": "2026-10-02",
+      "testEnd": "2026-10-10",
+      "window": "2026_only",
+      "lambda": 30.0
+    },
+    {
+      "fold": 3,
+      "testStart": "2026-10-11",
+      "testEnd": "2026-10-25",
+      "window": "2026_only",
+      "lambda": 10.0
+    }
+  ],
+  "leakageChecks": [
+    "passed: each target date trained on strictly earlier dates",
+    "passed: each target date trained on strictly earlier dates",
+    "passed: each target date trained on strictly earlier dates"
+  ]
+}

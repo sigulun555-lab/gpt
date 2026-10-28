@@ -1,0 +1,1264 @@
+{
+  "method": "nested expanding-window time-series validation",
+  "selectionRule": "lowest pooled inner Brier; tie-break Log Loss, Accuracy, lower lambda",
+  "lambdaCandidates": [
+    1.0,
+    3.0,
+    10.0,
+    30.0,
+    100.0
+  ],
+  "trainingWindowCandidates": [
+    "2026_only",
+    "2025_plus_2026"
+  ],
+  "outerStartFractions": [
+    0.55,
+    0.7,
+    0.85
+  ],
+  "history2025Rows": 1140,
+  "history2026Rows": 380,
+  "history2026DistinctDates": 34,
+  "history2025DateRange": [
+    "2025-02-14",
+    "2025-12-06"
+  ],
+  "history2026DateRange": [
+    "2026-08-07",
+    "2026-10-25"
+  ],
+  "outerFolds": [
+    {
+      "fold": 1,
+      "trainCutoffExclusive": "2026-09-14",
+      "testStart": "2026-09-14",
+      "testEnd": "2026-09-26",
+      "testDates": 5,
+      "selected": {
+        "window": "2025_plus_2026",
+        "lambda": 100.0,
+        "innerSelectionMetrics": {
+          "targetCount": 90,
+          "brier": 0.719969985848003,
+          "logloss": 1.3244091949920294,
+          "accuracy": 0.35555555555555557
+        }
+      },
+      "innerCandidates": [
+        {
+          "window": "2025_plus_2026",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.719969985848003,
+            "logloss": 1.3244091949920294,
+            "accuracy": 0.35555555555555557
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.26666666666666666,
+              "brier": 0.7507059062006541,
+              "logloss": 1.3823234240160593,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8113581291977375,
+              "logloss": 1.5265588241822983,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.42592592592592593,
+              "brier": 0.692740236391004,
+              "logloss": 1.269773553401983,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7233775793861648,
+            "logloss": 1.3340873554359272,
+            "accuracy": 0.36666666666666664
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.3,
+              "brier": 0.7509543464747451,
+              "logloss": 1.3866210417556317,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8213896569638705,
+              "logloss": 1.5464781449194778,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.42592592592592593,
+              "brier": 0.697166922383875,
+              "logloss": 1.2813029975379189,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7254168389257244,
+            "logloss": 1.3362678354153077,
+            "accuracy": 0.36666666666666664
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.26666666666666666,
+              "brier": 0.7524850561967809,
+              "logloss": 1.3884496347067297,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.7652228500475443,
+              "logloss": 1.418535281845094,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.4444444444444444,
+              "brier": 0.7059560503171575,
+              "logloss": 1.298137119538986,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7276323229447687,
+            "logloss": 1.3412090108966834,
+            "accuracy": 0.36666666666666664
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.26666666666666666,
+              "brier": 0.7558003933499186,
+              "logloss": 1.3960823446425294,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.7596048475943992,
+              "logloss": 1.403828075646045,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.4444444444444444,
+              "brier": 0.7084308922030599,
+              "logloss": 1.3037661516212846,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7288802590492207,
+            "logloss": 1.3507924671008138,
+            "accuracy": 0.35555555555555557
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.3333333333333333,
+              "brier": 0.7523301906614004,
+              "logloss": 1.4022260886720892,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8314100674556348,
+              "logloss": 1.568263063506084,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.3888888888888889,
+              "brier": 0.7044603183306303,
+              "logloss": 1.2980548332939639,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7333332160110769,
+            "logloss": 1.3651008301344558,
+            "accuracy": 0.3111111111111111
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.26666666666666666,
+              "brier": 0.7558339532120911,
+              "logloss": 1.4222877209545792,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8384335206214195,
+              "logloss": 1.5837381670241493,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.35185185185185186,
+              "brier": 0.7091549948315865,
+              "logloss": 1.3090372978021991,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7346068847285149,
+            "logloss": 1.370496030208803,
+            "accuracy": 0.2777777777777778
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.23333333333333334,
+              "brier": 0.7615187035764475,
+              "logloss": 1.4384753075954166,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8415390263336167,
+              "logloss": 1.5903948262090637,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.3148148148148148,
+              "brier": 0.7077745251902074,
+              "logloss": 1.3082965654384333,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7357930833330261,
+            "logloss": 1.3605230084916675,
+            "accuracy": 0.3333333333333333
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.3,
+              "brier": 0.7659745998808494,
+              "logloss": 1.4241388832768302,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.7483762196794222,
+              "logloss": 1.375273097508753,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.37037037037037035,
+              "brier": 0.7176274478790802,
+              "logloss": 1.3235419570535678,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.7630725138398723,
+            "logloss": 1.426727079468385,
+            "accuracy": 0.26666666666666666
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.2,
+              "brier": 0.7957497980762334,
+              "logloss": 1.5123540865274239,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.7270465441684067,
+              "logloss": 1.3245709241688843,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.3148148148148148,
+              "brier": 0.7489213525609457,
+              "logloss": 1.3905072039133084,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 90,
+            "brier": 0.8075223068956007,
+            "logloss": 1.5366950503363448,
+            "accuracy": 0.15555555555555556
+          },
+          "innerFolds": [
+            {
+              "targetCount": 30,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8419338602787587,
+              "logloss": 1.6479680107237982,
+              "fitCount": 1,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 6,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.699282048321021,
+              "logloss": 1.2652000163225507,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 54,
+              "accuracy": 0.14814814814814814,
+              "brier": 0.8004314726354662,
+              "logloss": 1.5050428539004035,
+              "fitCount": 2,
+              "fitFailureCount": 0
+            }
+          ]
+        }
+      ],
+      "outerMetrics": {
+        "shrinkageMLE": {
+          "targetCount": 102,
+          "accuracy": 0.39215686274509803,
+          "brier": 0.7399117221838489,
+          "logloss": 1.3739580393797048,
+          "fitCount": 5,
+          "fitFailureCount": 0
+        },
+        "leagueMean": {
+          "targetCount": 102,
+          "accuracy": 0.39215686274509803,
+          "brier": 0.7447071556224906,
+          "logloss": 1.3879209198899798
+        },
+        "empiricalLaplace": {
+          "targetCount": 102,
+          "accuracy": 0.39215686274509803,
+          "brier": 0.7451994859281301,
+          "logloss": 1.3871306001308172
+        },
+        "simpleTeamAdjusted": {
+          "targetCount": 102,
+          "accuracy": 0.39215686274509803,
+          "brier": 0.7129287065027184,
+          "logloss": 1.3141194636176345
+        }
+      },
+      "leakageCheck": "passed: each target date trained on strictly earlier dates"
+    },
+    {
+      "fold": 2,
+      "trainCutoffExclusive": "2026-10-02",
+      "testStart": "2026-10-02",
+      "testEnd": "2026-10-10",
+      "testDates": 5,
+      "selected": {
+        "window": "2026_only",
+        "lambda": 30.0,
+        "innerSelectionMetrics": {
+          "targetCount": 192,
+          "brier": 0.7267792895717314,
+          "logloss": 1.3409386028835497,
+          "accuracy": 0.3802083333333333
+        }
+      },
+      "innerCandidates": [
+        {
+          "window": "2026_only",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7267792895717314,
+            "logloss": 1.3409386028835497,
+            "accuracy": 0.3802083333333333
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.25,
+              "brier": 0.7564344690573319,
+              "logloss": 1.397373299809782,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.44642857142857145,
+              "brier": 0.7068503610202297,
+              "logloss": 1.3006518791698765,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.39,
+              "brier": 0.7272636249457562,
+              "logloss": 1.3431826772697633,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7270906149681102,
+            "logloss": 1.3404856110198127,
+            "accuracy": 0.3697916666666667
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.2777777777777778,
+              "brier": 0.7630415365139448,
+              "logloss": 1.4159945856488176,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.375,
+              "brier": 0.7162632483833928,
+              "logloss": 1.3207181523465974,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.4,
+              "brier": 0.7202116084990515,
+              "logloss": 1.3243721570103713,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.728304080570568,
+            "logloss": 1.345245305042489,
+            "accuracy": 0.3802083333333333
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.25,
+              "brier": 0.7546080218385747,
+              "logloss": 1.3934639092297902,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.44642857142857145,
+              "brier": 0.7042524926599688,
+              "logloss": 1.2947798619559108,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.39,
+              "brier": 0.7323035509440209,
+              "logloss": 1.3561472556635443,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7303713456806342,
+            "logloss": 1.350319057361097,
+            "accuracy": 0.375
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.2777777777777778,
+              "brier": 0.7626935648895993,
+              "logloss": 1.4132638922829392,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.4107142857142857,
+              "brier": 0.6956688644346335,
+              "logloss": 1.2771009201161838,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.39,
+              "brier": 0.7381687362631673,
+              "logloss": 1.3686610736463851,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.730564033276421,
+            "logloss": 1.350732018572982,
+            "accuracy": 0.375
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.25,
+              "brier": 0.7608146100335014,
+              "logloss": 1.406362657377099,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.42857142857142855,
+              "brier": 0.6915603347967005,
+              "logloss": 1.2668154826586633,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.39,
+              "brier": 0.7415158967925157,
+              "logloss": 1.3776982487155183,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7312021635091787,
+            "logloss": 1.3583015432256518,
+            "accuracy": 0.328125
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.2222222222222222,
+              "brier": 0.7748554240359756,
+              "logloss": 1.4637952273643577,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.30357142857142855,
+              "brier": 0.7060533154412727,
+              "logloss": 1.3030463040660023,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.38,
+              "brier": 0.7295703446375592,
+              "logloss": 1.3512667508651213,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.732098670027321,
+            "logloss": 1.3562681162168453,
+            "accuracy": 0.3645833333333333
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.3055555555555556,
+              "brier": 0.7655101701271062,
+              "logloss": 1.4298989178110881,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.375,
+              "brier": 0.7030230287355127,
+              "logloss": 1.293074250004896,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.38,
+              "brier": 0.7363528891148111,
+              "logloss": 1.3651495927216095,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7327700991941545,
+            "logloss": 1.3603336870323421,
+            "accuracy": 0.3385416666666667
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.25,
+              "brier": 0.7696005477803125,
+              "logloss": 1.449196128632841,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.3392857142857143,
+              "brier": 0.7076736203519979,
+              "logloss": 1.30369882091022,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.37,
+              "brier": 0.7335651658547452,
+              "logloss": 1.360058733084551,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.738508249943643,
+            "logloss": 1.366626000828762,
+            "accuracy": 0.3125
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.19444444444444445,
+              "brier": 0.7842992557582622,
+              "logloss": 1.4810568928010008,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.32142857142857145,
+              "brier": 0.7472922107284791,
+              "logloss": 1.38670617167162,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.35,
+              "brier": 0.7171044698108717,
+              "logloss": 1.3141859840467556,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 192,
+            "brier": 0.7625117333500603,
+            "logloss": 1.4248195223170044,
+            "accuracy": 0.2708333333333333
+          },
+          "innerFolds": [
+            {
+              "targetCount": 36,
+              "accuracy": 0.16666666666666666,
+              "brier": 0.8181585582858024,
+              "logloss": 1.5841733449902573,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 56,
+              "accuracy": 0.16071428571428573,
+              "brier": 0.7973513281536462,
+              "logloss": 1.4977717575494194,
+              "fitCount": 3,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 100,
+              "accuracy": 0.37,
+              "brier": 0.7229687032831852,
+              "logloss": 1.3265988944244809,
+              "fitCount": 4,
+              "fitFailureCount": 0
+            }
+          ]
+        }
+      ],
+      "outerMetrics": {
+        "shrinkageMLE": {
+          "targetCount": 76,
+          "accuracy": 0.35526315789473684,
+          "brier": 0.7097650699244108,
+          "logloss": 1.2959219811640987,
+          "fitCount": 5,
+          "fitFailureCount": 0
+        },
+        "leagueMean": {
+          "targetCount": 76,
+          "accuracy": 0.35526315789473684,
+          "brier": 0.7181992895504448,
+          "logloss": 1.3162228762784318
+        },
+        "empiricalLaplace": {
+          "targetCount": 76,
+          "accuracy": 0.35526315789473684,
+          "brier": 0.7244571918406136,
+          "logloss": 1.3336577447079632
+        },
+        "simpleTeamAdjusted": {
+          "targetCount": 76,
+          "accuracy": 0.2631578947368421,
+          "brier": 0.7437878661307044,
+          "logloss": 1.3222649354365124
+        }
+      },
+      "leakageCheck": "passed: each target date trained on strictly earlier dates"
+    },
+    {
+      "fold": 3,
+      "trainCutoffExclusive": "2026-10-11",
+      "testStart": "2026-10-11",
+      "testEnd": "2026-10-25",
+      "testDates": 6,
+      "selected": {
+        "window": "2026_only",
+        "lambda": 10.0,
+        "innerSelectionMetrics": {
+          "targetCount": 268,
+          "brier": 0.7208391075730326,
+          "logloss": 1.3232838389855746,
+          "accuracy": 0.3694029850746269
+        }
+      },
+      "innerCandidates": [
+        {
+          "window": "2026_only",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7208391075730326,
+            "logloss": 1.3232838389855746,
+            "accuracy": 0.3694029850746269
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.3333333333333333,
+              "brier": 0.735793083333026,
+              "logloss": 1.3605230084916675,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.4019607843137255,
+              "brier": 0.7194119664108317,
+              "logloss": 1.3228055544269997,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.3684210526315789,
+              "brier": 0.7050458257328366,
+              "logloss": 1.279826730688552,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7219543616120435,
+            "logloss": 1.328172695231765,
+            "accuracy": 0.373134328358209
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.36666666666666664,
+              "brier": 0.7276323229447687,
+              "logloss": 1.3412090108966832,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.39215686274509803,
+              "brier": 0.7260266130661104,
+              "logloss": 1.3407000075778437,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.35526315789473684,
+              "brier": 0.7097650699244108,
+              "logloss": 1.2959219811640987,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7245025736784061,
+            "logloss": 1.3348460999157952,
+            "accuracy": 0.373134328358209
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.36666666666666664,
+              "brier": 0.7254168389257246,
+              "logloss": 1.3362678354153075,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.39215686274509803,
+              "brier": 0.7308516467277827,
+              "logloss": 1.3531666017723547,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.35526315789473684,
+              "brier": 0.7148987667929446,
+              "logloss": 1.3085744238062533,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 100.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7263361136562939,
+            "logloss": 1.3370252046561468,
+            "accuracy": 0.3694029850746269
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.35555555555555557,
+              "brier": 0.7199699858480028,
+              "logloss": 1.3244091949920291,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.39215686274509803,
+              "brier": 0.7399117221838489,
+              "logloss": 1.3739580393797048,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.35526315789473684,
+              "brier": 0.7156550535633412,
+              "logloss": 1.3023974642346694,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 30.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7274839772538605,
+            "logloss": 1.3387810492902874,
+            "accuracy": 0.3694029850746269
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.36666666666666664,
+              "brier": 0.7233775793861644,
+              "logloss": 1.3340873554359272,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.38235294117647056,
+              "brier": 0.7365423159404604,
+              "logloss": 1.364641147295071,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.35526315789473684,
+              "brier": 0.7201895728072746,
+              "logloss": 1.3096323973219248,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7306181159764893,
+            "logloss": 1.3488668501562109,
+            "accuracy": 0.34328358208955223
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.2777777777777778,
+              "brier": 0.734606884728515,
+              "logloss": 1.370496030208803,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.37254901960784315,
+              "brier": 0.7281979977274117,
+              "logloss": 1.34754170176993,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.3815789473684211,
+              "brier": 0.7291426274728526,
+              "logloss": 1.3250318360860454,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7307884764503002,
+            "logloss": 1.340810883215474,
+            "accuracy": 0.31716417910447764
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.26666666666666666,
+              "brier": 0.7630725138398721,
+              "logloss": 1.4267270794683855,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.35294117647058826,
+              "brier": 0.71683389944697,
+              "logloss": 1.3135956373232118,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.32894736842105265,
+              "brier": 0.7112858907829084,
+              "logloss": 1.2755937439819043,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 10.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7309511571372239,
+            "logloss": 1.3471757656776129,
+            "accuracy": 0.34701492537313433
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.35555555555555557,
+              "brier": 0.7288802590492206,
+              "logloss": 1.3507924671008136,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.37254901960784315,
+              "brier": 0.7349384444197626,
+              "logloss": 1.3610995713192264,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.3026315789473684,
+              "brier": 0.7280521772043469,
+              "logloss": 1.3242056169469207,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2025_plus_2026",
+          "lambda": 3.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.7325877299731292,
+            "logloss": 1.3522289086936017,
+            "accuracy": 0.332089552238806
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.3111111111111111,
+              "brier": 0.7333332160110768,
+              "logloss": 1.3651008301344558,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.3627450980392157,
+              "brier": 0.7322732314145171,
+              "logloss": 1.356127384295183,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.3157894736842105,
+              "brier": 0.7321270077305391,
+              "logloss": 1.3317536792062574,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        },
+        {
+          "window": "2026_only",
+          "lambda": 1.0,
+          "inner": {
+            "targetCount": 268,
+            "brier": 0.752065876999358,
+            "logloss": 1.3859117816435118,
+            "accuracy": 0.2798507462686567
+          },
+          "innerFolds": [
+            {
+              "targetCount": 90,
+              "accuracy": 0.15555555555555556,
+              "brier": 0.8075223068956005,
+              "logloss": 1.5366950503363446,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 102,
+              "accuracy": 0.37254901960784315,
+              "brier": 0.7227965213981128,
+              "logloss": 1.3261058211234684,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            },
+            {
+              "targetCount": 76,
+              "accuracy": 0.3026315789473684,
+              "brier": 0.7256763451660053,
+              "logloss": 1.2876185420473198,
+              "fitCount": 5,
+              "fitFailureCount": 0
+            }
+          ]
+        }
+      ],
+      "outerMetrics": {
+        "shrinkageMLE": {
+          "targetCount": 204,
+          "accuracy": 0.35294117647058826,
+          "brier": 0.7197247098539856,
+          "logloss": 1.3196193043598128,
+          "fitCount": 6,
+          "fitFailureCount": 0
+        },
+        "leagueMean": {
+          "targetCount": 204,
+          "accuracy": 0.3333333333333333,
+          "brier": 0.7309855344916091,
+          "logloss": 1.346767265675978
+        },
+        "empiricalLaplace": {
+          "targetCount": 204,
+          "accuracy": 0.3333333333333333,
+          "brier": 0.7286497822875786,
+          "logloss": 1.3427087591303022
+        },
+        "simpleTeamAdjusted": {
+          "targetCount": 204,
+          "accuracy": 0.35294117647058826,
+          "brier": 0.7318178491407448,
+          "logloss": 1.357818669518733
+        }
+      },
+      "leakageCheck": "passed: each target date trained on strictly earlier dates"
+    }
+  ],
+  "optimizerDiagnostics": {
+    "innerFitCountAcrossAllCandidatesAndOuterFolds": 300,
+    "outerSelectedFitCount": 16,
+    "failureCount": 0,
+    "failureHandling": "any failed optimizer fit aborts the run; no failed fit is silently scored"
+  },
+  "warning": "Outer-fold results are rolling-origin estimates, not a guarantee of future performance. GOAL3 lambda=10 was inherited from 1X2 and was not independently tuned for GOAL3 before this analysis."
+}
