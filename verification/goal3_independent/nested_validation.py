@@ -71,8 +71,10 @@ def load_data(history_path, aliases_path, csv2025_path):
 def bin_goals(g):
     return min(3, max(0, int(g)))
 
-def poisson_probs(lam):
-    lam = min(3.5, max(0.15, float(lam)))
+def poisson_probs(lam, clamp=True):
+    lam = float(lam)
+    if clamp:
+        lam = min(3.5, max(0.15, lam))
     p0 = math.exp(-lam)
     p1 = p0 * lam
     p2 = p1 * lam / 2.0
@@ -151,7 +153,10 @@ def predict_shrinkage(params, idx, home, away):
     da = defense[idx[away]] if away in idx else 0.0
     lh = math.exp(float(np.clip(params[0] + params[1] + ah - da, -20, 20)))
     la = math.exp(float(np.clip(params[0] + aa - dh, -20, 20)))
-    return poisson_probs(lh), poisson_probs(la)
+    # Match the round-1666 prediction script: the fitted-model rates are
+    # exponentiated directly; unlike the simple baselines, they are not
+    # clamped to the baseline rate range.
+    return poisson_probs(lh, clamp=False), poisson_probs(la, clamp=False)
 
 def predict_baselines(prior, home, away):
     league_h = avg([m["hg"] for m in prior])
