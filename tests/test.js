@@ -10,9 +10,9 @@ assert.equal(hist.length,2);assert.equal(hist[0].home,'Home');assert.equal(hist[
 const p=predict(hist,{date:'2025-02-01',home:'Home',away:'Away'}).probabilities;
 assert.ok(Math.abs(p['1']+p['0']+p['2']-1)<1e-9);assert.ok(Object.values(p).every(x=>x>=0&&x<=1));
 const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Date('2026-10-22T00:00:00Z'));assert.equal(noTargets.fixtures.length,0);
-const html='<div>〖開催回〗 第 999 回 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
+const html='<div>〖開催回〗 第 999 回 〖くじ〗 toto 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
 const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);assert.equal(parsed.marketType,'toto');
-const officialShapeHtml='<div>〖開催回〗 第 1000 回 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>'+(i<5?'10/31':'11/01')+'<br>14:00</td><td>会場'+i+'</td><td>Home'+i+'</td><td>VS</td><td>Away'+i+'</td></tr>').join('');
+const officialShapeHtml='<div>〖開催回〗 第 1000 回 〖くじ〗 toto 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>'+(i<5?'10/31':'11/01')+'<br>14:00</td><td>会場'+i+'</td><td>Home'+i+'</td><td>VS</td><td>Away'+i+'</td></tr>').join('');
 const officialShape=parseToto(officialShapeHtml,new Date('2026-10-28T00:00:00+09:00'));
 assert.equal(officialShape.fixtures.length,13,'official-shaped rows with date/time line breaks should parse all 13 fixtures');
 assert.deepEqual([officialShape.fixtures[0].number,officialShape.fixtures[0].dateLabel,officialShape.fixtures[0].home,officialShape.fixtures[0].away],[1,'10/31','Home0','Away0']);
@@ -24,7 +24,7 @@ const officialRound1668=[
  ['11/01','13:00','横浜FM','川崎Ｆ'],['10/31','14:00','仙台','大宮'],['10/31','14:00','新潟','富山'],
  ['10/31','14:00','宮崎','大分']
 ];
-const official1668Html='<div>〖開催回〗 第 1668 回 toto 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div><table>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+m[1]+'</td><td>会場'+i+'</td><td>'+m[2]+'</td><td>VS</td><td>'+m[3]+'</td><td>データ</td></tr>').join('')+'</table>';
+const official1668Html='<div>〖開催回〗 第 1668 回 〖くじ〗 toto 販売期間 2026/10/24 08:00 ～ 2026/10/31 13:50</div><table>'+officialRound1668.map((m,i)=>'<tr><td>'+(i+1)+'</td><td>'+m[0]+'<br>'+m[1]+'</td><td>会場'+i+'</td><td>'+m[2]+'</td><td>VS</td><td>'+m[3]+'</td><td>データ</td></tr>').join('')+'</table>';
 const official1668Parsed=parseToto(official1668Html,new Date('2026-10-28T00:00:00+09:00'));
 assert.equal(official1668Parsed.round,1668);
 assert.equal(official1668Parsed.deadline,'2026-10-31T13:50:00+09:00');

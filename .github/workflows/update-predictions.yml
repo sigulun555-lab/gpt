@@ -51,7 +51,7 @@ jobs:
           retention-days: 3
       - name: Commit status and generated data
         id: publish
-        if: always() && github.ref == 'refs/heads/main'
+        if: steps.pipeline.outcome == 'success' && github.ref == 'refs/heads/main'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
