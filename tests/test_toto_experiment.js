@@ -23,12 +23,17 @@ assert.equal(report.evaluation.baselineCurrentProduction.n, report.evaluation.ca
 assert.equal(report.evaluation.baselineCurrentProduction.n, report.evaluation.candidateCompetitionShrinkageK10.n);
 console.log(JSON.stringify({
   round: report.round,
+  marketSnapshot: report.marketSnapshot,
   evaluation: report.evaluation,
   predictions: report.predictions.map(p => ({
     n: p.matchNumber, match: p.home + ' vs ' + p.away,
     baseline: p.baseline.probabilities,
-    candidate: p.candidate.probabilities,
+    candidateK6: p.candidate.probabilities,
+    candidateK10: p.candidateK10.probabilities,
+    marketVoteShare: p.marketVoteShare,
+    trialBlend70Market30K10: p.trialBlend70Market30K10,
     candidateTopPick: p.topPick,
+    trialBlendTopPick: p.trialBlendTopPick,
     expectedGoals: [p.candidate.homeExpectedGoals, p.candidate.awayExpectedGoals]
   }))
 }, null, 2));
