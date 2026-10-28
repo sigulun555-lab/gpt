@@ -35,3 +35,15 @@ jobs:
           name: independent-goal3-benchmark
           path: verification/goal3_independent/results.json
           if-no-files-found: error
+      - name: Test nested GOAL3 validation
+        run: python3 -m unittest verification/goal3_independent/test_nested_validation.py
+      - name: Run nested GOAL3 validation on real data
+        run: python3 verification/goal3_independent/nested_validation.py
+      - name: Upload nested validation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nested-goal3-validation-results
+          path: verification/goal3_independent/nested_results.json
+          if-no-files-found: warn
+          retention-days: 30
