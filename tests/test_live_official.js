@@ -2,6 +2,13 @@
 const assert = require('node:assert/strict');
 const { parseToto } = require('../scripts/auto_pipeline.js');
 
+// Regression: the currently selected round must win over a newer round listed elsewhere.
+{
+  const html = '<label>開催回</label><select name="holdCntId"><option value="1668">第1668回</option><option value="1666" selected="selected">第1666回</option></select><div>第1668回 totoくじ情報</div><div>〖くじ〗 totoGOAL3</div>';
+  assert.equal(parseToto(html, new Date('2026-10-28T00:00:00+09:00')).round, 1666,
+    'selected official round should take precedence over unselected navigation round');
+}
+
 (async () => {
   const url = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
   const response = await fetch(url, {
