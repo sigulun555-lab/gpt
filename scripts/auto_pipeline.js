@@ -14,29 +14,29 @@ function textOf(s){return decode(String(s||'').replace(/<script\b[\s\S]*?<\/scri
 function targetDate(md,now){const m=String(md).match(/^(\d{1,2})\/(\d{1,2})$/);if(!m)return '';const tokyo=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit'}).formatToParts(now),p=Object.fromEntries(tokyo.map(x=>[x.type,x.value]));let y=+p.year;if(+m[1]<+p.month)y++;return y+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');}
 function parseGoal3TeamFromRow(rowHtml){
  const rowText=textOf(rowHtml);
- if(!/(?:その他データ|\\d+(?:\\.\\d+)?%|\\d+(?:\\.\\d+)?点)/.test(rowText))return null;
- const cells=[...String(rowHtml).matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(m=>textOf(m[1]));
- const ignored=/^(?:日程|予想チーム|マルチ|その他データ|リアルタイム投票状況|データ反映|[0-3]|[0-3]点|0：0点|\\d+(?:\\.\\d+)?%|\\d+(?:\\.\\d+)?点|\\d+\\/\\d+)$/;
+ if(!/(?:その他データ|\d+(?:\.\d+)?%|\d+(?:\.\d+)?点)/.test(rowText))return null;
+ const cells=[...String(rowHtml).matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m=>textOf(m[1]));
+ const ignored=/^(?:日程|予想チーム|マルチ|その他データ|リアルタイム投票状況|データ反映|[0-3]|[0-3]点|0：0点|\d+(?:\.\d+)?%|\d+(?:\.\d+)?点|\d+\/\d+)$/;
  for(const cell of cells){
-  if(!cell||/^\\d{1,2}\\/\\d{1,2}$/.test(cell)||ignored.test(cell))continue;
-  let candidate=cell.split(/\\s*その他データ|\\s*\\d+(?:\\.\\d+)?%|\\s*\\d+(?:\\.\\d+)?点/)[0].trim();
-  candidate=candidate.replace(/^(?:日程|予想チーム|マルチ)\\s*/,'').trim();
-  if(candidate&&!ignored.test(candidate)&&!/^[-+\\d.%：:点口\\s]+$/.test(candidate)&&candidate.length<=40)return candidate;
+  if(!cell||/^\d{1,2}\/\d{1,2}$/.test(cell)||ignored.test(cell))continue;
+  let candidate=cell.split(/\s*その他データ|\s*\d+(?:\.\d+)?%|\s*\d+(?:\.\d+)?点/)[0].trim();
+  candidate=candidate.replace(/^(?:日程|予想チーム|マルチ)\s*/,'').trim();
+  if(candidate&&!ignored.test(candidate)&&!/^[-+\d.%：:点口\s]+$/.test(candidate)&&candidate.length<=40)return candidate;
  }
  return null;
 }
 function parseToto(html,now=new Date()){
- const plain=textOf(html),rm=plain.match(/〖開催回〗\\s*第\\s*(\\d+)\\s*回/)||plain.match(/開催回.{0,180}?第\\s*(\\d+)\\s*回/),round=rm?+rm[1]:null;
- const marketType=/toto\\s*GOAL\\s*3/i.test(plain)?'totoGOAL3':'toto';
- const sale=plain.match(/販売期間\\s*(\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}\\s+\\d{1,2}:\\d{2})\\s*[～〜~\\-]\\s*(\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}\\s+\\d{1,2}:\\d{2})/);
- const iso=v=>{const m=String(v||'').match(/(\\d{4})[/-](\\d{1,2})[/-](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')+'T'+m[4].padStart(2,'0')+':'+m[5]+':00+09:00':null;};
+ const plain=textOf(html),rm=plain.match(/〖開催回〗\s*第\s*(\d+)\s*回/)||plain.match(/開催回.{0,180}?第\s*(\d+)\s*回/),round=rm?+rm[1]:null;
+ const marketType=/toto\s*GOAL\s*3/i.test(plain)?'totoGOAL3':'toto';
+ const sale=plain.match(/販売期間\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})\s*[～〜~\-]\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})/);
+ const iso=v=>{const m=String(v||'').match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')+'T'+m[4].padStart(2,'0')+':'+m[5]+':00+09:00':null;};
  let fixtures=[];
  if(marketType==='totoGOAL3'){
   const teams=[];
-  for(const tr of String(html).matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)){
+  for(const tr of String(html).matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
    const rowHtml=tr[1],team=parseGoal3TeamFromRow(rowHtml);
    if(!team)continue;
-   const rowText=textOf(rowHtml),dm=rowText.match(/(?:^|\\s)(\\d{1,2}\\/\\d{1,2})(?:\\s|$)/);
+   const rowText=textOf(rowHtml),dm=rowText.match(/(?:^|\s)(\d{1,2}\/\d{1,2})(?:\s|$)/);
    teams.push({team,dateLabel:dm?dm[1]:''});
   }
   if(teams.length===6){
@@ -47,8 +47,8 @@ function parseToto(html,now=new Date()){
    }
   }
  }else{
-  for(const tr of String(html).matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)){
-   const row=textOf(tr[1]),m=row.match(/(?:^|\\s)(\\d{1,2})\\s+(\\d{1,2}\\/\\d{1,2})\\b[\\s\\S]*?([^\\s|]+)\\s*VS\\s*([^\\s|]+)/i);
+  for(const tr of String(html).matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+   const row=textOf(tr[1]),m=row.match(/(?:^|\s)(\d{1,2})\s+(\d{1,2}\/\d{1,2})\b[\s\S]*?([^\s|]+)\s*VS\s*([^\s|]+)/i);
    if(!m)continue;const n=+m[1];if(!Number.isInteger(n)||n<1||n>MAX_FIXTURES)continue;
    const home=m[3].trim(),away=m[4].trim();
    if(home&&away&&home!==away)fixtures.push({number:n,marketType,date:targetDate(m[2],now),dateLabel:m[2],home,away,source:'toto_official_page',sourceUrl:TOTO_URL});
