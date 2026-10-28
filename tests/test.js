@@ -88,14 +88,14 @@ const goal3BacktestHistory=[
 ];
 const goal3Bt=backtestGoal3(goal3BacktestHistory);
 assert.equal(goal3Bt.sourceRows,4);
-assert.equal(goal3Bt.testMatches,3);
-assert.equal(goal3Bt.teamGoalTargets,6);
-assert.equal(goal3Bt.testStartDate,'2025-01-08');
+assert.equal(goal3Bt.testMatches,4,'backtest should include every scored match, including the first fallback prediction');
+assert.equal(goal3Bt.teamGoalTargets,8);
+assert.equal(goal3Bt.testStartDate,'2025-01-01');
 assert.equal(goal3Bt.testEndDate,'2025-01-22');
 assert.match(goal3Bt.method,/strictly earlier/);
 for(const modelName of ['teamAdjustedPoisson','leagueMeanPoisson','empiricalLaplaceBaseline']){
  const metrics=goal3Bt.models[modelName];
- assert.equal(metrics.targetCount,6);
+ assert.equal(metrics.targetCount,8);
  assert.ok(Number.isFinite(metrics.accuracy)&&metrics.accuracy>=0&&metrics.accuracy<=1);
  assert.ok(Number.isFinite(metrics.brier)&&metrics.brier>=0);
  assert.ok(Number.isFinite(metrics.logloss)&&metrics.logloss>=0);
