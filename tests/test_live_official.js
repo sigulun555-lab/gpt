@@ -62,6 +62,18 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   const detailHeader = detailHtml.search(/第\s*1668\s*回[\s\S]{0,100}?toto\s*GOAL\s*3/i);
   console.log('DEBUG GOAL3 detail HTTP/size', detailResponse.status, detailHtml.length, 'headerIndex', detailHeader);
   if (detailHeader >= 0) console.log('DEBUG GOAL3 detail section', detailHtml.slice(Math.max(0, detailHeader - 800), Math.min(detailHtml.length, detailHeader + 3500)).replace(/\s+/g, ' '));
+  const noRoundGoal3Response = await fetch('https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1', {
+    headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
+    signal: AbortSignal.timeout(20000)
+  });
+  const noRoundGoal3Html = await noRoundGoal3Response.text();
+  const noRoundGoal3 = parseToto(noRoundGoal3Html, new Date('2026-10-28T00:00:00+09:00'));
+  console.log('DEBUG GOAL3 query without round', JSON.stringify({
+    status: noRoundGoal3Response.status, round: noRoundGoal3.round, marketType: noRoundGoal3.marketType,
+    deadline: noRoundGoal3.deadline, fixtureCount: noRoundGoal3.fixtures.length,
+    fixtures: noRoundGoal3.fixtures.map(f=>[f.home,f.away]),
+    selectedInputs: [...noRoundGoal3Html.matchAll(/<input\b[^>]*>/gi)].map(m=>m[0]).filter(s=>/holdCntId|commodityId|gameAssortment/i.test(s)).slice(0,10)
+  }));
   const forcedGoal3Response = await fetch('https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?holdCntId=1668&commodityId=02&gameAssortment=1', {
     headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
     signal: AbortSignal.timeout(20000)
