@@ -63,6 +63,13 @@ jobs:
             git pull --rebase -X theirs origin main
             git push origin HEAD:main
           fi
+      - name: TEMP DEBUG - gist-dump generated data (Claude verification only, not part of PR #6)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh gist create data/fixtures.json data/status.json data/predictions.json \
+            --public=false --desc "toto-lab verification dump run ${{ github.run_id }} (temporary, Claude debug branch)"
       - name: Report unsuccessful pipeline or publish
         if: always() && (steps.pipeline.outcome != 'success' || (github.ref == 'refs/heads/main' && steps.publish.outcome != 'success'))
         run: |
