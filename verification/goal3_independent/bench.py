@@ -46,6 +46,8 @@ def canonical(name):
 h2026_raw = json.load(open(args.history2026))["history"]
 h2026 = []
 for m in h2026_raw:
+    if m.get("competition") not in ("J1", "J2", "J3"):
+        continue
     if not isinstance(m.get("home_goals"), int) or not isinstance(m.get("away_goals"), int):
         continue
     h2026.append({"date": m["date"], "home": canonical(m["home"]), "away": canonical(m["away"]),
@@ -127,7 +129,7 @@ def fit_shrinkage(prior, lam_pen=10.0):
     idx = {t: i for i, t in enumerate(teams)}
     n = len(teams)
     if n == 0:
-        return None, idx
+        return None, idx, {"success": True, "status": 0, "message": "empty prior fallback", "nit": 0, "fun": None}
     # params: [mu, h, a_0..a_{n-1}, d_0..d_{n-1}]
     x0 = np.zeros(2 + 2 * n)
     x0[0] = math.log(1.3)
@@ -140,8 +142,11 @@ def fit_shrinkage(prior, lam_pen=10.0):
         mu, h = x[0], x[1]
         a = x[2:2 + n]
         d = x[2 + n:2 + 2 * n]
-        lam_h = np.exp(mu + h + a[homes] - d[aways])
-        lam_a = np.exp(mu + a[aways] - d[homes])
+        # Match round-1666 goal3.py's clipped linear predictors.
+        eta_h = np.clip(mu + h + a[homes] - d[aways], -20, 20)
+        eta_a = np.clip(mu + a[aways] - d[homes], -20, 20)
+        lam_h = np.exp(eta_h)
+        lam_a = np.exp(eta_a)
         nll = np.sum(lam_h - hg * np.log(lam_h)) + np.sum(lam_a - ag * np.log(lam_a))
         pen = lam_pen * (np.sum(a**2) + np.sum(d**2))
         f = nll + pen
@@ -162,7 +167,10 @@ def fit_shrinkage(prior, lam_pen=10.0):
 
     res = minimize(negloglik_grad, x0, jac=True, method="L-BFGS-B",
                     options={"maxiter": 300})
-    return res.x, idx
+    fit_info = {"success": bool(res.success), "status": int(res.status),
+                "message": str(res.message), "nit": int(res.nit),
+                "fun": float(res.fun)}
+    return res.x, idx, fit_info
 
 def shrinkage_predict(params, idx, home, away):
     if params is None:
@@ -202,6 +210,8 @@ def run(mode):
     """mode: '2026only' or '2025plus2026'"""
     sorted_2026 = h2026  # already sorted
     records = {"leagueMean": [], "empirical": [], "simpleTeamAdj": [], "shrinkageMLE": []}
+    fit_diagnostics = {"fitCount": 0, "successCount": 0, "failureCount": 0,
+                       "failures": []}
     for i in range(1, len(sorted_2026)):
         m = sorted_2026[i]
         prior_2026 = [x for x in sorted_2026[:i] if x["date"] < m["date"]]
@@ -223,7 +233,16 @@ def run(mode):
         emp_h = empirical_probs(prior, "home_goals")
         emp_a = empirical_probs(prior, "away_goals")
         simple_h, simple_a = simple_team_adjusted_probs(prior, m["home"], m["away"])
-        params, idx = fit_shrinkage(prior, lam_pen=10.0)
+        params, idx, fit_info = fit_shrinkage(prior, lam_pen=10.0)
+        fit_diagnostics["fitCount"] += 1
+        if fit_info["success"]:
+            fit_diagnostics["successCount"] += 1
+        else:
+            fit_diagnostics["failureCount"] += 1
+            fit_diagnostics["failures"].append({
+                "date": m["date"], "home": m["home"], "away": m["away"],
+                **fit_info
+            })
         shrink_h, shrink_a = shrinkage_predict(params, idx, m["home"], m["away"])
 
         actual_h = bin_goals(m["home_goals"])
@@ -237,7 +256,17 @@ def run(mode):
         records["simpleTeamAdj"].append((simple_a, actual_a, key))
         records["shrinkageMLE"].append((shrink_h, actual_h, key))
         records["shrinkageMLE"].append((shrink_a, actual_a, key))
-    return {name: summarize(recs) for name, recs in records.items()}
+    result = {name: summarize(recs) for name, recs in records.items()}
+    result["_metadata"] = {
+        "mode": mode,
+        "targetMatches": len(sorted_2026) - 1,
+        "targetDateStart": sorted_2026[1]["date"] if len(sorted_2026) > 1 else None,
+        "targetDateEnd": sorted_2026[-1]["date"] if len(sorted_2026) > 1 else None,
+        "history2026Rows": len(h2026),
+        "history2025Rows": len(h2025),
+        "shrinkageMLEFitDiagnostics": fit_diagnostics,
+    }
+    return result
 
 if __name__ == "__main__":
     import sys
