@@ -63,13 +63,18 @@ jobs:
             git pull --rebase -X theirs origin main
             git push origin HEAD:main
           fi
-      - name: TEMP DEBUG - gist-dump generated data (Claude verification only, not part of PR #6)
+      - name: TEMP DEBUG - commit generated data to this throwaway branch (Claude verification only, not part of PR #6)
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh gist create data/fixtures.json data/status.json data/predictions.json \
-            --public=false --desc "toto-lab verification dump run ${{ github.run_id }} (temporary, Claude debug branch)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/
+          if git diff --cached --quiet; then
+            echo 'No data changes to publish.'
+          else
+            git commit -m "TEMP debug: real fetch output for Claude verification [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
       - name: Report unsuccessful pipeline or publish
         if: always() && (steps.pipeline.outcome != 'success' || (github.ref == 'refs/heads/main' && steps.publish.outcome != 'success'))
         run: |
