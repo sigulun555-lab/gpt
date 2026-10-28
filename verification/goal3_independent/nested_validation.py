@@ -120,7 +120,9 @@ def fit_shrinkage(prior, lam_pen):
         value += lam_pen * (np.sum(attack**2) + np.sum(defense**2))
         # Match the reference implementation's gradient convention. The
         # clip is a numerical guard; diagnostics record every optimizer fit.
-        eh, ea = lh - hg, la - ag
+        # Chain rule through clip: clipped logits have zero derivative outside bounds.
+        eh = (lh - hg) * ((eta_h_raw > -20) & (eta_h_raw < 20))
+        ea = (la - ag) * ((eta_a_raw > -20) & (eta_a_raw < 20))
         da, dd = np.zeros(n), np.zeros(n)
         np.add.at(da, homes, eh)
         np.add.at(dd, aways, -eh)
