@@ -26,10 +26,14 @@ function parseGoal3TeamFromRow(rowHtml){
  return null;
 }
 function parseToto(html,now=new Date()){
- const plain=textOf(html),rm=plain.match(/〖開催回〗\s*第\s*(\d+)\s*回/)||plain.match(/開催回.{0,180}?第\s*(\d+)\s*回/),round=rm?+rm[1]:null;
- const marketType=/toto\s*GOAL\s*3/i.test(plain)?'totoGOAL3':'toto';
- const sale=plain.match(/販売期間\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})\s*[～〜~\-]\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2}\s+\d{1,2}:\d{2})/);
- const iso=v=>{const m=String(v||'').match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')+'T'+m[4].padStart(2,'0')+':'+m[5]+':00+09:00':null;};
+ const plain=textOf(html),rm=plain.match(/〖開催回〗\\s*第\\s*(\\d+)\\s*回/)||plain.match(/開催回.{0,180}?第\\s*(\\d+)\\s*回/)||plain.match(/第\\s*(\\d+)\\s*回\\s*totoくじ情報/),round=rm?+rm[1]:null;
+ const marketType=/toto\\s*GOAL\\s*3/i.test(plain)?'totoGOAL3':'toto';
+ const sale=plain.match(/販売期間\\s*(\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}\\s+\\d{1,2}:\\d{2})\\s*[～〜~\\-]\\s*(\\d{4}[/-]\\d{1,2}[/-]\\d{1,2}\\s+\\d{1,2}:\\d{2})/);
+ const saleEnd=plain.match(/販売終了日\\s*(\\d{4})年(\\d{1,2})月(\\d{1,2})日[\\s\\S]{0,100}?当サイト\\s*\\(ネット決済\\)\\s*(\\d{1,2}):(\\d{2})/);
+ const saleBegin=plain.match(/販売開始日\\s*(\\d{4})年(\\d{1,2})月(\\d{1,2})日(?:\\([^)]*\\))?\\s*(\\d{1,2}):(\\d{2})/);
+ const iso=v=>{const m=String(v||'').match(/(\\d{4})[/-](\\d{1,2})[/-](\\d{1,2})\\s+(\\d{1,2}):(\\d{2})/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0')+'T'+m[4].padStart(2,'0')+':'+m[5]+':00+09:00':null;};
+ const saleEndIso=saleEnd?saleEnd[1]+'-'+saleEnd[2].padStart(2,'0')+'-'+saleEnd[3].padStart(2,'0')+'T'+saleEnd[4].padStart(2,'0')+':'+saleEnd[5]+':00+09:00':null;
+ const saleBeginIso=saleBegin?saleBegin[1]+'-'+saleBegin[2].padStart(2,'0')+'-'+saleBegin[3].padStart(2,'0')+'T'+saleBegin[4].padStart(2,'0')+':'+saleBegin[5]+':00+09:00':null;
  let fixtures=[];
  if(marketType==='totoGOAL3'){
   const teams=[];
@@ -55,7 +59,7 @@ function parseToto(html,now=new Date()){
   }
  }
  const unique=[...new Map(fixtures.map(f=>[f.number,f])).values()].sort((a,b)=>a.number-b.number);
- return {round,marketType,deadline:iso(sale&&sale[2]),saleStart:iso(sale&&sale[1]),fixtures:unique,parsedAt:now.toISOString()};
+ return {round,marketType,deadline:iso(sale&&sale[2])||saleEndIso,saleStart:iso(sale&&sale[1])||saleBeginIso,fixtures:unique,parsedAt:now.toISOString()};
 }
 async function get(url,accept){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);try{const r=await fetch(url,{headers:{Accept:accept,'User-Agent':'JLeagueTotoPredictor/0.1 (+scheduled data pipeline)'},signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status+' from '+new URL(url).hostname);const s=await r.text();if(s.length<100)throw Error('Unexpectedly short response from '+url);return s;}finally{clearTimeout(t);}}
 function build(scheduleText,totoHtml,now=new Date()){const rows=parseSchedule(scheduleText),history=rows.filter(m=>Number.isInteger(m.home_goals)&&Number.isInteger(m.away_goals)).sort((a,b)=>a.date.localeCompare(b.date)).map(m=>({...m,source:'community_jleague_csv',sourceUrl:SCHEDULE_URL,fetchedAt:now.toISOString()}));const toto=parseToto(totoHtml,now),expectedFixtures=toto.marketType==='totoGOAL3'?3:MAX_FIXTURES,numberingValid=toto.fixtures.map(x=>x.number).sort((a,b)=>a-b).every((v,i)=>v===i+1),countValid=toto.marketType==='totoGOAL3'?toto.fixtures.length===3:(toto.fixtures.length>0&&toto.fixtures.length<=MAX_FIXTURES),confirmed=countValid&&toto.fixtures.length<=expectedFixtures&&new Set(toto.fixtures.map(x=>x.number)).size===toto.fixtures.length&&numberingValid&&toto.fixtures.every(x=>x.date&&x.home&&x.away)&&!!toto.round&&!!toto.deadline&&Date.parse(toto.deadline)>now.getTime();const fixturesPayload={schemaVersion:1,fixtures:confirmed?toto.fixtures.map(f=>({marketType:toto.marketType,matchNumber:f.number,home:f.home,away:f.away,round:toto.round,deadline:toto.deadline})):[]};const warnings=['負傷・欠場・出場停止情報は未取得です。','予測モデルはベースラインであり、的中を保証しません。'];const predictions=confirmed?toto.fixtures.map(f=>({...f,totoRound:toto.round,totoTargetConfirmed:true,prediction:predict(history,f),availabilityNote:'未取得'})):[];if(!confirmed)warnings.unshift('公式totoページから開催回・締切・対象試合を完全確認できないため予想を公開していません。marketType='+toto.marketType+'、解析数='+toto.fixtures.length);const bt=backtest(history);const payload={schemaVersion:1,generatedAt:now.toISOString(),status:confirmed?'predictions_generated':'toto_targets_unconfirmed',liveData:true,predictionsGenerated:confirmed,totoTargetsConfirmed:confirmed,round:confirmed?toto.round:null,deadline:confirmed?toto.deadline:null,saleStart:confirmed?toto.saleStart:null,source:{name:'k-addtimes/jleague_open_data',url:SCHEDULE_URL,kind:'community mirror; not official toto feed'},totoSource:{name:'スポーツくじ公式公開ページ',url:TOTO_URL,lastFetchedAt:toto.parsedAt,marketType:toto.marketType,round:toto.round,deadline:toto.deadline,fixtureCount:toto.fixtures.length,teamTargetCount:toto.marketType==='totoGOAL3'?toto.fixtures.length*2:null},counts:{scheduleRows:rows.length,historyMatches:history.length,totoFixtures:confirmed?toto.fixtures.length:0,predictions:predictions.length},warnings,predictions};const status={status:payload.status,liveData:true,predictionsGenerated:confirmed,totoTargetsConfirmed:confirmed,round:payload.round,deadline:payload.deadline,lastAttemptAt:now.toISOString(),lastSuccessfulFetch:now.toISOString(),lastError:null,source:payload.source,totoSource:payload.totoSource,counts:payload.counts,warnings};return {payload,status,history,backtest:bt,fixtures:fixturesPayload};}
