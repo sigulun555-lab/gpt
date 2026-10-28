@@ -13,6 +13,29 @@ const noTargets=parseToto('<html><body>no fixture listing</body></html>',new Dat
 const html='<div>〖開催回〗 第 999 回 販売期間 2026/10/01 00:00 ～ 2026/10/30 12:00</div>'+Array.from({length:13},(_,i)=>'<tr><td>'+(i+1)+'</td><td>10/24</td><td>J</td><td>Home'+i+' VS Away'+i+'</td></tr>').join('');
 const parsed=parseToto(html,new Date('2026-10-22T00:00:00Z'));assert.equal(parsed.fixtures.length,13);assert.equal(parsed.round,999);
 const notConfirmed=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"','<html>none</html>',new Date('2026-10-22T00:00:00Z'));assert.equal(notConfirmed.payload.predictionsGenerated,false);assert.equal(notConfirmed.payload.predictions.length,0);
+
+const goal3Html='<div>〖開催回〗 第 1666 回 くじ totoGOAL3 マルチ 販売期間 2026/10/21 08:00 ～ 2026/10/28 18:50</div>'+
+'<tr><td>10/28</td><td>水戸 <a>その他データ</a></td><td>35.86%</td><td>0.40点</td></tr>'+
+'<tr><td>Ｃ大阪 <a>その他データ</a></td><td>16.87%</td><td>1.60点</td></tr>'+
+'<tr><td>10/28</td><td>横浜FM <a>その他データ</a></td><td>24.27%</td><td>1.00点</td></tr>'+
+'<tr><td>広島 <a>その他データ</a></td><td>16.81%</td><td>2.00点</td></tr>'+
+'<tr><td>10/28</td><td>名古屋 <a>その他データ</a></td><td>20.16%</td><td>2.00点</td></tr>'+
+'<tr><td>浦和 <a>その他データ</a></td><td>18.83%</td><td>1.80点</td></tr>';
+const goal3Parsed=parseToto(goal3Html,new Date('2026-10-22T00:00:00Z'));
+assert.equal(goal3Parsed.marketType,'totoGOAL3');
+assert.equal(goal3Parsed.round,1666);
+assert.equal(goal3Parsed.fixtures.length,3);
+assert.deepEqual(goal3Parsed.fixtures.map(f=>[f.number,f.home,f.away]),[[1,'水戸','Ｃ大阪'],[2,'横浜FM','広島'],[3,'名古屋','浦和']]);
+const goal3Built=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"',goal3Html,new Date('2026-10-22T00:00:00Z'));
+assert.equal(goal3Built.payload.totoTargetsConfirmed,true);
+assert.equal(goal3Built.payload.marketType,'totoGOAL3');
+assert.equal(goal3Built.payload.predictionsGenerated,false);
+assert.equal(goal3Built.payload.predictions.length,0,'GOAL3 must not be passed to the existing 1X2 predictor');
+assert.equal(goal3Built.fixtureData.length,3);
+assert.deepEqual(Object.keys(goal3Built.fixtureData[0]),['marketType','matchNumber','home','away','round','deadline']);
+assert.equal(goal3Built.fixtureData[0].deadline,'2026-10-28T18:50:00+09:00');
+console.log('PASS totoGOAL3 team-row pairing, fixture-only output, and preservation of the 13-fixture toto parser');
+
 console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, and safe no-target behavior');
 
 const {canonical,goalProbabilities}=require('../model.js');
