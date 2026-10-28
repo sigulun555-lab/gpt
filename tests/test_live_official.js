@@ -36,6 +36,29 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   );
   console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
 
+  const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form';
+  const goal3Response = await fetch(goal3Url, {
+    headers: {
+      Accept: 'text/html,application/xhtml+xml,*/*',
+      'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)'
+    },
+    signal: AbortSignal.timeout(20000)
+  });
+  assert.equal(goal3Response.ok, true, 'official purchase page should return HTTP success');
+  const goal3Html = await goal3Response.text();
+  assert.ok(goal3Html.length > 1000, 'official purchase page HTML should be non-empty');
+  const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
+  assert.equal(goal3.round, 1666, 'official selected GOAL3 round should be parsed');
+  assert.equal(goal3.marketType, 'totoGOAL3', 'selected official product should be identified as totoGOAL3');
+  assert.equal(goal3.deadline, '2026-10-28T18:50:00+09:00', 'official GOAL3 deadline should be parsed');
+  assert.equal(goal3.fixtures.length, 3, 'official GOAL3 page should normalize six team rows to three matches');
+  assert.deepEqual(
+    goal3.fixtures.map(f => [f.home, f.away]),
+    [['水戸', 'Ｃ大阪'], ['横浜FM', '広島'], ['名古屋', '浦和']],
+    'official GOAL3 home/away pairs should match in order'
+  );
+  console.log('PASS live official totoGOAL3 HTML: round 1666, deadline, and all 3 fixtures');
+
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
