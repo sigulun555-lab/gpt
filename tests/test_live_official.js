@@ -74,7 +74,7 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     deadline: forcedGoal3.deadline, fixtureCount: forcedGoal3.fixtures.length,
     fixtures: forcedGoal3.fixtures.map(f => [f.home, f.away]),
     selectedInputs: [...forcedGoal3Html.matchAll(/<input\b[^>]*>/gi)].map(m=>m[0]).filter(s=>/holdCntId|commodityId|gameAssortment/i.test(s)).slice(0,10),
-    summary: textOf(forcedGoal3Html).match(/.{0,20}くじ.{0,30}/g)?.slice(0,5)
+    summaryContexts: [...forcedGoal3Html.matchAll(/くじ.{0,30}/g)].slice(0,5).map(m=>m[0])
   }));
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
   const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\b[^>]*>/gi)]
