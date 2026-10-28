@@ -54,6 +54,14 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   assert.equal(goal3Response.ok, true, 'official purchase page should return HTTP success');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official purchase page HTML should be non-empty');
+  const detailResponse = await fetch('https://sp.toto-dream.com/dcs/subos/screen/si01/ssin026/PGSSIN02601InittotoSP.form?holdCntId=1668', {
+    headers: { Accept: 'text/html,application/xhtml+xml,*/*', 'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)' },
+    signal: AbortSignal.timeout(20000)
+  });
+  const detailHtml = await detailResponse.text();
+  const detailHeader = detailHtml.search(/第\\s*1668\\s*回[\\s\\S]{0,100}?toto\\s*GOAL\\s*3/i);
+  console.log('DEBUG GOAL3 detail HTTP/size', detailResponse.status, detailHtml.length, 'headerIndex', detailHeader);
+  if (detailHeader >= 0) console.log('DEBUG GOAL3 detail section', detailHtml.slice(Math.max(0, detailHeader - 800), Math.min(detailHtml.length, detailHeader + 3500)).replace(/\\s+/g, ' '));
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
   const roundControlTags = [...goal3Html.matchAll(/<(?:select|option|input|a)\b[^>]*>/gi)]
     .map(m => m[0])
