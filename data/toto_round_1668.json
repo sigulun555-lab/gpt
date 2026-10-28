@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "round": 1668,
+  "deadline": "2026-10-31T13:50:00+09:00",
+  "source": "https://toto.rakuten.co.jp/toto/vote/voteTotoChoiceSchedule/1668/",
+  "fixtures": [
+    {
+      "matchNumber": 1,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "岡山",
+      "away": "FC東京"
+    },
+    {
+      "matchNumber": 2,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "水戸",
+      "away": "広島"
+    },
+    {
+      "matchNumber": 3,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "神戸",
+      "away": "名古屋"
+    },
+    {
+      "matchNumber": 4,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "鹿島",
+      "away": "C大阪"
+    },
+    {
+      "matchNumber": 5,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "柏",
+      "away": "浦和"
+    },
+    {
+      "matchNumber": 6,
+      "date": "2026-10-31",
+      "competition": "J1",
+      "home": "京都",
+      "away": "清水"
+    },
+    {
+      "matchNumber": 7,
+      "date": "2026-11-01",
+      "competition": "J1",
+      "home": "千葉",
+      "away": "福岡"
+    },
+    {
+      "matchNumber": 8,
+      "date": "2026-11-01",
+      "competition": "J1",
+      "home": "長崎",
+      "away": "東京V"
+    },
+    {
+      "matchNumber": 9,
+      "date": "2026-11-01",
+      "competition": "J1",
+      "home": "町田",
+      "away": "G大阪"
+    },
+    {
+      "matchNumber": 10,
+      "date": "2026-11-01",
+      "competition": "J1",
+      "home": "横浜FM",
+      "away": "川崎F"
+    },
+    {
+      "matchNumber": 11,
+      "date": "2026-10-31",
+      "competition": "J2",
+      "home": "仙台",
+      "away": "大宮"
+    },
+    {
+      "matchNumber": 12,
+      "date": "2026-10-31",
+      "competition": "J2",
+      "home": "新潟",
+      "away": "富山"
+    },
+    {
+      "matchNumber": 13,
+      "date": "2026-10-31",
+      "competition": "J2",
+      "home": "宮崎",
+      "away": "大分"
+    }
+  ]
+}
