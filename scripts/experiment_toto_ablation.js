@@ -96,7 +96,18 @@ function runAblation() {
     .slice().sort((a, b) => a.date.localeCompare(b.date));
   const scored = new Map(variants.map(v => [v.id, []]));
   const dates = [...new Set(sorted.map(m => m.date))].sort();
-  const holdoutStartDate = dates[Math.max(1, Math.floor(dates.length * 0.8))];
+  // Keep every match on a date in the same split; choose the cutoff closest to 20% of rows.
+  const targetHoldoutCount = Math.max(1, Math.round(sorted.length * 0.2));
+  let holdoutStartDate = dates[1];
+  let bestHoldoutDistance = Infinity;
+  for (const date of dates.slice(1)) {
+    const holdoutCount = sorted.filter(m => m.date >= date).length;
+    const distance = Math.abs(holdoutCount - targetHoldoutCount);
+    if (distance < bestHoldoutDistance) {
+      holdoutStartDate = date;
+      bestHoldoutDistance = distance;
+    }
+  }
   for (const match of sorted) {
     const prior = sorted.filter(m => m.date < match.date);
     if (!prior.length) continue;
@@ -115,7 +126,7 @@ function runAblation() {
       all: score(rows),
       chronologicalHoldout: score(rows.filter(r => r.isHoldout)),
       holdoutStartDate,
-      caveat: 'Exploratory only. The final chronological 20% was not used to fit model parameters, but this is a single small 2026 sample and does not establish generalization.'
+      caveat: 'Exploratory only. The final chronological holdout is chosen to approximate 20% of rows while keeping same-date matches together; this is a single small 2026 sample and does not establish generalization.'
     };
   }
   return {
