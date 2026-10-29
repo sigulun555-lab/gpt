@@ -56,8 +56,9 @@ function predictAblation(allHistory, fixture, config = {}) {
     const attackBase = config.splitLeagueBaselines ? (side === 'home' ? leagueHome : leagueAway) : sharedBase;
     const defenseBase = config.splitLeagueBaselines ? (side === 'home' ? leagueAway : leagueHome) : sharedBase;
     const k = Number.isFinite(config.shrinkageK) ? config.shrinkageK : 0;
-    const gf = (s.gf * s.n + attackBase * k) / (s.n + k || 1);
-    const ga = (s.ga * s.n + defenseBase * k) / (s.n + k || 1);
+    const denominator = s.n + k;
+    const gf = denominator > 0 ? (s.gf * s.n + attackBase * k) / denominator : attackBase;
+    const ga = denominator > 0 ? (s.ga * s.n + defenseBase * k) / denominator : defenseBase;
     return { attack: gf / Math.max(0.2, attackBase), defense: ga / Math.max(0.2, defenseBase), n: s.n };
   };
   const h = rates(fixture.home, 'home');
