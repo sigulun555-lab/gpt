@@ -28,9 +28,21 @@ for (const variant of variants) {
   assert.ok(Number.isFinite(result.chronologicalHoldout.brier));
   assert.ok(Number.isFinite(result.chronologicalHoldout.logloss));
 }
+const nested = report.nestedKSelection;
+assert.equal(nested.folds.length, 3);
+assert.ok(nested.aggregateOuterMetrics.productionBaseline.n > 0);
+assert.ok(nested.aggregateOuterMetrics.nestedSelectedK.n > 0);
+for (const fold of nested.folds) {
+  assert.ok([3, 6, 10].includes(fold.selectedK));
+  assert.ok(fold.trainEndDateInclusive < fold.testStartDate, 'outer train must end before test starts');
+  assert.ok(fold.innerValidationMatches > 0);
+  assert.ok(fold.testMatches > 0);
+  assert.equal(fold.outerMetrics.nestedSelectedK.n, fold.testMatches);
+}
 console.log(JSON.stringify({
   historyMatches: report.historyMatches,
   holdoutStartDate: report.holdoutStartDate,
+  nestedKSelection: nested,
   variants: Object.fromEntries(Object.entries(report.variants).map(([key, value]) => [key, {
     all: value.all, chronologicalHoldout: value.chronologicalHoldout
   }]))
