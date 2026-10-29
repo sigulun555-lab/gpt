@@ -91,6 +91,86 @@ function score(rows) {
   return { n, accuracy: n ? correct / n : null, brier: n ? brier / n : null, logloss: n ? logloss / n : null };
 }
 
+
+function runNestedKSelection(sortedInput) {
+  const sorted = sortedInput.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const dates = [...new Set(sorted.map(m => m.date))].sort();
+  const boundaries = [
+    Math.max(2, Math.floor(dates.length * 0.55)),
+    Math.floor(dates.length * 0.70),
+    Math.floor(dates.length * 0.85),
+    dates.length
+  ];
+  boundaries[1] = Math.max(boundaries[1], boundaries[0] + 1);
+  boundaries[2] = Math.max(boundaries[2], boundaries[1] + 1);
+  boundaries[3] = dates.length;
+  const folds = [];
+  const aggregate = { productionBaseline: [], nestedSelectedK: [], fixedK3: [], fixedK6: [], fixedK10: [] };
+  for (let foldIndex = 0; foldIndex < 3; foldIndex++) {
+    const startDate = dates[boundaries[foldIndex]];
+    const endDate = boundaries[foldIndex + 1] < dates.length ? dates[boundaries[foldIndex + 1]] : null;
+    const outerTrain = sorted.filter(m => m.date < startDate);
+    const outerTest = sorted.filter(m => m.date >= startDate && (!endDate || m.date < endDate));
+    const innerDates = [...new Set(outerTrain.map(m => m.date))].sort();
+    const innerStartDate = innerDates[Math.max(1, Math.floor(innerDates.length * 0.7))];
+    const innerValidation = outerTrain.filter(m => m.date >= innerStartDate);
+    const innerScores = {};
+    for (const k of [3, 6, 10]) {
+      const rows = innerValidation.map(match => ({
+        match,
+        probabilities: predictAblation(outerTrain, match, {
+          competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: k
+        }).probabilities
+      }));
+      innerScores[k] = score(rows);
+    }
+    const selectedK = [3, 6, 10].sort((a, b) =>
+      innerScores[a].brier - innerScores[b].brier ||
+      innerScores[a].logloss - innerScores[b].logloss ||
+      a - b
+    )[0];
+    const foldRows = { productionBaseline: [], nestedSelectedK: [], fixedK3: [], fixedK6: [], fixedK10: [] };
+    for (const match of outerTest) {
+      const prior = sorted.filter(m => m.date < match.date);
+      if (!prior.length) continue;
+      foldRows.productionBaseline.push({
+        match, probabilities: predict(prior, { date: match.date, home: match.home, away: match.away }).probabilities
+      });
+      for (const k of [3, 6, 10]) {
+        const probabilities = predictAblation(sorted, match, {
+          competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: k
+        }).probabilities;
+        foldRows[`fixedK${k}`].push({ match, probabilities });
+      }
+      foldRows.nestedSelectedK.push({
+        match,
+        probabilities: predictAblation(sorted, match, {
+          competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: selectedK
+        }).probabilities
+      });
+    }
+    for (const key of Object.keys(aggregate)) aggregate[key].push(...foldRows[key]);
+    folds.push({
+      fold: foldIndex + 1,
+      testStartDate: startDate,
+      testEndDateExclusive: endDate,
+      trainMatches: outerTrain.length,
+      innerValidationStartDate: innerStartDate,
+      innerValidationMatches: innerValidation.length,
+      innerScores,
+      selectedK,
+      testMatches: outerTest.length,
+      outerMetrics: Object.fromEntries(Object.entries(foldRows).map(([key, rows]) => [key, score(rows)]))
+    });
+  }
+  return {
+    method: 'three expanding-window outer folds; choose k using only prior outer-training data, inner chronological validation, Brier primary and LogLoss tie-break; same-date matches remain together',
+    candidates: [3, 6, 10],
+    aggregateOuterMetrics: Object.fromEntries(Object.entries(aggregate).map(([key, rows]) => [key, score(rows)])),
+    folds
+  };
+}
+
 function runAblation() {
   const sorted = history.filter(m => m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals))
     .slice().sort((a, b) => a.date.localeCompare(b.date));
@@ -135,7 +215,8 @@ function runAblation() {
     historyMatches: sorted.length,
     holdoutStartDate,
     factorOrder: ['competitionOnly', 'splitLeagueBaselines', 'sideSpecificStats', 'shrinkageK'],
-    variants: metrics
+    variants: metrics,
+    nestedKSelection: runNestedKSelection(sorted)
   };
 }
 
