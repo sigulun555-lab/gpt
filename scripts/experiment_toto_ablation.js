@@ -152,6 +152,7 @@ function runNestedKSelection(sortedInput) {
     for (const key of Object.keys(aggregate)) aggregate[key].push(...foldRows[key]);
     folds.push({
       fold: foldIndex + 1,
+      trainEndDateInclusive: outerTrain[outerTrain.length - 1].date,
       testStartDate: startDate,
       testEndDateExclusive: endDate,
       trainMatches: outerTrain.length,
