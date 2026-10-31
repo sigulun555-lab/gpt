@@ -1,10 +1,10 @@
 {
-  "n": 379,
-  "brier": 0.7173197379588736,
-  "logloss": 1.2234253212083819,
-  "accuracy": 0.40369393139841686,
+  "n": 405,
+  "brier": 0.704289424650285,
+  "logloss": 1.2020259999973721,
+  "accuracy": 0.41728395061728396,
   "method": "chronological walk-forward",
-  "updatedAt": "2026-10-31T05:38:01.428Z",
+  "updatedAt": "2026-10-31T12:25:11.597Z",
   "source": {
     "name": "k-addtimes/jleague_open_data",
     "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",

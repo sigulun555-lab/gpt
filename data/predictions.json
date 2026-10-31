@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-31T05:38:01.428Z",
+  "generatedAt": "2026-10-31T12:25:11.597Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-10-31T05:38:01.428Z",
+    "lastFetchedAt": "2026-10-31T12:25:11.597Z",
     "marketType": "totoGOAL3",
     "round": 1669,
     "deadline": "2026-11-03T13:45:00+09:00",
@@ -25,7 +25,7 @@
   },
   "counts": {
     "scheduleRows": 1140,
-    "historyMatches": 380,
+    "historyMatches": 406,
     "totoFixtures": 3,
     "predictions": 3
   },
@@ -47,24 +47,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.29683102679138396,
-          "1": 0.38481125193704363,
-          "2": 0.31835772127157236
+          "0": 0.26666978570422123,
+          "1": 0.38227560293272983,
+          "2": 0.35105461136304894
         },
         "homeGoalProbabilities": [
-          0.3242867999820395,
-          0.3651881113467969,
-          0.2056240905834384,
-          0.10490099808772513
+          0.27016626962900825,
+          0.35357137794693894,
+          0.23136255957297028,
+          0.14489979285108254
         ],
         "awayGoalProbabilities": [
-          0.3693559435979603,
-          0.3678764821196193,
-          0.18320147332462466,
-          0.0795661009577957
+          0.2886267804079929,
+          0.3586536531081997,
+          0.22283525233872342,
+          0.12988431414508395
         ],
-        "homeExpectedGoals": 1.12612696960537,
-        "awayExpectedGoals": 0.9959944830887807,
+        "homeExpectedGoals": 1.3087176960782796,
+        "awayExpectedGoals": 1.242620842740993,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "カターレ富山",
@@ -86,24 +86,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.20524477556017437,
-          "1": 0.5683443145428131,
-          "2": 0.22641090989701249
+          "0": 0.22903328642919055,
+          "1": 0.4847555709069019,
+          "2": 0.28621114266390746
         },
         "homeGoalProbabilities": [
-          0.11598088860001843,
-          0.24986109090852945,
-          0.26914160386071784,
-          0.36501641663073425
+          0.16250238729233485,
+          0.2952770081317911,
+          0.2682684020340373,
+          0.2739522025418369
         ],
         "awayGoalProbabilities": [
-          0.2714852895217954,
-          0.35397536806272245,
-          0.23076491808422753,
-          0.14377442433125462
+          0.25906537679784203,
+          0.34991308352342104,
+          0.23630939713802873,
+          0.1547121425407082
         ],
-        "homeExpectedGoals": 2.1543298548972296,
-        "awayExpectedGoals": 1.3038473233162218,
+        "homeExpectedGoals": 1.817062586290504,
+        "awayExpectedGoals": 1.3506748290662967,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "RB大宮アルディージャ",
@@ -125,24 +125,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.16812140712291213,
-          "1": 0.7828150391375034,
-          "2": 0.04906355373958441
+          "0": 0.21701402317843577,
+          "1": 0.6946801824123301,
+          "2": 0.08830579440923413
         },
         "homeGoalProbabilities": [
-          0.13072690022580244,
-          0.2659828159949165,
-          0.27059028509964567,
-          0.3326999986796354
+          0.17433795915995526,
+          0.3045264985000425,
+          0.2659672877196258,
+          0.25516825462037657
         ],
         "awayGoalProbabilities": [
-          0.721832738663104,
-          0.23528992104697652,
-          0.038347766720048186,
-          0.004529573569871249
+          0.6403613237409871,
+          0.2854235740898933,
+          0.06360988212898407,
+          0.010605220040135574
         ],
-        "homeExpectedGoals": 2.034644862958494,
-        "awayExpectedGoals": 0.32596183082905544,
+        "homeExpectedGoals": 1.746759569559026,
+        "awayExpectedGoals": 0.4457226935918778,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "大分トリニータ",
