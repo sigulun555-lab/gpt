@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T22:17:02.481Z",
+  "generatedAt": "2026-10-31T05:38:01.428Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
   "totoTargetsConfirmed": true,
-  "round": 1668,
-  "deadline": "2026-10-31T13:50:00+09:00",
-  "saleStart": "2026-10-24T08:00:00+09:00",
+  "round": 1669,
+  "deadline": "2026-11-03T13:45:00+09:00",
+  "saleStart": "2026-10-31T08:00:00+09:00",
   "source": {
     "name": "k-addtimes/jleague_open_data",
     "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
@@ -16,10 +16,10 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-10-30T22:17:02.481Z",
+    "lastFetchedAt": "2026-10-31T05:38:01.428Z",
     "marketType": "totoGOAL3",
-    "round": 1668,
-    "deadline": "2026-10-31T13:50:00+09:00",
+    "round": 1669,
+    "deadline": "2026-11-03T13:45:00+09:00",
     "fixtureCount": 3,
     "teamTargetCount": 6
   },
@@ -37,38 +37,38 @@
     {
       "number": 1,
       "marketType": "totoGOAL3",
-      "date": "2026-10-31",
-      "dateLabel": "10/31",
-      "home": "岡山",
-      "away": "FC東京",
+      "date": "2026-11-03",
+      "dateLabel": "11/03",
+      "home": "富山",
+      "away": "仙台",
       "source": "toto_official_page",
       "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-      "totoRound": 1668,
+      "totoRound": 1669,
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.18847321466218941,
-          "1": 0.10497361358769211,
-          "2": 0.7065531717501186
+          "0": 0.29683102679138396,
+          "1": 0.38481125193704363,
+          "2": 0.31835772127157236
         },
         "homeGoalProbabilities": [
-          0.5205719183777666,
-          0.3398435228431352,
-          0.11092955261430522,
-          0.02865500616479298
+          0.3242867999820395,
+          0.3651881113467969,
+          0.2056240905834384,
+          0.10490099808772513
         ],
         "awayGoalProbabilities": [
-          0.12517948750791427,
-          0.26012381018080666,
-          0.27026950649043985,
-          0.3444271958208392
+          0.3693559435979603,
+          0.3678764821196193,
+          0.18320147332462466,
+          0.0795661009577957
         ],
-        "homeExpectedGoals": 0.652827228756736,
-        "awayExpectedGoals": 2.0780066715352286,
+        "homeExpectedGoals": 1.12612696960537,
+        "awayExpectedGoals": 0.9959944830887807,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "canonicalHome": "ファジアーノ岡山",
-        "canonicalAway": "FC東京",
+        "canonicalHome": "カターレ富山",
+        "canonicalAway": "ベガルタ仙台",
         "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
@@ -76,38 +76,38 @@
     {
       "number": 2,
       "marketType": "totoGOAL3",
-      "date": "2026-10-31",
-      "dateLabel": "10/31",
-      "home": "神戸",
-      "away": "名古屋",
+      "date": "2026-11-03",
+      "dateLabel": "11/03",
+      "home": "大宮",
+      "away": "いわき",
       "source": "toto_official_page",
       "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-      "totoRound": 1668,
+      "totoRound": 1669,
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.2274812000472665,
-          "1": 0.6295920993910795,
-          "2": 0.14292670056165405
+          "0": 0.20524477556017437,
+          "1": 0.5683443145428131,
+          "2": 0.22641090989701249
         },
         "homeGoalProbabilities": [
-          0.17159237671665717,
-          0.3024544745728365,
-          0.2665581972216204,
-          0.25939495148888597
+          0.11598088860001843,
+          0.24986109090852945,
+          0.26914160386071784,
+          0.36501641663073425
         ],
         "awayGoalProbabilities": [
-          0.49797961418733994,
-          0.347189463894889,
-          0.1210295767190513,
-          0.03380134519871973
+          0.2714852895217954,
+          0.35397536806272245,
+          0.23076491808422753,
+          0.14377442433125462
         ],
-        "homeExpectedGoals": 1.7626335176431878,
-        "awayExpectedGoals": 0.6971961381621464,
+        "homeExpectedGoals": 2.1543298548972296,
+        "awayExpectedGoals": 1.3038473233162218,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "canonicalHome": "ヴィッセル神戸",
-        "canonicalAway": "名古屋グランパス",
+        "canonicalHome": "RB大宮アルディージャ",
+        "canonicalAway": "いわきFC",
         "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"
@@ -115,38 +115,38 @@
     {
       "number": 3,
       "marketType": "totoGOAL3",
-      "date": "2026-10-31",
-      "dateLabel": "10/31",
-      "home": "柏",
-      "away": "浦和",
+      "date": "2026-11-03",
+      "dateLabel": "11/03",
+      "home": "大分",
+      "away": "八戸",
       "source": "toto_official_page",
       "sourceUrl": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-      "totoRound": 1668,
+      "totoRound": 1669,
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.15750711297988332,
-          "1": 0.641578031880826,
-          "2": 0.20091485513929078
+          "0": 0.16812140712291213,
+          "1": 0.7828150391375034,
+          "2": 0.04906355373958441
         },
         "homeGoalProbabilities": [
-          0.043799605384526104,
-          0.13701088022663174,
-          0.21429395465636264,
-          0.6048955597324794
+          0.13072690022580244,
+          0.2659828159949165,
+          0.27059028509964567,
+          0.3326999986796354
         ],
         "awayGoalProbabilities": [
-          0.16424898314887412,
-          0.29669473339372293,
-          0.26797050166144587,
-          0.271085781795957
+          0.721832738663104,
+          0.23528992104697652,
+          0.038347766720048186,
+          0.004529573569871249
         ],
-        "homeExpectedGoals": 3.1281304711260276,
-        "awayExpectedGoals": 1.8063718125110153,
+        "homeExpectedGoals": 2.034644862958494,
+        "awayExpectedGoals": 0.32596183082905544,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
-        "canonicalHome": "柏レイソル",
-        "canonicalAway": "浦和レッズ",
+        "canonicalHome": "大分トリニータ",
+        "canonicalAway": "ヴァンラーレ八戸",
         "method": "Poisson baseline using earlier results only; normalized team aliases; shared score-rate basis"
       },
       "availabilityNote": "未取得"

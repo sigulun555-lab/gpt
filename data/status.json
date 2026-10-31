@@ -3,10 +3,10 @@
   "liveData": true,
   "predictionsGenerated": true,
   "totoTargetsConfirmed": true,
-  "round": 1668,
-  "deadline": "2026-10-31T13:50:00+09:00",
-  "lastAttemptAt": "2026-10-30T22:17:02.481Z",
-  "lastSuccessfulFetch": "2026-10-30T22:17:02.481Z",
+  "round": 1669,
+  "deadline": "2026-11-03T13:45:00+09:00",
+  "lastAttemptAt": "2026-10-31T05:38:01.428Z",
+  "lastSuccessfulFetch": "2026-10-31T05:38:01.428Z",
   "lastError": null,
   "source": {
     "name": "k-addtimes/jleague_open_data",
@@ -16,10 +16,10 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-10-30T22:17:02.481Z",
+    "lastFetchedAt": "2026-10-31T05:38:01.428Z",
     "marketType": "totoGOAL3",
-    "round": 1668,
-    "deadline": "2026-10-31T13:50:00+09:00",
+    "round": 1669,
+    "deadline": "2026-11-03T13:45:00+09:00",
     "fixtureCount": 3,
     "teamTargetCount": 6
   },
