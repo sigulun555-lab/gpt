@@ -61,3 +61,17 @@ The probability-quality improvement is concentrated in J2. J1 and J3 have slight
 - Workflow run: https://github.com/sigulun555-lab/gpt/actions/runs/41454586099
 - Artifact: `toto-1x2-model-experiment` (contains the 2026-only report, 2025+2026 report, and round-1668 prediction snapshot).
 - The `npm test` and experiment report-generation steps passed. The later live official GOAL3 HTML check failed due a remote socket termination; this is an external live-fetch issue and does not invalidate the completed model report generation.
+
+
+## Official 2025 league-size cross-check (2026-11-02)
+
+The 2025 historical CSV mirror contains 1,140 rows: J1 380, J2 380, and J3 380. The official J.League season-format documents independently confirm that all three 2025 divisions had 20 clubs and a 38-round home-and-away format, totaling 380 league matches per division:
+
+- 2025 season overview: https://aboutj.jleague.jp/corporate/about_competitions/2025season/
+- J1 format: https://aboutj.jleague.jp/corporate/pressrelease/article/15329
+- J2 format: https://aboutj.jleague.jp/corporate/pressrelease/article/15333
+- J3 format: https://aboutj.jleague.jp/corporate/pressrelease/article/15332
+
+This validates the expected league-level match totals, not every row's date, fixture identity, or 90-minute score in the community mirror. Row-level reconciliation against the official J.League Data Site remains outstanding. The equal 2025 league sizes provide no basis to prioritize one league by match count.
+
+The 2026 outer evaluation currently contains J1=60, J2=80, J3=80 matches. J1 remains in scope and requires more untouched chronological evaluation; its smaller current outer sample is not grounds to stop evaluating it.
