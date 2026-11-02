@@ -32,12 +32,19 @@ const nested = report.nestedKSelection;
 assert.equal(nested.folds.length, 3);
 assert.ok(nested.aggregateOuterMetrics.productionBaseline.n > 0);
 assert.ok(nested.aggregateOuterMetrics.nestedSelectedK.n > 0);
+assert.equal(nested.aggregateOuterMetrics.nestedLeagueSelected.n, nested.aggregateOuterMetrics.productionBaseline.n);
 for (const fold of nested.folds) {
   assert.ok([3, 6, 10].includes(fold.selectedK));
   assert.ok(fold.trainEndDateInclusive < fold.testStartDate, 'outer train must end before test starts');
   assert.ok(fold.innerValidationMatches > 0);
   assert.ok(fold.testMatches > 0);
   assert.equal(fold.outerMetrics.nestedSelectedK.n, fold.testMatches);
+  assert.equal(fold.outerMetrics.nestedLeagueSelected.n, fold.testMatches);
+  for (const selection of Object.values(fold.selectedByCompetition)) {
+    assert.ok(['productionBaseline', 'shrinkageK3', 'shrinkageK6', 'shrinkageK10'].includes(selection.model));
+    if (selection.model === 'productionBaseline') assert.equal(selection.k, null);
+    else assert.ok([3, 6, 10].includes(selection.k));
+  }
 }
 for (const comparison of Object.values(nested.pairedComparisons)) {
   assert.equal(comparison.targetMatches, nested.aggregateOuterMetrics.productionBaseline.n);
@@ -50,6 +57,11 @@ for (const comparison of Object.values(nested.pairedComparisons)) {
   }
 }
 assert.ok(Object.keys(nested.perCompetition.nestedSelectedK).length >= 2);
+assert.ok(Object.keys(nested.perCompetition.nestedLeagueSelected).length >= 2);
+for (const result of Object.values(nested.perCompetition.nestedLeagueSelected)) {
+  assert.ok(result.targetMatches > 0);
+  assert.ok(Number.isFinite(result.deltaCandidateMinusBaseline.brier));
+}
 for (const result of Object.values(nested.perCompetition.nestedSelectedK)) {
   assert.ok(result.targetMatches > 0);
   assert.ok(Number.isFinite(result.deltaCandidateMinusBaseline.brier));
