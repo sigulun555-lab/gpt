@@ -181,9 +181,10 @@ function compareByCompetition(candidateRows, baselineRows) {
   }));
 }
 
-function runNestedKSelection(sortedInput) {
-  const sorted = sortedInput.slice().sort((a, b) => a.date.localeCompare(b.date));
-  const dates = [...new Set(sorted.map(m => m.date))].sort();
+function runNestedKSelection(historyInput, targetInput = historyInput) {
+  const sorted = historyInput.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const targets = targetInput.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const dates = [...new Set(targets.map(m => m.date))].sort();
   const boundaries = [
     Math.max(2, Math.floor(dates.length * 0.55)),
     Math.floor(dates.length * 0.70),
@@ -199,7 +200,7 @@ function runNestedKSelection(sortedInput) {
     const startDate = dates[boundaries[foldIndex]];
     const endDate = boundaries[foldIndex + 1] < dates.length ? dates[boundaries[foldIndex + 1]] : null;
     const outerTrain = sorted.filter(m => m.date < startDate);
-    const outerTest = sorted.filter(m => m.date >= startDate && (!endDate || m.date < endDate));
+    const outerTest = targets.filter(m => m.date >= startDate && (!endDate || m.date < endDate));
     const innerDates = [...new Set(outerTrain.map(m => m.date))].sort();
     const innerStartDate = innerDates[Math.max(1, Math.floor(innerDates.length * 0.7))];
     const innerValidation = outerTrain.filter(m => m.date >= innerStartDate);
@@ -321,24 +322,26 @@ function runNestedKSelection(sortedInput) {
   };
 }
 
-function runAblation() {
-  const sorted = history.filter(m => m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals))
+function runAblation(historyInput = history, options = {}) {
+  const sorted = historyInput.filter(m => m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals))
     .slice().sort((a, b) => a.date.localeCompare(b.date));
+  const targetStartDate = options.targetStartDate || sorted[0]?.date;
+  const targets = sorted.filter(m => m.date >= targetStartDate);
   const scored = new Map(variants.map(v => [v.id, []]));
-  const dates = [...new Set(sorted.map(m => m.date))].sort();
-  // Keep every match on a date in the same split; choose the cutoff closest to 20% of rows.
-  const targetHoldoutCount = Math.max(1, Math.round(sorted.length * 0.2));
-  let holdoutStartDate = dates[1];
+  const dates = [...new Set(targets.map(m => m.date))].sort();
+  // Keep every match on a date in the same split; choose the cutoff closest to 20% of target rows.
+  const targetHoldoutCount = Math.max(1, Math.round(targets.length * 0.2));
+  let holdoutStartDate = dates[1] || dates[0];
   let bestHoldoutDistance = Infinity;
   for (const date of dates.slice(1)) {
-    const holdoutCount = sorted.filter(m => m.date >= date).length;
+    const holdoutCount = targets.filter(m => m.date >= date).length;
     const distance = Math.abs(holdoutCount - targetHoldoutCount);
     if (distance < bestHoldoutDistance) {
       holdoutStartDate = date;
       bestHoldoutDistance = distance;
     }
   }
-  for (const match of sorted) {
+  for (const match of targets) {
     const prior = sorted.filter(m => m.date < match.date);
     if (!prior.length) continue;
     for (const variant of variants) {
@@ -356,17 +359,19 @@ function runAblation() {
       all: score(rows),
       chronologicalHoldout: score(rows.filter(r => r.isHoldout)),
       holdoutStartDate,
-      caveat: 'Exploratory only. The final chronological holdout is chosen to approximate 20% of rows while keeping same-date matches together; this is a single small 2026 sample and does not establish generalization.'
+      caveat: 'Exploratory only. The final chronological holdout is chosen to approximate 20% of target rows while keeping same-date matches together; this is a single target period and does not establish generalization.'
     };
   }
   return {
     generatedAt: new Date().toISOString(),
-    source: 'data/history.json; community J.League CSV mirror, not official results feed',
+    source: options.source || 'data/history.json; community J.League CSV mirror, not official results feed',
     historyMatches: sorted.length,
+    targetMatches: targets.length,
+    targetStartDate,
     holdoutStartDate,
     factorOrder: ['competitionOnly', 'splitLeagueBaselines', 'sideSpecificStats', 'shrinkageK'],
     variants: metrics,
-    nestedKSelection: runNestedKSelection(sorted)
+    nestedKSelection: runNestedKSelection(sorted, targets)
   };
 }
 
