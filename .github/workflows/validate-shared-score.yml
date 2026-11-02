@@ -20,6 +20,18 @@ jobs:
           node-version: '22'
       - run: node --check model.js
       - run: npm test
+      - name: Run reproducible toto 1X2 experiment reports
+        run: |
+          mkdir -p artifacts/toto-1x2
+          node scripts/experiment_toto_model.js > artifacts/toto-1x2/round-1668.json
+          node scripts/experiment_toto_ablation.js > artifacts/toto-1x2/ablation.json
+      - name: Upload toto 1X2 experiment results
+        uses: actions/upload-artifact@v4
+        with:
+          name: toto-1x2-model-experiment
+          path: artifacts/toto-1x2/
+          if-no-files-found: error
+          retention-days: 30
       - name: Test against live official toto HTML
         run: node tests/test_live_official.js
       - uses: actions/setup-python@v5
