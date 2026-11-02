@@ -14,11 +14,24 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     Accept: 'text/html,application/xhtml+xml,*/*',
     'User-Agent': 'JLeagueTotoPredictor/0.1 (official-page regression test)'
   };
-  const options = { headers, signal: AbortSignal.timeout(20000) };
+  async function fetchOfficial(url) {
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+        if (!response.ok) throw new Error('official page returned HTTP ' + response.status + ': ' + url);
+        return response;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
+    throw lastError;
+  }
 
   // Standard toto remains supported and must be distinguished from GOAL3.
   const totoUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
-  const totoResponse = await fetch(totoUrl, options);
+  const totoResponse = await fetchOfficial(totoUrl);
   assert.equal(totoResponse.ok, true, 'official standard-toto page should return HTTP success');
   const totoHtml = await totoResponse.text();
   assert.ok(totoHtml.length > 1000, 'official standard-toto HTML should be non-empty');
@@ -41,7 +54,7 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   // Explicitly pin both commodityId=02 (totoGOAL3) and historical round 1668.
   // This keeps the fixture regression stable after the official current round advances.
   const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1&holdCntId=1668';
-  const goal3Response = await fetch(goal3Url, options);
+  const goal3Response = await fetchOfficial(goal3Url);
   assert.equal(goal3Response.ok, true, 'official GOAL3 selection page should return HTTP success');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
