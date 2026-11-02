@@ -21,6 +21,8 @@ jobs:
           node-version: '22'
       - run: node --check model.js
       - run: npm test
+      - name: Check historical experiment script syntax
+        run: node --check scripts/experiment_toto_ablation_historical.js
       - name: Run reproducible toto 1X2 experiment reports
         run: |
           mkdir -p artifacts/toto-1x2
