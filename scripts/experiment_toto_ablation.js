@@ -194,7 +194,7 @@ function runNestedKSelection(sortedInput) {
   boundaries[2] = Math.max(boundaries[2], boundaries[1] + 1);
   boundaries[3] = dates.length;
   const folds = [];
-  const aggregate = { productionBaseline: [], nestedSelectedK: [], fixedK3: [], fixedK6: [], fixedK10: [] };
+  const aggregate = { productionBaseline: [], nestedSelectedK: [], nestedLeagueSelected: [], fixedK3: [], fixedK6: [], fixedK10: [] };
   for (let foldIndex = 0; foldIndex < 3; foldIndex++) {
     const startDate = dates[boundaries[foldIndex]];
     const endDate = boundaries[foldIndex + 1] < dates.length ? dates[boundaries[foldIndex + 1]] : null;
@@ -218,13 +218,51 @@ function runNestedKSelection(sortedInput) {
       innerScores[a].logloss - innerScores[b].logloss ||
       a - b
     )[0];
-    const foldRows = { productionBaseline: [], nestedSelectedK: [], fixedK3: [], fixedK6: [], fixedK10: [] };
+    const innerSelectionByCompetition = {};
+    const selectedByCompetition = {};
+    const competitions = [...new Set(outerTrain.map(m => m.competition))].sort();
+    for (const competition of competitions) {
+      const validation = innerValidation.filter(m => m.competition === competition);
+      if (!validation.length) continue;
+      const candidateRows = [{ id: 'productionBaseline', k: null, rows: [] },
+        ...[3, 6, 10].map(k => ({ id: 'shrinkageK' + k, k, rows: [] }))];
+      for (const match of validation) {
+        const prior = outerTrain.filter(m => m.date < match.date);
+        if (!prior.length) continue;
+        candidateRows[0].rows.push({
+          match,
+          probabilities: predict(prior, { date: match.date, home: match.home, away: match.away }).probabilities
+        });
+        for (const candidate of candidateRows.slice(1)) {
+          candidate.rows.push({
+            match,
+            probabilities: predictAblation(outerTrain, match, {
+              competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: candidate.k
+            }).probabilities
+          });
+        }
+      }
+      const scored = candidateRows.map(candidate => ({ ...candidate, metrics: score(candidate.rows) }));
+      scored.sort((a, b) =>
+        a.metrics.brier - b.metrics.brier ||
+        a.metrics.logloss - b.metrics.logloss ||
+        (a.k ?? 0) - (b.k ?? 0)
+      );
+      const selected = scored[0];
+      selectedByCompetition[competition] = { model: selected.id, k: selected.k };
+      innerSelectionByCompetition[competition] = {
+        selectedModel: selected.id,
+        selectedK: selected.k,
+        innerMetrics: selected.metrics,
+        candidates: Object.fromEntries(scored.map(candidate => [candidate.id, candidate.metrics]))
+      };
+    }
+    const foldRows = { productionBaseline: [], nestedSelectedK: [], nestedLeagueSelected: [], fixedK3: [], fixedK6: [], fixedK10: [] };
     for (const match of outerTest) {
       const prior = sorted.filter(m => m.date < match.date);
       if (!prior.length) continue;
-      foldRows.productionBaseline.push({
-        match, probabilities: predict(prior, { date: match.date, home: match.home, away: match.away }).probabilities
-      });
+      const baseline = predict(prior, { date: match.date, home: match.home, away: match.away }).probabilities;
+      foldRows.productionBaseline.push({ match, probabilities: baseline });
       for (const k of [3, 6, 10]) {
         const probabilities = predictAblation(sorted, match, {
           competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: k
@@ -237,6 +275,13 @@ function runNestedKSelection(sortedInput) {
           competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: selectedK
         }).probabilities
       });
+      const leagueSelection = selectedByCompetition[match.competition] || { model: 'productionBaseline', k: null };
+      const leagueProbabilities = leagueSelection.model === 'productionBaseline'
+        ? baseline
+        : predictAblation(sorted, match, {
+          competitionOnly: true, splitLeagueBaselines: true, sideSpecificStats: true, shrinkageK: leagueSelection.k
+        }).probabilities;
+      foldRows.nestedLeagueSelected.push({ match, probabilities: leagueProbabilities });
     }
     for (const key of Object.keys(aggregate)) aggregate[key].push(...foldRows[key]);
     folds.push({
@@ -249,6 +294,8 @@ function runNestedKSelection(sortedInput) {
       innerValidationMatches: innerValidation.length,
       innerScores,
       selectedK,
+      innerSelectionByCompetition,
+      selectedByCompetition,
       testMatches: outerTest.length,
       outerMetrics: Object.fromEntries(Object.entries(foldRows).map(([key, rows]) => [key, score(rows)]))
     });
@@ -256,10 +303,12 @@ function runNestedKSelection(sortedInput) {
   const aggregateOuterMetrics = Object.fromEntries(Object.entries(aggregate).map(([key, rows]) => [key, score(rows)]));
   const pairedComparisons = {
     nestedSelectedK: pairedDateBlockBootstrap(aggregate.nestedSelectedK, aggregate.productionBaseline),
+    nestedLeagueSelected: pairedDateBlockBootstrap(aggregate.nestedLeagueSelected, aggregate.productionBaseline),
     fixedK10: pairedDateBlockBootstrap(aggregate.fixedK10, aggregate.productionBaseline)
   };
   const perCompetition = {
     nestedSelectedK: compareByCompetition(aggregate.nestedSelectedK, aggregate.productionBaseline),
+    nestedLeagueSelected: compareByCompetition(aggregate.nestedLeagueSelected, aggregate.productionBaseline),
     fixedK10: compareByCompetition(aggregate.fixedK10, aggregate.productionBaseline)
   };
   return {
