@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
 jobs:
+  # Research-only accuracy experiments; no production prediction code is changed.
   test:
     runs-on: ubuntu-latest
     steps:
