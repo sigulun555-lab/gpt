@@ -38,9 +38,9 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     'standard-toto home/away pairs should match in order');
   console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
 
-  // Explicitly choose commodityId=02 (totoGOAL3) while allowing the official page
-  // to supply its current round; do not rely on the page's default commodityId=01.
-  const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1';
+  // Explicitly pin both commodityId=02 (totoGOAL3) and historical round 1668.
+  // This keeps the fixture regression stable after the official current round advances.
+  const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1&holdCntId=1668';
   const goal3Response = await fetch(goal3Url, options);
   assert.equal(goal3Response.ok, true, 'official GOAL3 selection page should return HTTP success');
   const goal3Html = await goal3Response.text();
