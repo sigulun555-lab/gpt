@@ -24,7 +24,7 @@ async function fetchHistoricalCsv() {
   });
   if (!response.ok) throw new Error('Historical CSV fetch failed: HTTP ' + response.status);
   const csv = await response.text();
-  const normalized = csv.replace(/^\\uFEFF/, '');
+  const normalized = csv.replace(/^\uFEFF/, '');
   if (normalized.length < 100 || !/^year,category,term,date,/i.test(normalized)) {
     throw new Error('Historical CSV schema did not match the expected 2025 source');
   }
@@ -80,7 +80,7 @@ async function main() {
   };
   report.competitionCounts = competitionCounts;
   report.evaluationScope = '2026 target matches only; 2025 and strictly earlier 2026 matches may be used as training history';
-  process.stdout.write(JSON.stringify(report, null, 2) + '\\n');
+  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
 }
 
 main().catch(error => {
