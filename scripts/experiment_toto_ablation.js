@@ -92,6 +92,95 @@ function score(rows) {
 }
 
 
+
+function pairedDateBlockBootstrap(candidateRows, baselineRows, replicates = 2000, seed = 1668) {
+  const key = row => [
+    row.match.date, row.match.competition, canonical(row.match.home), canonical(row.match.away)
+  ].join('|');
+  const baselineByKey = new Map(baselineRows.map(row => [key(row), row]));
+  const groups = new Map();
+  for (const candidate of candidateRows) {
+    const baseline = baselineByKey.get(key(candidate));
+    if (!baseline) throw new Error('paired bootstrap missing baseline row for ' + key(candidate));
+    const date = candidate.match.date;
+    if (!groups.has(date)) groups.set(date, []);
+    groups.get(date).push({ candidate, baseline });
+  }
+  const dates = [...groups.keys()].sort();
+  const pairs = dates.flatMap(date => groups.get(date));
+  const differences = selected => {
+    let accuracy = 0, brier = 0, logloss = 0;
+    for (const pair of selected) {
+      const actual = outcome(pair.candidate.match);
+      const metrics = row => {
+        const predicted = KEYS.reduce((best, k) => row.probabilities[k] > row.probabilities[best] ? k : best, KEYS[0]);
+        return {
+          accuracy: predicted === actual ? 1 : 0,
+          brier: KEYS.reduce((sum, k) => sum + (row.probabilities[k] - (k === actual ? 1 : 0)) ** 2, 0),
+          logloss: -Math.log(Math.max(1e-12, row.probabilities[actual]))
+        };
+      };
+      const c = metrics(pair.candidate), b = metrics(pair.baseline);
+      accuracy += c.accuracy - b.accuracy;
+      brier += c.brier - b.brier;
+      logloss += c.logloss - b.logloss;
+    }
+    const n = selected.length;
+    return { accuracy: accuracy / n, brier: brier / n, logloss: logloss / n };
+  };
+  const estimate = differences(pairs);
+  let state = seed >>> 0;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+  const samples = { accuracy: [], brier: [], logloss: [] };
+  for (let i = 0; i < replicates; i++) {
+    const selected = [];
+    for (let j = 0; j < dates.length; j++) {
+      const date = dates[Math.floor(random() * dates.length)];
+      selected.push(...groups.get(date));
+    }
+    const delta = differences(selected);
+    for (const metric of Object.keys(samples)) samples[metric].push(delta[metric]);
+  }
+  const quantile = (values, q) => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const position = (sorted.length - 1) * q;
+    const lower = Math.floor(position), upper = Math.ceil(position);
+    return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+  };
+  return {
+    targetMatches: pairs.length,
+    dateBlocks: dates.length,
+    replicates,
+    resamplingUnit: 'calendar date blocks; all matches on a date stay together',
+    deltaCandidateMinusBaseline: estimate,
+    confidenceInterval95: Object.fromEntries(Object.entries(samples).map(([metric, values]) => [
+      metric, [quantile(values, 0.025), quantile(values, 0.975)]
+    ]))
+  };
+}
+
+function compareByCompetition(candidateRows, baselineRows) {
+  const competitions = [...new Set(baselineRows.map(row => row.match.competition))].sort();
+  return Object.fromEntries(competitions.map(competition => {
+    const baseline = baselineRows.filter(row => row.match.competition === competition);
+    const candidate = candidateRows.filter(row => row.match.competition === competition);
+    const b = score(baseline), c = score(candidate);
+    return [competition, {
+      targetMatches: baseline.length,
+      baseline: b,
+      candidate: c,
+      deltaCandidateMinusBaseline: {
+        accuracy: c.accuracy - b.accuracy,
+        brier: c.brier - b.brier,
+        logloss: c.logloss - b.logloss
+      }
+    }];
+  }));
+}
+
 function runNestedKSelection(sortedInput) {
   const sorted = sortedInput.slice().sort((a, b) => a.date.localeCompare(b.date));
   const dates = [...new Set(sorted.map(m => m.date))].sort();
@@ -164,10 +253,21 @@ function runNestedKSelection(sortedInput) {
       outerMetrics: Object.fromEntries(Object.entries(foldRows).map(([key, rows]) => [key, score(rows)]))
     });
   }
+  const aggregateOuterMetrics = Object.fromEntries(Object.entries(aggregate).map(([key, rows]) => [key, score(rows)]));
+  const pairedComparisons = {
+    nestedSelectedK: pairedDateBlockBootstrap(aggregate.nestedSelectedK, aggregate.productionBaseline),
+    fixedK10: pairedDateBlockBootstrap(aggregate.fixedK10, aggregate.productionBaseline)
+  };
+  const perCompetition = {
+    nestedSelectedK: compareByCompetition(aggregate.nestedSelectedK, aggregate.productionBaseline),
+    fixedK10: compareByCompetition(aggregate.fixedK10, aggregate.productionBaseline)
+  };
   return {
     method: 'three expanding-window outer folds; choose k using only prior outer-training data, inner chronological validation, Brier primary and LogLoss tie-break; same-date matches remain together',
     candidates: [3, 6, 10],
-    aggregateOuterMetrics: Object.fromEntries(Object.entries(aggregate).map(([key, rows]) => [key, score(rows)])),
+    aggregateOuterMetrics,
+    pairedComparisons,
+    perCompetition,
     folds
   };
 }
