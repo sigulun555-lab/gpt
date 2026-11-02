@@ -39,6 +39,21 @@ for (const fold of nested.folds) {
   assert.ok(fold.testMatches > 0);
   assert.equal(fold.outerMetrics.nestedSelectedK.n, fold.testMatches);
 }
+for (const comparison of Object.values(nested.pairedComparisons)) {
+  assert.equal(comparison.targetMatches, nested.aggregateOuterMetrics.productionBaseline.n);
+  assert.ok(comparison.dateBlocks >= 3, 'paired bootstrap should retain multiple date blocks');
+  assert.equal(comparison.replicates, 2000);
+  for (const metric of ['accuracy', 'brier', 'logloss']) {
+    assert.ok(Number.isFinite(comparison.deltaCandidateMinusBaseline[metric]));
+    assert.equal(comparison.confidenceInterval95[metric].length, 2);
+    assert.ok(comparison.confidenceInterval95[metric][0] <= comparison.confidenceInterval95[metric][1]);
+  }
+}
+assert.ok(Object.keys(nested.perCompetition.nestedSelectedK).length >= 2);
+for (const result of Object.values(nested.perCompetition.nestedSelectedK)) {
+  assert.ok(result.targetMatches > 0);
+  assert.ok(Number.isFinite(result.deltaCandidateMinusBaseline.brier));
+}
 console.log(JSON.stringify({
   historyMatches: report.historyMatches,
   holdoutStartDate: report.holdoutStartDate,
