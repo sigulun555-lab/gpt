@@ -1,16 +1,63 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseSchedule } = require('./auto_pipeline.js');
 const { canonical } = require('../model.js');
 
 const ROOT = path.resolve(__dirname, '..');
-const history = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'history.json'), 'utf8')).history;
 const OUTCOMES = ['1', '0', '2'];
 const K = 6;
 const HALF_LIVES = [3, 6, 9, 12];
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1.25;
 const outcome = m => m.home_goals > m.away_goals ? '1' : m.home_goals === m.away_goals ? '0' : '2';
+
+function normalizeCompetition(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  return /^[123]$/.test(raw) ? 'J' + raw : raw;
+}
+
+function loadCombinedHistory() {
+  const current = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'history.json'), 'utf8')).history
+    .filter(m => m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals));
+  const targetStartDate = current.map(m => m.date).sort()[0];
+  if (!targetStartDate) throw new Error('Current-season target history is empty');
+
+  const historicalPath = path.join(ROOT, 'verification', 'goal3_independent', '2025.csv');
+  const historicalParsed = parseSchedule(fs.readFileSync(historicalPath, 'utf8'));
+  const historical = historicalParsed
+    .filter(m => m.date && m.date.startsWith('2025-') &&
+      Number.isInteger(m.home_goals) && Number.isInteger(m.away_goals) &&
+      m.home_goals >= 0 && m.away_goals >= 0)
+    .map(m => ({ ...m, competition: normalizeCompetition(m.competition), season: 2025 }));
+
+  const currentNormalized = current.map(m => ({
+    ...m, competition: normalizeCompetition(m.competition), season: Number(m.date.slice(0, 4))
+  }));
+  const combined = new Map();
+  for (const row of [...historical, ...currentNormalized]) {
+    if (!['J1', 'J2', 'J3'].includes(row.competition)) continue;
+    const key = [row.date, row.competition, canonical(row.home), canonical(row.away)].join('|');
+    combined.set(key, row);
+  }
+  const rows = [...combined.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const historicalRows = rows.filter(m => m.date.startsWith('2025-'));
+  const targetRows = rows.filter(m => m.date >= targetStartDate);
+  if (historicalRows.length < 1000) {
+    throw new Error('Expected at least 1,000 2025 history rows; found ' + historicalRows.length);
+  }
+  if (targetRows.length < 100) {
+    throw new Error('Expected at least 100 current-season target rows; found ' + targetRows.length);
+  }
+  return {
+    history: rows,
+    targetStartDate,
+    historySources: {
+      historical2025: { path: 'verification/goal3_independent/2025.csv', rows: historicalRows.length },
+      current2026: { path: 'data/history.json', rows: currentNormalized.length }
+    }
+  };
+}
 
 function poisson(lambda, goals) {
   let p = Math.exp(-lambda);
@@ -33,10 +80,9 @@ function probabilitiesFromLambdas(homeLambda, awayLambda) {
 }
 
 /**
- * V0: competition-only, split home/away league rates, last 12 same-venue
- * team matches, equal weights, fixed shrinkage k=6.
- * V1: identical structure, but exponentially downweights older same-venue
- * team matches. Half-life is expressed in matches, not calendar days.
+ * V0: competition-only Poisson, separate home/away league rates, last 12
+ * same-venue team matches, equal weights, fixed shrinkage k=6.
+ * V1: same model plus exponential recency weights on those same 12 matches.
  */
 function predictShrinkage(allHistory, fixture, options = {}) {
   const halfLife = options.halfLifeMatches ?? null;
@@ -44,7 +90,7 @@ function predictShrinkage(allHistory, fixture, options = {}) {
   if (halfLife !== null && !(halfLife > 0)) throw new RangeError('halfLifeMatches must be positive');
   const prior = allHistory.filter(m =>
     m.date < fixture.date &&
-    m.competition === fixture.competition &&
+    normalizeCompetition(m.competition) === normalizeCompetition(fixture.competition) &&
     Number.isFinite(m.home_goals) &&
     Number.isFinite(m.away_goals)
   ).sort((a, b) => a.date.localeCompare(b.date));
@@ -111,7 +157,8 @@ function score(rows) {
 }
 
 function pairedDateBlockBootstrap(candidateRows, baselineRows, replicates = 2000, seed = 1670) {
-  const key = row => [row.match.date, row.match.competition, canonical(row.match.home), canonical(row.match.away)].join('|');
+  const key = row => [row.match.date, normalizeCompetition(row.match.competition),
+    canonical(row.match.home), canonical(row.match.away)].join('|');
   const baselineByKey = new Map(baselineRows.map(row => [key(row), row]));
   const groups = new Map();
   for (const candidate of candidateRows) {
@@ -176,12 +223,17 @@ function pairedDateBlockBootstrap(candidateRows, baselineRows, replicates = 2000
   };
 }
 
-function runExperiment(historyInput = history) {
-  const sorted = historyInput.filter(m =>
+function runExperiment(historyInput = null, options = {}) {
+  const loaded = Array.isArray(historyInput) ? null : loadCombinedHistory();
+  const allRows = (Array.isArray(historyInput) ? historyInput : loaded.history).filter(m =>
     m.date && m.competition && Number.isFinite(m.home_goals) && Number.isFinite(m.away_goals)
   ).slice().sort((a, b) => a.date.localeCompare(b.date));
-  const dates = [...new Set(sorted.map(m => m.date))].sort();
-  if (dates.length < 10) throw new Error('Insufficient unique dates for nested walk-forward');
+  const targetStartDate = options.targetStartDate || loaded?.targetStartDate ||
+    allRows.filter(m => m.date.startsWith('2026-')).map(m => m.date).sort()[0];
+  if (!targetStartDate) throw new Error('No current-season target start date');
+  const targets = allRows.filter(m => m.date >= targetStartDate);
+  const dates = [...new Set(targets.map(m => m.date))].sort();
+  if (dates.length < 10) throw new Error('Insufficient unique target dates for nested walk-forward');
 
   const boundaries = [
     Math.max(2, Math.floor(dates.length * 0.55)),
@@ -198,7 +250,7 @@ function runExperiment(historyInput = history) {
   for (let foldIndex = 0; foldIndex < 3; foldIndex++) {
     const testStart = dates[boundaries[foldIndex]];
     const testEnd = boundaries[foldIndex + 1] < dates.length ? dates[boundaries[foldIndex + 1]] : null;
-    const outerTrain = sorted.filter(m => m.date < testStart);
+    const outerTrain = allRows.filter(m => m.date < testStart);
     const innerDates = [...new Set(outerTrain.map(m => m.date))].sort();
     const innerStart = innerDates[Math.max(1, Math.floor(innerDates.length * 0.70))];
     const innerValidation = outerTrain.filter(m => m.date >= innerStart);
@@ -217,10 +269,10 @@ function runExperiment(historyInput = history) {
     )[0];
 
     const foldRows = { v0: [], v1: [] };
-    const outerTest = sorted.filter(m => m.date >= testStart && (!testEnd || m.date < testEnd));
+    const outerTest = targets.filter(m => m.date >= testStart && (!testEnd || m.date < testEnd));
     for (const match of outerTest) {
-      const v0 = predictShrinkage(sorted, match, { k: K }).probabilities;
-      const v1 = predictShrinkage(sorted, match, { k: K, halfLifeMatches: selectedHalfLife }).probabilities;
+      const v0 = predictShrinkage(allRows, match, { k: K }).probabilities;
+      const v1 = predictShrinkage(allRows, match, { k: K, halfLifeMatches: selectedHalfLife }).probabilities;
       foldRows.v0.push({ match, probabilities: v0 });
       foldRows.v1.push({ match, probabilities: v1 });
     }
@@ -244,7 +296,11 @@ function runExperiment(historyInput = history) {
 
   return {
     generatedAt: new Date().toISOString(),
-    protocol: '3 expanding-window outer folds; inner chronological validation selects V1 half-life; all training rows strictly precede each target date; same-day rows are excluded; metrics are paired by fixture',
+    protocol: '3 expanding-window outer folds over 2026 targets; training includes 2025 and strictly earlier 2026 matches; target date and later rows are excluded; inner chronological validation selects V1 half-life; paired metrics and date-block bootstrap',
+    targetStartDate,
+    historySources: options.historySources || loaded?.historySources || null,
+    trainingHistoryMatches: allRows.filter(m => m.date < dates[0]).length,
+    targetMatches: targets.length,
     v0Definition: 'competition-only Poisson; separate home/away league scoring baselines; last 12 same-venue team matches; equal weights; fixed shrinkage k=6',
     v1Definition: 'V0 plus exponential recency weights on the last 12 same-venue matches; half-life selected from 3/6/9/12 matches using inner validation Brier, LogLoss tie-break; shrinkage k=6 unchanged',
     candidates: HALF_LIVES,
@@ -254,7 +310,7 @@ function runExperiment(historyInput = history) {
   };
 }
 
-module.exports = { predictShrinkage, score, pairedDateBlockBootstrap, runExperiment };
+module.exports = { loadCombinedHistory, predictShrinkage, score, pairedDateBlockBootstrap, runExperiment };
 
 if (require.main === module) {
   console.log(JSON.stringify(runExperiment(), null, 2));
