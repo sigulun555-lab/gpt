@@ -1,35 +1,35 @@
 {
   "method": "chronological walk-forward; training uses matches with date strictly earlier than each target date",
   "target": "home and away goals categorized as 0, 1, 2, 3+",
-  "sourceRows": 410,
-  "testMatches": 410,
-  "teamGoalTargets": 820,
+  "sourceRows": 429,
+  "testMatches": 429,
+  "teamGoalTargets": 858,
   "testStartDate": "2026-08-07",
-  "testEndDate": "2026-11-01",
+  "testEndDate": "2026-11-03",
   "models": {
     "teamAdjustedPoisson": {
-      "targetCount": 820,
-      "accuracy": 0.28536585365853656,
-      "brier": 0.8247505203892429,
-      "logloss": 1.61089799490998,
-      "exactBothSidesAccuracy": 0.1024390243902439
+      "targetCount": 858,
+      "accuracy": 0.28554778554778554,
+      "brier": 0.8201121423682476,
+      "logloss": 1.5994192898719615,
+      "exactBothSidesAccuracy": 0.1048951048951049
     },
     "leagueMeanPoisson": {
-      "targetCount": 820,
-      "accuracy": 0.31341463414634146,
-      "brier": 0.7641065138743357,
-      "logloss": 1.4235181052914392,
-      "exactBothSidesAccuracy": 0.0975609756097561
+      "targetCount": 858,
+      "accuracy": 0.3146853146853147,
+      "brier": 0.7623644854062481,
+      "logloss": 1.4195187975392438,
+      "exactBothSidesAccuracy": 0.09557109557109557
     },
     "empiricalLaplaceBaseline": {
-      "targetCount": 820,
-      "accuracy": 0.29878048780487804,
-      "brier": 0.7519342310720423,
-      "logloss": 1.3881823805135391,
-      "exactBothSidesAccuracy": 0.08292682926829269
+      "targetCount": 858,
+      "accuracy": 0.3006993006993007,
+      "brier": 0.750466700707952,
+      "logloss": 1.3851962348260893,
+      "exactBothSidesAccuracy": 0.08158508158508158
     }
   },
-  "updatedAt": "2026-11-03T00:56:45.745Z",
+  "updatedAt": "2026-11-03T14:10:40.091Z",
   "source": {
     "name": "k-addtimes/jleague_open_data",
     "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
