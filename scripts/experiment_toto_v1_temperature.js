@@ -22,13 +22,14 @@ function runExperiment() {
   const dates = [...new Set(targets.map(m => m.date))].sort();
   if (dates.length < 10) throw new Error('Insufficient unique target dates for nested walk-forward');
 
+  // Partition all 2026 target dates into three chronological outer test folds.
+  // The first fold trains on 2025 only; later folds expand with prior 2026 results.
   const boundaries = [
-    Math.max(2, Math.floor(dates.length * 0.55)),
-    Math.floor(dates.length * 0.70),
-    Math.floor(dates.length * 0.85),
+    0,
+    Math.max(1, Math.floor(dates.length / 3)),
+    Math.max(2, Math.floor((dates.length * 2) / 3)),
     dates.length
   ];
-  boundaries[1] = Math.max(boundaries[1], boundaries[0] + 1);
   boundaries[2] = Math.max(boundaries[2], boundaries[1] + 1);
   boundaries[3] = dates.length;
 
