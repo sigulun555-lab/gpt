@@ -8,6 +8,7 @@ test('league-adaptive shrinkage V1 is compared with fixed-k6 V0 on identical 202
   assert.equal(report.folds.length, 3);
   assert.equal(report.pairedDateBlockBootstrap.replicates, 2000);
   assert.equal(report.metrics.v0.n, report.metrics.v1.n);
+  assert.equal(report.metrics.v0.n, report.targetMatches);
   assert.equal(report.pairedDateBlockBootstrap.targetMatches, report.metrics.v0.n);
   assert.ok(report.historySources.historical2025.rows >= 1000);
   assert.ok(report.trainingHistoryMatches >= 1000);
