@@ -33,6 +33,7 @@ test('nested walk-forward compares V1 against fixed V0 on identical 2026 targets
   assert.equal(report.pairedDateBlockBootstrap.replicates, 2000);
   assert.ok(report.metrics.v0.n > 0);
   assert.equal(report.metrics.v0.n, report.metrics.v1.n);
+  assert.equal(report.metrics.v0.n, report.targetMatches);
   assert.equal(report.pairedDateBlockBootstrap.targetMatches, report.metrics.v0.n);
   assert.ok(report.pairedDateBlockBootstrap.dateBlocks >= 3);
   assert.ok(report.historySources.historical2025.rows >= 1000);
