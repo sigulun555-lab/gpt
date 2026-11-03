@@ -41,7 +41,8 @@ test('nested walk-forward compares V1 against fixed V0 on identical 2026 targets
   for (const fold of report.folds) {
     assert.ok(fold.trainEndDateInclusive < fold.testStartDate);
     assert.ok(fold.innerValidationStartDate <= fold.trainEndDateInclusive);
-    assert.ok([3, 6, 9, 12].includes(fold.selectedHalfLifeMatches));
+    assert.ok(fold.selectedHalfLifeMatches === null || [3, 6, 9, 12, 18, 24].includes(fold.selectedHalfLifeMatches));
+    assert.equal(fold.selectedModel, fold.selectedHalfLifeMatches === null ? 'V0' : 'H' + fold.selectedHalfLifeMatches);
     assert.equal(fold.v0.n, fold.v1.n);
     assert.equal(fold.v0.n, fold.outerTestMatches);
   }
@@ -55,6 +56,7 @@ test('nested walk-forward compares V1 against fixed V0 on identical 2026 targets
     targetMatches: report.targetMatches,
     folds: report.folds.map(f => ({
       fold: f.fold,
+      selectedModel: f.selectedModel,
       selectedHalfLifeMatches: f.selectedHalfLifeMatches,
       v0: f.v0,
       v1: f.v1
