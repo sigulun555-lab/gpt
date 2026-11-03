@@ -29,6 +29,7 @@ jobs:
           node scripts/experiment_toto_model.js > artifacts/toto-1x2/round-1668.json
           node scripts/experiment_toto_ablation.js > artifacts/toto-1x2/ablation.json
           node scripts/experiment_toto_ablation_historical.js > artifacts/toto-1x2/ablation-2025plus2026.json
+          node scripts/experiment_toto_v1_recency.js > artifacts/toto-1x2/v1-recency.json
       - name: Upload toto 1X2 experiment results
         uses: actions/upload-artifact@v4
         with:
