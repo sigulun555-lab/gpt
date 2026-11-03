@@ -7,7 +7,7 @@ const { canonical } = require('../model.js');
 const ROOT = path.resolve(__dirname, '..');
 const OUTCOMES = ['1', '0', '2'];
 const K = 6;
-const HALF_LIVES = [3, 6, 9, 12];
+const HALF_LIVES = [3, 6, 9, 12, 18, 24];
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1.25;
 const outcome = m => m.home_goals > m.away_goals ? '1' : m.home_goals === m.away_goals ? '0' : '2';
@@ -254,19 +254,32 @@ function runExperiment(historyInput = null, options = {}) {
     const innerDates = [...new Set(outerTrain.map(m => m.date))].sort();
     const innerStart = innerDates[Math.max(1, Math.floor(innerDates.length * 0.70))];
     const innerValidation = outerTrain.filter(m => m.date >= innerStart);
+    const candidateSettings = [
+      { id: 'V0', halfLife: null, priority: 0 },
+      ...HALF_LIVES.map((halfLife, index) => ({
+        id: 'H' + halfLife,
+        halfLife,
+        priority: index + 1
+      }))
+    ];
     const innerScores = {};
-    for (const halfLife of HALF_LIVES) {
+    for (const candidate of candidateSettings) {
       const rows = innerValidation.map(match => ({
         match,
-        probabilities: predictShrinkage(outerTrain, match, { k: K, halfLifeMatches: halfLife }).probabilities
+        probabilities: predictShrinkage(outerTrain, match, {
+          k: K,
+          halfLifeMatches: candidate.halfLife
+        }).probabilities
       }));
-      innerScores[halfLife] = score(rows);
+      innerScores[candidate.id] = score(rows);
     }
-    const selectedHalfLife = HALF_LIVES.slice().sort((a, b) =>
-      innerScores[a].brier - innerScores[b].brier ||
-      innerScores[a].logloss - innerScores[b].logloss ||
-      a - b
-    )[0];
+    candidateSettings.sort((a, b) =>
+      innerScores[a.id].brier - innerScores[b.id].brier ||
+      innerScores[a.id].logloss - innerScores[b.id].logloss ||
+      a.priority - b.priority
+    );
+    const selectedCandidate = candidateSettings[0];
+    const selectedHalfLife = selectedCandidate.halfLife;
 
     const foldRows = { v0: [], v1: [] };
     const outerTest = targets.filter(m => m.date >= testStart && (!testEnd || m.date < testEnd));
@@ -287,7 +300,7 @@ function runExperiment(historyInput = null, options = {}) {
       innerValidationStartDate: innerStart,
       innerValidationMatches: innerValidation.length,
       innerScores,
-      selectedHalfLifeMatches: selectedHalfLife,
+      selectedModel: selectedCandidate.id,\n      selectedHalfLifeMatches: selectedHalfLife,
       outerTestMatches: outerTest.length,
       v0: score(foldRows.v0),
       v1: score(foldRows.v1)
@@ -303,7 +316,7 @@ function runExperiment(historyInput = null, options = {}) {
     targetMatches: targets.length,
     v0Definition: 'competition-only Poisson; separate home/away league scoring baselines; last 12 same-venue team matches; equal weights; fixed shrinkage k=6',
     v1Definition: 'V0 plus exponential recency weights on the last 12 same-venue matches; half-life selected from 3/6/9/12 matches using inner validation Brier, LogLoss tie-break; shrinkage k=6 unchanged',
-    candidates: HALF_LIVES,
+    candidates: ['V0', ...HALF_LIVES.map(value => 'H' + value)],
     metrics: { v0: score(aggregate.v0), v1: score(aggregate.v1) },
     pairedDateBlockBootstrap: pairedDateBlockBootstrap(aggregate.v1, aggregate.v0),
     folds
