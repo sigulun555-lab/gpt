@@ -300,7 +300,8 @@ function runExperiment(historyInput = null, options = {}) {
       innerValidationStartDate: innerStart,
       innerValidationMatches: innerValidation.length,
       innerScores,
-      selectedModel: selectedCandidate.id,\n      selectedHalfLifeMatches: selectedHalfLife,
+      selectedModel: selectedCandidate.id,
+      selectedHalfLifeMatches: selectedHalfLife,
       outerTestMatches: outerTest.length,
       v0: score(foldRows.v0),
       v1: score(foldRows.v1)
