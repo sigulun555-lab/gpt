@@ -31,7 +31,8 @@ jobs:
           node scripts/experiment_toto_ablation_historical.js > artifacts/toto-1x2/ablation-2025plus2026.json
           node scripts/experiment_toto_v1_recency.js > artifacts/toto-1x2/recency-ablation.json
           node scripts/experiment_toto_v1_league_shrinkage.js > artifacts/toto-1x2/league-shrinkage-ablation.json
-          node scripts/experiment_toto_v1_temperature.js > artifacts/toto-1x2/v1-temperature.json
+          node scripts/experiment_toto_v1_temperature.js > artifacts/toto-1x2/temperature-ablation.json
+          node scripts/experiment_toto_v1_dixon_coles.js > artifacts/toto-1x2/v1-dixon-coles.json
       - name: Upload toto 1X2 experiment results
         uses: actions/upload-artifact@v4
         with:
