@@ -19,7 +19,7 @@ from scipy.optimize import minimize
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HERE = os.path.dirname(__file__)
-LAMBDAS = [1.0, 3.0, 10.0, 30.0, 100.0]
+LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
 WINDOWS = ["2026_only", "2025_plus_2026"]
 OUTER_START_FRACTIONS = [0.55, 0.70, 0.85]
 INNER_START_FRACTION = 0.40
