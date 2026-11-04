@@ -35,6 +35,8 @@ def load_data(history_path, aliases_path, csv2025_path):
         raw = json.load(f)["history"]
     h2026 = []
     for m in raw:
+        if not isinstance(m.get("date"), str) or not m["date"].startswith("2026-"):
+            raise ValueError(f"2026-only history guard: unexpected date {m.get('date')!r}")
         if m.get("competition") not in ("J1", "J2", "J3"):
             continue
         if not isinstance(m.get("home_goals"), int) or not isinstance(m.get("away_goals"), int):
