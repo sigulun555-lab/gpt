@@ -142,6 +142,8 @@ def source_audit(root):
         c25=list(csv.DictReader(f))
     c25keys=set(); c25dup=0; c25unknown=set(); t25=set(); cats=Counter()
     bad_score=bad_date=bad_ids=0
+    team_id_to_canonical=defaultdict(set)
+    canonical_to_team_id=defaultdict(set)
     for r in c25:
         k=(r.get("date"),r.get("category"),r.get("homeTeam"),r.get("awayTeam"))
         if k in c25keys: c25dup+=1
@@ -152,13 +154,25 @@ def source_audit(root):
         except ValueError: bad_date+=1
         try:
             home_id=int(r.get("homeTeamId","")); away_id=int(r.get("awayTeamId",""))
-            if home_id==away_id: bad_ids+=1
+            if home_id<=0 or away_id<=0 or home_id==away_id: bad_ids+=1
+            else:
+                for team_name,team_id in ((r.get("homeTeam"),home_id),(r.get("awayTeam"),away_id)):
+                    canonical_name=canon(team_name)
+                    team_id_to_canonical[team_id].add(canonical_name)
+                    canonical_to_team_id[canonical_name].add(team_id)
         except (TypeError,ValueError): bad_ids+=1
         for t in (r.get("homeTeam"),r.get("awayTeam")):
             n=unicodedata.normalize("NFKC",str(t)).strip()
             if n not in aliases: c25unknown.add(n)
             c=canon(t); t25.add(c); source_names["2025"][c].add(n)
-    if bad_score or bad_date or bad_ids: raise ValueError("2025 CSV contains invalid score/date/team IDs")
+    team_id_name_conflicts={
+        str(team_id):sorted(names) for team_id,names in team_id_to_canonical.items() if len(names)>1
+    }
+    team_name_id_conflicts={
+        name:sorted(ids) for name,ids in canonical_to_team_id.items() if len(ids)>1
+    }
+    if bad_score or bad_date or bad_ids or c25dup or team_id_name_conflicts or team_name_id_conflicts:
+        raise ValueError("2025 CSV contains invalid score/date/team IDs or inconsistent team-ID mapping")
     t26={canon(r[t]) for r in h for t in ("home","away")}
     dates=sorted(r["date"] for r in h)
     collisions={
@@ -188,6 +202,11 @@ def source_audit(root):
             "rows":len(c25),"categoryRows":dict(cats),"uniqueMatchKeys":len(c25keys),
             "duplicateMatchKeys":c25dup,"scoreParseFailures":bad_score,
             "dateParseFailures":bad_date,"teamIdFailures":bad_ids,
+            "distinctCanonicalTeams":len(canonical_to_team_id),
+            "distinctTeamIds":len(team_id_to_canonical),
+            "teamIdToCanonicalNameConflicts":team_id_name_conflicts,
+            "canonicalNameToTeamIdConflicts":team_name_id_conflicts,
+            "teamIdMappingConflictCount":len(team_id_name_conflicts)+len(team_name_id_conflicts),
             "unmappedNames":sorted(c25unknown),
             "sourceNameCollisionsWithinSeason":collisions["2025"],
             "teamsOnly2025":sorted(t25-t26),"teamsOnly2026":sorted(t26-t25),
