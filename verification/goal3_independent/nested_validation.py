@@ -298,7 +298,7 @@ def main():
         for candidate_window in WINDOWS:
             for candidate_penalty in LAMBDAS:
                 candidate_metrics = evaluate_dates(
-                    test_dates, h2025, h2026, candidate_window, candidate_penalty
+                    test_dates, h2025, h2026, candidate_window, candidate_penalty, True
                 )
                 outer_candidate_diagnostics.append({
                     "window": candidate_window,
