@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  CONFIGS, normalizeTeam, validateHistory, validateFixtures, predictToto13, runRound,
+  CONFIGS, normalizeTeam, validateHistory, validateFixtures, validateOutputPath, predictToto13, runRound,
 } = require('../scripts/run_toto13_shadow.js');
 
 function historyRows() {
@@ -84,4 +84,23 @@ test('round report is clearly shadow-only and records all 13 fixtures', () => {
   assert.equal(report.predictions[0].variants.V0_k6_window12.priorMatchCount, 4);
   assert.equal(report.predictions[0].variants.V1_k10_window12.priorMatchCount, 4);
   assert.match(report.warnings[0], /Shadow-only/);
+});
+
+test('output path is confined to the shadow prediction directory', () => {
+  const root = '/repo';
+  assert.equal(
+    validateOutputPath('shadow/toto13/predictions/round_1.json', root),
+    '/repo/shadow/toto13/predictions/round_1.json',
+  );
+  assert.throws(() => validateOutputPath('data/predictions.json', root), /inside shadow/);
+  assert.throws(() => validateOutputPath('shadow/toto13/predictions/../../data/predictions.json', root), /inside shadow/);
+  assert.throws(() => validateOutputPath('shadow/toto13/predictions/round_1.txt', root), /inside shadow/);
+});
+
+test('teams without prior history are explicitly surfaced as warnings', () => {
+  const input = fixtures();
+  input.fixtures[0].home = 'NewlyPromotedUnknown';
+  const report = runRound(historyRows(), input, '2026-01-05T00:00:00.000Z');
+  assert.deepEqual(report.predictions[0].variants.V0_k6_window12.unknownTeams, ['NewlyPromotedUnknown']);
+  assert.ok(report.warnings.some((warning) => warning.includes('No prior history for team: NewlyPromotedUnknown')));
 });
