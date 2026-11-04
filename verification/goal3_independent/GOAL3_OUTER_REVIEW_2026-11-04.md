@@ -78,6 +78,13 @@ Both primary intervals cross zero; both sensitivity intervals also cross zero. T
 
 Both methods keep k=6/k=10 paired within each resample. The prospective adoption rule remains separate: at least 10 rounds and 30 matches, with paired round/date-block 95% CI upper bounds below zero for both primary metrics and no material league deterioration or quality regression.
 
+## CI and separate nested-validation result
+
+- GOAL3 dedicated workflow run #11 (ID 41804330819): success for syntax checks, existing tests, shadow-runner unit test, 472-row audit, date/match bootstrap, and artifact upload. Its live forecast job was skipped because this was a pull-request event; no new prospective forecast was created. Review artifact ID: 13308938382.
+- Validate shared score model run #167 (ID 41804330795): success for npm test, independent benchmark, nested-validation tests, real-data nested validation, artifact upload, and live official toto/totoGOAL3 HTML checks. The live page parsed current GOAL3 round 1670 successfully after the stale 1668 expectation was removed.
+- Separate nested-validation artifact ID 13309347648 used 1,140 rows from 2025 and 429 rows from 2026 (37 distinct 2026 dates). It completed 1,088 inner fits and 17 outer selected fits with zero failures. Its selected folds were: fold 1 = 2025_plus_2026 / lambda 150 (120 targets); folds 2 and 3 = 2026_only / lambda 10 (134 and 218 targets). This is nested lambda/window selection, not the fixed k=6 vs k=10 CSV experiment; do not merge the two results.
+- A legacy checked-in nested_results.json on the branch/base reports an older snapshot (380 2026 rows / 34 dates). Use the run #167 artifact above for the current 429-row snapshot; do not treat the legacy file as current.
+
 ## Limitations
 
 1. The CSV contains six-decimal probabilities; full-precision upstream probabilities are not present in the comments.
