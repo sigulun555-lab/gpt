@@ -177,16 +177,25 @@ def main():
         lookup={(r["date"],r["comp"],r["home"],r["away"],r["side"]):r for r in targets_by_k[float(k)]}
         aligned[float(k)]=[lookup[(r["date"],r["comp"],r["home"],r["away"],r["side"])] for r in k6_rows]
     bootstrap_targets={}
-    for k in (6.0,10.0):
-        bootstrap_targets[k]=[{
+    for k in K_VALUES:
+        bootstrap_targets[float(k)]=[{
             "date":r["date"],
             "brier":float(np.sum((np.asarray(r["p"])-np.eye(4)[r["actual"]])**2)),
             "logloss":float(-np.log(max(1e-15,r["p"][r["actual"]])))
-        } for r in aligned[k]]
-    bootstrap={
-        "circularMovingBlockPCG64":moving_block_bootstrap(bootstrap_targets,(6.0,10.0),args.bootstrap_replicates,args.bootstrap_seed,"PCG64"),
-        "circularMovingBlockMT19937":moving_block_bootstrap(bootstrap_targets,(6.0,10.0),args.bootstrap_replicates,args.bootstrap_seed,"MT19937")
-    }
+        } for r in aligned[float(k)]]
+    # Report paired moving-block intervals for every candidate versus the
+    # fixed k=10 reference. These are exploratory intervals on the same
+    # retrospective cohort, not independent model-selection evidence.
+    bootstrap_comparisons={}
+    for k in K_VALUES:
+        k=float(k)
+        if k==10.0:
+            continue
+        bootstrap_comparisons[f"k{k:g}_minus_k10"]={
+            "PCG64":moving_block_bootstrap(bootstrap_targets,(k,10.0),args.bootstrap_replicates,args.bootstrap_seed,"PCG64"),
+            "MT19937":moving_block_bootstrap(bootstrap_targets,(k,10.0),args.bootstrap_replicates,args.bootstrap_seed,"MT19937")
+        }
+    bootstrap={"referenceK":10.0,"comparisonsVsK10":bootstrap_comparisons}
 
     per_match=[]
     for m in matches:
@@ -220,7 +229,7 @@ def main():
             "historyFetchedAtValues":fetched_at_values,
             "historyFetchedAtMissingCount":int(missing_fetched_at)
         },
-        "historicalAvailabilityCaveat":"Strict earlier-match-date cutoffs exclude later-dated results and same-day matches, but this retrospective snapshot does not preserve each match's original first-known timestamp. If all rows share the snapshot fetchedAt, exact historical ingestion-time availability cannot be audited."
+        "historicalAvailabilityCaveat":"Strict earlier-match-date cutoffs exclude later-dated results and same-day matches, but this retrospective snapshot does not preserve each match's original first-known timestamp. If all rows share the snapshot fetchedAt, exact historical ingestion-time availability cannot be audited.",
         "kCandidates":[float(k) for k in K_VALUES],
         "metricsByK":metric_by_k,
         "reconstructionCheck":{
