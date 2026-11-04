@@ -68,14 +68,26 @@ def main() -> None:
     deadline = predictions.get("deadline")
     if not generated_at or not deadline:
         raise ValueError("Missing generatedAt/deadline")
-    as_of = parse_time(generated_at)
+    pipeline_generated_at = parse_time(generated_at)
     deadline_dt = parse_time(deadline)
-    recorded_at = datetime.now(timezone.utc)
-    if not as_of < deadline_dt or not recorded_at < deadline_dt:
-        raise ValueError("Refusing to create a forecast at or after the official deadline")
     source_fetched = predictions.get("totoSource", {}).get("lastFetchedAt")
-    if not source_fetched or parse_time(source_fetched) > as_of:
-        raise ValueError("Official target snapshot was fetched after the declared forecast time")
+    if not source_fetched:
+        raise ValueError("Missing pipeline-declared official target fetch timestamp")
+    pipeline_declared_fetched_at = parse_time(source_fetched)
+
+    # This runner starts only after the preceding workflow step has completed
+    # the HTTP fetch and written the input files. The production pipeline's
+    # generatedAt/lastFetchedAt are captured before its HTTP requests, so they
+    # are retained as declared metadata, not treated as actual fetch completion.
+    snapshot_available_by = datetime.now(timezone.utc)
+    if pipeline_generated_at > snapshot_available_by:
+        raise ValueError("Pipeline generatedAt is in the future relative to the research snapshot read")
+    if pipeline_declared_fetched_at > snapshot_available_by:
+        raise ValueError("Pipeline-declared fetchedAt is in the future relative to the research snapshot read")
+    if pipeline_declared_fetched_at < pipeline_generated_at:
+        raise ValueError("Pipeline-declared fetchedAt predates generatedAt")
+    if not snapshot_available_by < deadline_dt:
+        raise ValueError("Refusing to use a snapshot available at or after the official deadline")
 
     fixtures = [
         p for p in predictions.get("predictions", [])
@@ -113,7 +125,7 @@ def main() -> None:
         fetched_at = row.get("fetchedAt")
         if not fetched_at:
             raise ValueError("History row lacks fetchedAt; cannot prove as-of eligibility")
-        if parse_time(fetched_at) > as_of:
+        if parse_time(fetched_at) > snapshot_available_by:
             continue
         prepared.append({
             "date": row["date"],
@@ -169,14 +181,22 @@ def main() -> None:
             "arms": arms,
         })
 
+    # Timestamp the forecast only after both arms have finished fitting.
+    forecast_as_of = datetime.now(timezone.utc)
+    if not forecast_as_of < deadline_dt:
+        raise ValueError("Refusing to publish a forecast created at or after the official deadline")
+
     code_path = Path(__file__)
     model_path = HERE / "nested_validation.py"
     record = {
         "schemaVersion": 1,
         "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
         "round": round_no,
-        "forecastAsOf": generated_at,
-        "recordedAt": recorded_at.isoformat(),
+        "forecastAsOf": forecast_as_of.isoformat(),
+        "snapshotAvailableBy": snapshot_available_by.isoformat(),
+        "pipelineGeneratedAt": generated_at,
+        "pipelineDeclaredLastFetchedAt": source_fetched,
+        "recordedAt": forecast_as_of.isoformat(),
         "deadline": deadline,
         "status": "forecast_created_before_deadline",
         "productionImpact": "none",
@@ -192,7 +212,8 @@ def main() -> None:
             "officialPredictionsSha256": sha256_text(predictions_raw),
             "aliasesSha256": sha256_text(aliases_raw),
             "historyEligibleRows": len(prepared),
-            "historyMaxFetchedAt": max(m["sourceFetchedAt"] for m in prepared),
+            "historyMaxDeclaredFetchedAt": max(m["sourceFetchedAt"] for m in prepared),
+            "snapshotAvailableBy": snapshot_available_by.isoformat(),
         },
         "code": {
             "runnerSha256": sha256_text(code_path.read_text(encoding="utf-8")),
