@@ -210,19 +210,26 @@ def date_blocks(dates, start, end, parts):
 
 def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagnostics=False):
     records = []
+    date_metrics = []
     fit_count = 0
     for date in dates_to_score:
         prior = select_training(h2025, h2026, date, window)
         params, idx, info = fit_shrinkage(prior, lam_pen)
         fit_count += 1
         targets = [m for m in h2026 if m["date"] == date]
+        date_records = []
         for m in targets:
             ph, pa = predict_shrinkage(params, idx, m["home"], m["away"])
-            records.extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
+            date_records.extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
+        records.extend(date_records)
+        if collect_diagnostics:
+            date_metrics.append({"date": date, **score(date_records)})
     result = score(records)
     # A failed fit raises immediately, so every recorded fit is successful.
     result["fitCount"] = fit_count
     result["fitFailureCount"] = 0
+    if collect_diagnostics:
+        result["dateMetrics"] = date_metrics
     return result
 
 def choose_configuration(h2025, h2026, all_dates, outer_start_idx):
