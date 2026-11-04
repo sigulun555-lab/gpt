@@ -2,16 +2,46 @@ name: GOAL3 Prospective Shadow (k=6 vs k=10)
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "verification/goal3_independent/prospective_shadow.py"
+      - "verification/goal3_independent/nested_validation.py"
+      - "tests/test_goal3_prospective_shadow.py"
+      - ".github/workflows/goal3-prospective-shadow.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: goal3-prospective-shadow
+  group: goal3-prospective-shadow-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
+  static-and-unit-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Syntax checks
+        run: |
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py tests/test_goal3_prospective_shadow.py
+          node --check model.js
+      - name: Existing tests
+        run: npm test
+      - name: Shadow runner unit test
+        run: python -m unittest tests/test_goal3_prospective_shadow.py -v
+
   shadow:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
