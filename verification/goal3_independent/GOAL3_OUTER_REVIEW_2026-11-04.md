@@ -1,47 +1,107 @@
-# GOAL3 fixed-k outer diagnostic — independent audit
+# GOAL3 fixed-k and all-k outer diagnostics — independent audit
 
 ## Scope and provenance
 
-This is a retrospective diagnostic of already-generated k=6 and k=10 paired predictions, not a prospective shadow result and not adoption evidence.
+This is a retrospective audit of the frozen GOAL3 outer cohort. It is not a prospective shadow score, not independent selection evidence, and not a basis for production adoption.
 
-- Source rows: GPT PR #20 comments #6626337643 and #6626339347.
-- Frozen cohort: 472 team-side rows, 236 matches, 17 outer-test dates, folds 1–3.
-- Prediction vectors in the source comments are rounded to six decimal places.
-- CSV: goal3_outer_matches.csv.
-- Independent analysis: review_outer_matches.py.
-- Reproduce from repository root:
+- Frozen cohort: 472 team-side targets, 236 matches, 17 target dates, folds 1–3 (2026-09-19 through 2026-11-03).
+- Fixed k=6/k=10 source: `goal3_outer_matches.csv`, six-decimal probabilities from GPT PR #20 comments #6626337643 and #6626339347.
+- Fixed-k audit code Git blob SHA: `e3bdf49727fb70aa94cbb6af8b1cad134d4f5078`.
+- All-k reconstruction code Git blob SHA: `f2e8fbbcae2023355d50b83d99e7bb743b2a2256`.
+- Reference optimizer code Git blob SHA: `7ac8f83da420fa577b45e9c5c021ce46387f584e`; PR #19 reference SHA: `5f73df9e6fdb43d5cf333c04036f87ae16c20d1f`. The PR #20 version differs only by the explicit 2026-only date guard.
+- Reproduction commands from repository root:
 
-\`\`\`bash
+```bash
 python verification/goal3_independent/review_outer_matches.py \
   --csv verification/goal3_independent/goal3_outer_matches.csv \
   --out artifacts/goal3_outer_review.json \
   --replicates 10000 --seed 1
-\`\`\`
 
-The script verifies paired home/away rows, score-category consistency, probability bounds and sums, unique keys, fold/date counts, then calculates paired Brier/Log Loss, league/fold summaries, four-category calibration, Poisson residual diagnostics, date-cluster bootstrap and match-cluster sensitivity bootstrap.
+python verification/goal3_independent/reproduce_allk_outer.py \
+  --frozen-csv verification/goal3_independent/goal3_outer_matches.csv \
+  --history2026 data/history.json \
+  --aliases data/team_aliases.json \
+  --csv2025 verification/goal3_independent/2025.csv \
+  --out artifacts/goal3_outer_allk_reproduction.json \
+  --bootstrap-replicates 10000 --bootstrap-seed 20261104
+```
 
-## Independent point-estimate check
+The all-k JSON is retained as a GitHub Actions artifact, not committed as a repository data file:
+- Workflow run #27 / ID `41821374374`, head commit `37bf242ba40886075de292d79ba7dacc8586b686`.
+- Artifact #13316862747, ZIP SHA-256 `835538454ffd6b3b8712ad6de075493bbf54a8dd1acdb3ef0e3c3e689b7c7f34`.
+- It contains 236 per-match records, all 16 k probability arms, 272 fit diagnostics, and both RNG variants of the all-k moving-block bootstrap.
 
-Using the six-decimal CSV:
+The all-k reconstruction independently rebuilds the strict earlier-date training cutoffs, per-target predictions, aggregation, and scores, but calls the same `fit_shrinkage` / `predict_shrinkage` optimizer functions as the PR #19 reference. It is not a second independently coded optimizer.
 
-| Cohort | Targets | k=6 Brier | k=10 Brier | Difference | k=6 Log Loss | k=10 Log Loss | Difference |
+## Fixed k=6 vs k=10: independent score and bootstrap
+
+Negative k6-minus-k10 differences favor k=6.
+
+| Cohort | Targets | k=6 Brier | k=10 Brier | Δ Brier | k=6 LogLoss | k=10 LogLoss | Δ LogLoss |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Overall | 472 | 0.716248 | 0.716865 | -0.000617 | 1.310399 | 1.312558 | -0.002159 |
 | J1 | 120 | 0.731998 | 0.735753 | -0.003755 | 1.345785 | 1.350300 | -0.004515 |
 | J2 | 178 | 0.694939 | 0.694075 | +0.000864 | 1.260185 | 1.263192 | -0.003007 |
 | J3 | 174 | 0.727185 | 0.727152 | +0.000033 | 1.337363 | 1.337029 | +0.000334 |
 
-Negative differences favor k=6. The overall point differences are very small; league signs are not uniform. These results do not establish a k=6 advantage.
+Independent paired bootstrap from the frozen six-decimal CSV: 10,000 replicates, NumPy default_rng / PCG64, seed 1, linear percentile intervals. Date-cluster is primary; match-cluster is sensitivity analysis.
 
-## All-k stability table cross-check
+| Bootstrap unit | Metric | Mean Δ | 95% CI |
+|---|---|---:|---:|
+| 17-date cluster | Brier | -0.0006006 | [-0.0035410, +0.0023444] |
+| 17-date cluster | LogLoss | -0.0021514 | [-0.0082676, +0.0035968] |
+| 236-match cluster | Brier | -0.0006442 | [-0.0035980, +0.0022823] |
+| 236-match cluster | LogLoss | -0.0022303 | [-0.0082471, +0.0037677] |
 
-Claude's table in PR #20 comment #6626537018 reports k = 0.5, 2, 4, 6, 8, 10, 20, 50, 200. The k=6 and k=10 overall and league Brier/LogLoss values match the independent 472-row CSV recomputation to the shown six decimals. The other seven k values cannot yet be independently recomputed because the all-k per-target artifact has not been committed.
+All four intervals cross zero. This cohort does not establish k=6 superiority. Claude's previously reported date-cluster endpoints are close but not identical (largest endpoint difference about 0.000062); the exact Claude RNG, cluster sampling, aggregation, and quantile implementation is unavailable, so bit-for-bit source reproduction is not possible.
 
-One arithmetic correction to the accompanying interpretation: within k=4, 6, 8, 10, the reported Brier range is 0.717169 - 0.716248 = 0.000921, not within 0.0006. The LogLoss range is 1.312558 - 1.310399 = 0.002159. The local valley is still relatively shallow—k=6 vs k=8 differs by 0.000116 Brier and 0.000711 LogLoss—but k=4 is 0.000921 Brier above k=6. This is descriptive only; these same 472 targets were used in the k-sweep and cannot be used to reselect k.
+## All-k stability reconstruction
 
-## Four-category calibration and Poisson residuals
+The GPT-side reconstruction ran the 16-penalty grid over the same 17 dates: 272 fits, zero optimizer failures, 193–410 prior matches per date, maximum 41 optimizer iterations. k=6 and k=10 each passed the frozen-CSV comparison for 1,888 probability cells, with maximum absolute errors (4.9929\times10^{-7}) and (4.9966\times10^{-7}), respectively (tolerance (2\times10^{-6})).
 
-Mean predicted probability minus observed frequency (percentage points; positive means overprediction):
+| k | Brier | LogLoss | Accuracy |
+|---:|---:|---:|---:|
+| 0.5 | 0.731056 | 1.340518 | 34.32% |
+| 1 | 0.726422 | 1.330512 | 34.96% |
+| 2 | 0.721163 | 1.319550 | 35.17% |
+| 3 | 0.718526 | 1.314307 | 36.02% |
+| 4 | 0.717169 | 1.311772 | 37.92% |
+| 6 | **0.716248** | **1.310399** | 37.50% |
+| 8 | 0.716364 | 1.311110 | 36.86% |
+| 10 | 0.716865 | 1.312558 | 36.65% |
+| 15 | 0.718498 | 1.316769 | 35.81% |
+| 20 | 0.720013 | 1.320537 | 35.81% |
+| 30 | 0.722292 | 1.326159 | 34.96% |
+| 50 | 0.724926 | 1.332667 | 34.75% |
+| 75 | 0.726616 | 1.336867 | 34.75% |
+| 100 | 0.727576 | 1.339265 | 34.75% |
+| 150 | 0.728625 | 1.341893 | 34.75% |
+| 200 | 0.729185 | 1.343302 | 34.75% |
+
+k=6 is the best overall point estimate for Brier and LogLoss in this retrospective cohort, but the valley is shallow and not statistically established. The k=4-to-k=6 Brier gap is 0.000921; k=6-to-k=8 is 0.000116 Brier / 0.000711 LogLoss; k=6-to-k=10 is 0.000617 Brier / 0.002159 LogLoss. Accuracy is not a primary selection metric (k=4 has the highest accuracy in this table).
+
+The post-hoc subgroup split is not stable across sides: k6−k10 is -0.003140 Brier / -0.005464 LogLoss on home targets, but +0.001907 / +0.001146 on away targets. League signs are also mixed (J1 favors k=6; J2 Brier favors k=10; J3 differences are near zero). Fold-level point differences are descriptive only. These same outer dates were used in the original sweep, so none of these slices may be used to retune k.
+
+### All-k paired moving-block bootstrap
+
+The all-k artifact contains 10,000 paired resamples for each candidate versus k=10, with two consecutive ordered target dates per circular block, 17 sampled dates per replicate, target-count-weighted aggregation, seed 20261104, and linear 95% percentile intervals. Both PCG64 and MT19937 were run.
+
+| Candidate − k=10 | RNG | Δ Brier mean [95% CI] | Δ LogLoss mean [95% CI] |
+|---|---|---|---|
+| k=4 | PCG64 | +0.000333 [-0.003357, +0.003950] | -0.000752 [-0.008058, +0.006156] |
+| k=4 | MT19937 | +0.000329 [-0.003298, +0.003973] | -0.000811 [-0.007895, +0.006151] |
+| k=6 | PCG64 | -0.000603 [-0.002623, +0.001345] | -0.002139 [-0.006215, +0.001727] |
+| k=6 | MT19937 | -0.000606 [-0.002576, +0.001359] | -0.002171 [-0.006081, +0.001741] |
+| k=8 | PCG64 | -0.000495 [-0.001356, +0.000327] | -0.001438 [-0.003204, +0.000232] |
+| k=8 | MT19937 | -0.000496 [-0.001335, +0.000330] | -0.001451 [-0.003141, +0.000233] |
+
+The intervals for k=6 and k=8 cross zero under both RNGs. This moving-block analysis is a sensitivity analysis on the same retrospective cohort, not prospective adoption evidence.
+
+Claude's aggregate nine-k table and GPT's reconstruction agree to the reported six-decimal precision, but Claude's original per-target `goal3_outer_allk.json` is unavailable. Therefore the seven non-k6/k10 arms have not been compared against Claude's original full-precision per-target predictions.
+
+## Four-category calibration
+
+Mean predicted probability minus observed frequency, in percentage points (positive = overprediction):
 
 | Model / group | 0 | 1 | 2 | 3+ |
 |---|---:|---:|---:|---:|
@@ -54,55 +114,51 @@ Mean predicted probability minus observed frequency (percentage points; positive
 | k10 J2 | +4.99 | -10.43 | +0.44 | +5.00 |
 | k10 J3 | -3.94 | +1.33 | +2.95 | -0.34 |
 
-Overall pooled calibration gaps are small, but they hide a clear descriptive J1/J2 split: category 1 is overpredicted in J1 by about 9.6–10.1 pp and underpredicted in J2 by about 10.4–10.6 pp for both k values. J3 gaps are much smaller. Home/away pooled gaps are smaller: the largest absolute gap is 3.31 pp (k6 away, category 1). This league heterogeneity is a monitoring signal, not a basis for retrospective calibration adjustment with only 120 J1 and 178 J2 team-side targets.
+Overall pooled gaps are small, but hide a J1/J2 split: category 1 is overpredicted in J1 by about 9.6–10.1 pp and underpredicted in J2 by about 10.4–10.6 pp. J3 gaps are smaller. The largest pooled home/away gap is 3.31 pp (k6 away, category 1). The five-quantile-bin maximum absolute gap is 7.32 pp for k6 and 8.21 pp for k10; each bin contains 94–95 targets. These are noisy descriptive diagnostics, not calibration tests or grounds for retrospective correction.
 
-The five-quantile-bin maximum absolute gap is 7.32 pp for k6 and 8.21 pp for k10; therefore, not every bin is within ±5 pp. Each bin has only 94–95 targets, so these bin-level gaps are noisy and descriptive, not a calibration test. Full league/side and bin detail is included in the JSON artifact.
+## Poisson residual diagnostics (k=6)
 
-Using lambda = -ln(p0) and exact observed goals, the k=6 descriptive residual check gives:
+Using (lambda=-\ln(p_0)) and exact observed goals:
 
-- Overall mean goals 1.3644 vs mean lambda 1.4069; variance/mean 1.039; observed zero rate 26.27% vs predicted 26.13%; Pearson residual RMS 0.967.
-- Home: mean goals 1.4873 vs lambda 1.5509; zero 24.58% vs predicted 22.74%; residual RMS 0.985.
-- Away: mean goals 1.2415 vs lambda 1.2628; zero 27.97% vs predicted 29.53%; residual RMS 0.949.
-- J1 variance/mean 1.202 and zero rate 29.17% vs 25.17%; J2 variance/mean 0.822 and zero rate 21.91% vs 27.65%; J3 variance/mean 1.098 and zero rate 28.74% vs 25.24%.
+- Overall: mean goals 1.3644, mean lambda 1.4069, variance/mean 1.039, observed zero 26.27% vs predicted 26.13%, Pearson residual RMS 0.967.
+- Home: mean goals 1.4873 vs lambda 1.5509, zero 24.58% vs predicted 22.74%, residual RMS 0.985.
+- Away: mean goals 1.2415 vs lambda 1.2628, zero 27.97% vs predicted 29.53%, residual RMS 0.949.
+- J1: variance/mean 1.202; observed/predicted zero 29.17% / 25.17%.
+- J2: variance/mean 0.822; observed/predicted zero 21.91% / 27.65%.
+- J3: variance/mean 1.098; observed/predicted zero 28.74% / 25.24%.
 
-These are descriptive checks on 17 dates, not formal goodness-of-fit tests. They do not adjust for model fitting degrees of freedom, repeated teams, or date clustering. J1/J2 differences warrant monitoring, not a distribution change.
+These are descriptive residual summaries over 17 dates, not formal goodness-of-fit tests. They do not adjust for parameter estimation, repeated teams, date clustering, or between-target variation in lambda. In particular, pooled variance/mean need not equal one when the expected rates vary. No distributional correction is proposed from these diagnostics.
 
-## Source-data audit
+## Source-data quality and temporal caveat
 
-The independent source-file audit found:
+The independent source audit found:
 
-- 2026 history: 429 rows (J1 130 / J2 150 / J3 149), 60 canonical teams, 2026-08-07 through 2026-11-03, no duplicate match keys, no same-team/same-date conflicts, no invalid/missing scores, no missing fetchedAt, and no unresolved 2026 aliases.
-- 2026 history Git blob SHA: f5cc8c044758e45b1e679e4ce796e68b3f27a854.
-- Alias map: 121 keys / 60 canonical values; alias-key counts per canonical are 3 values with one key, 53 with two, and 4 with three. Every canonical value has its own self-key; each dictionary key maps to one value, so no one-to-many mapping is represented. No within-season source-name collision was observed in the 2025/2026 data. Git blob SHA 5de22584524ff4c07ddac1d27f49afbbbc5f88ab.
-- 2025 community CSV: 1,140 rows (category 1/2/3 each 380), no duplicate match keys, score parse failures 0, date parse failures 0, and team-ID failures 0. The only unmapped 2025 team name is 沼津; 59 teams overlap with 2026, with レイラック滋賀FC only in 2026. Git blob SHA 847d324c5a6168d02efe328f8173418a951af720.
-- The 2026 history and 2025 CSV are community-source datasets, not a full official-source reconciliation. The nested validation loader does not carry the 2025 CSV category into training rows, so a 2025+2026 training window pools the three leagues. This is a methodology caveat, not a defect in the fixed-2026-only cohort summarized above.
+- 2026 history: 429 rows (J1 130 / J2 150 / J3 149), 60 canonical teams, 37 distinct dates from 2026-08-07 through 2026-11-03; duplicate match keys 0, same-team/same-date conflicts 0, invalid scores 0, missing fetchedAt 0, unresolved 2026 aliases 0.
+- Alias map: 121 keys / 60 canonical values; every canonical value has a self-key, with no within-season source-name collision in the checked 2025/2026 data. Git blob SHA `5de22584524ff4c07ddac1d27f49afbbbc5f88ab`.
+- 2025 community CSV: 1,140 rows (categories 1/2/3 each 380), duplicate keys 0, score/date parse failures 0, invalid team IDs 0, distinct canonical teams 60 and distinct team IDs 60. ID→canonical conflicts 0 and canonical→ID conflicts 0. The only unmapped 2025 name is 沼津; 59 teams overlap with 2026, and レイラック滋賀FC appears only in 2026. No automatic alias was added between those names.
+- 2026 history Git blob SHA `f5cc8c044758e45b1e679e4ce796e68b3f27a854`; alias SHA `5de22584524ff4c07ddac1d27f49afbbbc5f88ab`; 2025 CSV SHA `847d324c5a6168d02efe328f8173418a951af720`.
 
-## Bootstrap interpretation
+The all-k artifact records the exact input SHA-256 values: frozen CSV `5cc8960c10f3554d44ccc0d5388d0ceeb4c8a39dec4cc8b28bd713f0e3755678`; 2026 history `efca00ea491fcfea6a1267af403cb5ba80ae540fca97a076def25815fc318201`; aliases `92e6377068df8dd63935e0c003adfd7b355e7adac23f7aace4f947be4f5f027e`; 2025 CSV `6175674bc28d4311b219eed5ea2aa5e478fe0f17b8e6b8653f37718057da4288`; nested validation source `cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d`.
 
-The CI job computes 10,000 paired resamples using numpy.default_rng(seed=1), PCG64, and linear percentile quantiles. Run #11 (ID 41804330819) completed successfully and uploaded artifact ID 13308938382 (zip SHA-256 fbe9600bd82e3dae94b0ba2342d399998efaeef652b7da2aae79ebbaa812a721).
+The 2026 history snapshot used by the all-k run has 429 rows / 37 dates, updatedAt `2026-11-03T23:21:25.123Z`, and one shared fetchedAt value across all rows. Strict earlier-date cutoffs prevent future-dated and same-day match leakage, but this snapshot cannot establish when each historical result first became available. This remains retrospective walk-forward evidence only. The 2025 CSV is ancillary; its category is not carried into nested_validation.py training rows, and the 2025+2026 option pools leagues. The fixed-2026-only cohort does not use 2025 rows.
 
-| Bootstrap unit | Metric | Mean D | 95% percentile CI |
-|---|---|---:|---:|
-| 17-date cluster (primary retrospective) | Brier | -0.0006006 | [-0.0035410, +0.0023444] |
-| 17-date cluster (primary retrospective) | Log Loss | -0.0021514 | [-0.0082676, +0.0035968] |
-| 236-match cluster (sensitivity) | Brier | -0.0006442 | [-0.0035980, +0.0022823] |
-| 236-match cluster (sensitivity) | Log Loss | -0.0022303 | [-0.0082471, +0.0037677] |
+## Latest CI and artifact verification
 
-Both primary intervals cross zero; both sensitivity intervals also cross zero. The independent NumPy date-cluster intervals are close to Claude's reported Brier [-0.003603, +0.002343] and Log Loss [-0.008314, +0.003585], but not bit-for-bit identical. The largest endpoint difference is about 0.000062. The six-decimal source CSV, random-number generator, percentile implementation, or replicate aggregation may explain the small difference; the exact Claude bootstrap source code is still required to isolate it. This discrepancy does not change the conclusion because all intervals cross zero.
+For head commit `37bf242ba40886075de292d79ba7dacc8586b686`:
 
-Both methods keep k=6/k=10 paired within each resample. The prospective adoption rule remains separate: at least 10 rounds and 30 matches, with paired round/date-block 95% CI upper bounds below zero for both primary metrics and no material league deterioration or quality regression.
+- GOAL3 workflow #27 / run ID `41821374374`: success. Syntax, npm tests, shadow-runner unit test, fixed 472-target audit/bootstrap, all-k reconstruction, and both artifact uploads succeeded. The shadow job was skipped because this was a pull-request event; no live forecast was created.
+- Validate shared score model #183 / run ID `41821374184`: success. npm test, independent benchmark, nested-validation tests, real-data nested validation, and live official toto/GOAL3 HTML check all succeeded.
+- Fixed-k review artifact #13317196907, ZIP SHA-256 `c26bbbb55f8ec4c221c040f58977f94418b4de7b7522c7240381f6eb60286894`.
+- All-k artifact #13316862747, ZIP SHA-256 `835538454ffd6b3b8712ad6de075493bbf54a8dd1acdb3ef0e3c3e689b7c7f34`.
 
-## CI and separate nested-validation result
+The latest PR CI did not create a new prospective forecast. The previously saved round-1670 paired GOAL3 shadow artifact remains untouched and awaits official result-based scoring.
 
-- GOAL3 dedicated workflow run #11 (ID 41804330819): success for syntax checks, existing tests, shadow-runner unit test, 472-row audit, date/match bootstrap, and artifact upload. Its live forecast job was skipped because this was a pull-request event; no new prospective forecast was created. Review artifact ID: 13308938382.
-- Validate shared score model run #167 (ID 41804330795): success for npm test, independent benchmark, nested-validation tests, real-data nested validation, artifact upload, and live official toto/totoGOAL3 HTML checks. The live page parsed current GOAL3 round 1670 successfully after the stale 1668 expectation was removed.
-- Separate nested-validation artifact ID 13309347648 used 1,140 rows from 2025 and 429 rows from 2026 (37 distinct 2026 dates). It completed 1,088 inner fits and 17 outer selected fits with zero failures. Its selected folds were: fold 1 = 2025_plus_2026 / lambda 150 (120 targets); folds 2 and 3 = 2026_only / lambda 10 (134 and 218 targets). This is nested lambda/window selection, not the fixed k=6 vs k=10 CSV experiment; do not merge the two results.
-- A legacy checked-in nested_results.json on the branch/base reports an older snapshot (380 2026 rows / 34 dates). Use the run #167 artifact above for the current 429-row snapshot; do not treat the legacy file as current.
+## Remaining limitations and decision rule
 
-## Limitations
+1. Claude's comment #6629250071 (2026-11-04 11:18:40 UTC) confirms that its original `goal3_outer_allk.json`, generator, fit diagnostics, and bootstrap implementation were not present in its current workspace. No source-to-source comparison against those originals is possible until they are supplied.
+2. GPT's all-k generation uses the shared reference optimizer, so this is not independent optimizer implementation validation. The independent portions are cohort reconstruction, strict cutoff checks, k6/k10 frozen-CSV probability comparison, scoring, subgroup aggregation, calibration, source audit, and bootstrap reimplementation.
+3. The fixed cohort contains six-decimal probabilities, not the original full-precision upstream values.
+4. The 17-date retrospective set was already used in the original k sweep and must not be reused to choose k.
+5. Prospective adoption review remains separate: at least 10 rounds and 30 matches, paired round/date-block 95% CI upper bounds below zero for both Brier and LogLoss, no material J1/J2/J3 deterioration, and no increase in fit failures or missing forecasts. Until all conditions are met, no adoption decision is justified.
 
-1. The CSV contains six-decimal probabilities; full-precision upstream probabilities are not present in the comments.
-2. The CSV does not contain per-target optimizer fit status or training-row diagnostics, so the reported zero fit-failure count cannot be independently verified from these rows alone.
-3. This report does not regenerate the 472 forecasts from the upstream diagnostic generator. Claude's diag.py / analyze.py, exact command, full-precision all-k predictions, fit diagnostics, and their code SHA should still be committed for end-to-end reproduction.
-4. The 17-date retrospective set was already used in the k-sweep diagnostic. It must not be reused to select k or claim prospective improvement.
-5. No production model, main branch, prediction log, market weight or pre-existing shadow artifact is changed.
+PR #20 remains open and unmerged. No production model, main branch, prediction log, market weight, or pre-existing shadow artifact was changed.
