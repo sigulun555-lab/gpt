@@ -98,6 +98,9 @@ jobs:
           path: artifacts/goal3_independent_optimizer_audit.json
           if-no-files-found: error
           retention-days: 90
+      - name: Enforce independent probability reconstruction tolerance
+        run: |
+          python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
 
   shadow:
     if: github.event_name == 'workflow_dispatch'
