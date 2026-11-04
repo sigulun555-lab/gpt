@@ -64,7 +64,7 @@ test('GOAL3 three-fixture input is rejected', () => {
   }), /marketType/);
 });
 
-test('incomplete or duplicate fixture numbers are rejected', () => {
+test('fixture dates must be date-only to preserve strict same-day exclusion', () => {\n  const invalid = fixtures();\n  invalid.fixtures[0].date = '2026-02-01T12:00:00+09:00';\n  assert.throws(() => validateFixtures(invalid), /YYYY-MM-DD/);\n});\n\ntest('incomplete or duplicate fixture numbers are rejected', () => {
   assert.throws(() => validateFixtures({ round: 1, fixtures: fixtures().fixtures.slice(0, 12) }), /13/);
   const invalid = fixtures();
   invalid.fixtures[12].number = 12;
