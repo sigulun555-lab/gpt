@@ -165,10 +165,25 @@ def main():
     for k in K_VALUES:
         key=str(float(k))
         rows=targets_by_k[float(k)]
+        by_side={s:metrics([r for r in rows if r["side"]==s]) for s in ("home","away")}
+        by_league_side={
+            l:{s:metrics([r for r in rows if r["comp"]==l and r["side"]==s]) for s in ("home","away")}
+            for l in ("J1","J2","J3")
+        }
+        by_fold_side={
+            str(f):{s:metrics([r for r in rows if r["fold"]==f and r["side"]==s]) for s in ("home","away")}
+            for f in (1,2,3)
+        }
+        # Fail closed if a paired cohort unexpectedly loses either side.
+        if any(v["n"]!=236 for v in by_side.values()):
+            raise ValueError(f"Unexpected home/away target counts for k={k}: {by_side}")
         metric_by_k[key]={
             "overall":metrics(rows),
             "byLeague":{l:metrics([r for r in rows if r["comp"]==l]) for l in ("J1","J2","J3")},
-            "byFold":{str(f):metrics([r for r in rows if r["fold"]==f]) for f in (1,2,3)}
+            "byFold":{str(f):metrics([r for r in rows if r["fold"]==f]) for f in (1,2,3)},
+            "bySide":by_side,
+            "byLeagueSide":by_league_side,
+            "byFoldSide":by_fold_side
         }
 
     # For bootstrap, align every k to the same target-row order.
