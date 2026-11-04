@@ -65,8 +65,8 @@ The independent source-file audit found:
 
 - 2026 history: 429 rows (J1 130 / J2 150 / J3 149), 60 canonical teams, 2026-08-07 through 2026-11-03, no duplicate match keys, no same-team/same-date conflicts, no invalid/missing scores, no missing fetchedAt, and no unresolved 2026 aliases.
 - 2026 history Git blob SHA: f5cc8c044758e45b1e679e4ce796e68b3f27a854.
-- Alias map: 121 keys / 60 canonical values; Git blob SHA 5de22584524ff4c07ddac1d27f49afbbbc5f88ab.
-- 2025 community CSV: 1,140 rows (category 1/2/3 each 380), no duplicate match keys; only unmapped 2025 team name is 沼津; 59 teams overlap with 2026, with レイラック滋賀FC only in 2026. Git blob SHA 847d324c5a6168d02efe328f8173418a951af720.
+- Alias map: 121 keys / 60 canonical values; alias-key counts per canonical are 3 values with one key, 53 with two, and 4 with three. Every canonical value has its own self-key; each dictionary key maps to one value, so no one-to-many mapping is represented. No within-season source-name collision was observed in the 2025/2026 data. Git blob SHA 5de22584524ff4c07ddac1d27f49afbbbc5f88ab.
+- 2025 community CSV: 1,140 rows (category 1/2/3 each 380), no duplicate match keys, score parse failures 0, date parse failures 0, and team-ID failures 0. The only unmapped 2025 team name is 沼津; 59 teams overlap with 2026, with レイラック滋賀FC only in 2026. Git blob SHA 847d324c5a6168d02efe328f8173418a951af720.
 - The 2026 history and 2025 CSV are community-source datasets, not a full official-source reconciliation. The nested validation loader does not carry the 2025 CSV category into training rows, so a 2025+2026 training window pools the three leagues. This is a methodology caveat, not a defect in the fixed-2026-only cohort summarized above.
 
 ## Bootstrap interpretation
