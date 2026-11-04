@@ -65,15 +65,23 @@ The independent source-file audit found:
 
 ## Bootstrap interpretation
 
-The CI job computes 10,000 paired resamples using numpy.default_rng(seed=1) and percentile intervals:
-- date-cluster bootstrap: resample 17 dates, retaining every match and both team-sides within each sampled date; primary retrospective interval;
-- match-cluster bootstrap: resample 236 matches, retaining both team-sides; sensitivity interval.
+The CI job computes 10,000 paired resamples using numpy.default_rng(seed=1), PCG64, and linear percentile quantiles. Run #11 (ID 41804330819) completed successfully and uploaded artifact ID 13308938382 (zip SHA-256 fbe9600bd82e3dae94b0ba2342d399998efaeef652b7da2aae79ebbaa812a721).
 
-Both methods keep k=6/k=10 paired within each resample. Exact results are in the CI artifact named goal3-outer-review-472-targets. The prospective adoption rule remains separate: at least 10 rounds and 30 matches, with paired round/date-block 95% CI upper bounds below zero for both primary metrics and no material league deterioration or quality regression.
+| Bootstrap unit | Metric | Mean D | 95% percentile CI |
+|---|---|---:|---:|
+| 17-date cluster (primary retrospective) | Brier | -0.0006006 | [-0.0035410, +0.0023444] |
+| 17-date cluster (primary retrospective) | Log Loss | -0.0021514 | [-0.0082676, +0.0035968] |
+| 236-match cluster (sensitivity) | Brier | -0.0006442 | [-0.0035980, +0.0022823] |
+| 236-match cluster (sensitivity) | Log Loss | -0.0022303 | [-0.0082471, +0.0037677] |
+
+Both primary intervals cross zero; both sensitivity intervals also cross zero. The independent NumPy date-cluster intervals are close to Claude's reported Brier [-0.003603, +0.002343] and Log Loss [-0.008314, +0.003585], but not bit-for-bit identical. The largest endpoint difference is about 0.000062. The six-decimal source CSV, random-number generator, percentile implementation, or replicate aggregation may explain the small difference; the exact Claude bootstrap source code is still required to isolate it. This discrepancy does not change the conclusion because all intervals cross zero.
+
+Both methods keep k=6/k=10 paired within each resample. The prospective adoption rule remains separate: at least 10 rounds and 30 matches, with paired round/date-block 95% CI upper bounds below zero for both primary metrics and no material league deterioration or quality regression.
 
 ## Limitations
 
 1. The CSV contains six-decimal probabilities; full-precision upstream probabilities are not present in the comments.
-2. This report does not regenerate the 472 forecasts from the upstream diagnostic generator. Claude's diag.py / analyze.py, exact command and their own code SHA should still be committed for end-to-end reproduction.
-3. The 17-date retrospective set was already used in the k-sweep diagnostic. It must not be reused to select k or claim prospective improvement.
-4. No production model, main branch, prediction log, market weight or pre-existing shadow artifact is changed.
+2. The CSV does not contain per-target optimizer fit status or training-row diagnostics, so the reported zero fit-failure count cannot be independently verified from these rows alone.
+3. This report does not regenerate the 472 forecasts from the upstream diagnostic generator. Claude's diag.py / analyze.py, exact command, full-precision all-k predictions, fit diagnostics, and their code SHA should still be committed for end-to-end reproduction.
+4. The 17-date retrospective set was already used in the k-sweep diagnostic. It must not be reused to select k or claim prospective improvement.
+5. No production model, main branch, prediction log, market weight or pre-existing shadow artifact is changed.
