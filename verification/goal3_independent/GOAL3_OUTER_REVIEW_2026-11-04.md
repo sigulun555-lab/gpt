@@ -41,14 +41,22 @@ One arithmetic correction to the accompanying interpretation: within k=4, 6, 8, 
 
 ## Four-category calibration and Poisson residuals
 
-For k=6, mean predicted probability minus observed frequency:
+Mean predicted probability minus observed frequency (percentage points; positive means overprediction):
 
-- 0 goals: -0.139 percentage points
-- 1 goal: -1.219 pp
-- 2 goals: +0.241 pp
-- 3+ goals: +1.117 pp
+| Model / group | 0 | 1 | 2 | 3+ |
+|---|---:|---:|---:|---:|
+| k6 overall | -0.14 | -1.22 | +0.24 | +1.12 |
+| k10 overall | -0.70 | -0.89 | +0.69 | +0.89 |
+| k6 J1 | -3.99 | +9.61 | -2.64 | -2.98 |
+| k6 J2 | +5.74 | -10.61 | -0.02 | +4.89 |
+| k6 J3 | -3.50 | +0.92 | +2.50 | +0.08 |
+| k10 J1 | -4.42 | +10.07 | -2.20 | -3.44 |
+| k10 J2 | +4.99 | -10.43 | +0.44 | +5.00 |
+| k10 J3 | -3.94 | +1.33 | +2.95 | -0.34 |
 
-The overall mean gaps are small, but league-specific category-1 gaps have opposite signs in J1 and J2. Quantile-bin output is included in the JSON artifact; bins are descriptive and are not a calibration test.
+Overall pooled calibration gaps are small, but they hide a clear descriptive J1/J2 split: category 1 is overpredicted in J1 by about 9.6–10.1 pp and underpredicted in J2 by about 10.4–10.6 pp for both k values. J3 gaps are much smaller. Home/away pooled gaps are smaller: the largest absolute gap is 3.31 pp (k6 away, category 1). This league heterogeneity is a monitoring signal, not a basis for retrospective calibration adjustment with only 120 J1 and 178 J2 team-side targets.
+
+The five-quantile-bin maximum absolute gap is 7.32 pp for k6 and 8.21 pp for k10; therefore, not every bin is within ±5 pp. Each bin has only 94–95 targets, so these bin-level gaps are noisy and descriptive, not a calibration test. Full league/side and bin detail is included in the JSON artifact.
 
 Using lambda = -ln(p0) and exact observed goals, the k=6 descriptive residual check gives:
 
