@@ -7,7 +7,9 @@ on:
     paths:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
+      - "verification/goal3_independent/independent_optimizer_audit.py"
       - "tests/test_goal3_prospective_shadow.py"
+      - "tests/test_goal3_independent_optimizer.py"
       - "verification/goal3_independent/review_outer_matches.py"
       - "verification/goal3_independent/reproduce_allk_outer.py"
       - "verification/goal3_independent/2025.csv"
@@ -15,6 +17,7 @@ on:
       - "data/team_aliases.json"
       - "verification/goal3_independent/goal3_outer_matches.csv"
       - "verification/goal3_independent/GOAL3_OUTER_REVIEW_2026-11-04.md"
+      - "verification/goal3_independent/INDEPENDENT_OPTIMIZER_AUDIT.md"
       - ".github/workflows/goal3-prospective-shadow.yml"
 
 permissions:
@@ -28,7 +31,7 @@ jobs:
   static-and-unit-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,13 +44,15 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py tests/test_goal3_prospective_shadow.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py tests/test_goal3_prospective_shadow.py tests/test_goal3_independent_optimizer.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
         run: npm test
       - name: Shadow runner unit test
         run: python tests/test_goal3_prospective_shadow.py -v
+      - name: Independent optimizer unit tests
+        run: python tests/test_goal3_independent_optimizer.py -v
       - name: Independent 472-target audit and paired bootstrap
         run: |
           mkdir -p artifacts
@@ -76,6 +81,21 @@ jobs:
         with:
           name: goal3-all-k-outer-reconstruction-${{ github.run_id }}
           path: artifacts/goal3_outer_allk_reproduction.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Independent k=6 / k=10 optimizer reconstruction
+        run: |
+          python verification/goal3_independent/independent_optimizer_audit.py \
+            --history data/history.json \
+            --aliases data/team_aliases.json \
+            --frozen-csv verification/goal3_independent/goal3_outer_matches.csv \
+            --out artifacts/goal3_independent_optimizer_audit.json \
+            --bootstrap-replicates 50000 --seed 20261105
+      - name: Upload independent optimizer audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-independent-optimizer-k6-k10-${{ github.run_id }}
+          path: artifacts/goal3_independent_optimizer_audit.json
           if-no-files-found: error
           retention-days: 90
 
