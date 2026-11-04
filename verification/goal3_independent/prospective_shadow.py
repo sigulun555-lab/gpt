@@ -113,7 +113,8 @@ def main() -> None:
             raise ValueError(f"2026-only history guard: unexpected date {row_date!r}")
 
     # Strict as-of filter: use only J1/J2/J3 results played before each target
-    # date and already present in the source snapshot by generatedAt.
+    # date and present by the conservative post-fetch snapshot-read bound above.
+    # The pipeline-declared fetchedAt is metadata, not an exact HTTP completion time.
     prepared = []
     for row in source_rows:
         if row.get("competition") not in VALID_LEAGUES:
