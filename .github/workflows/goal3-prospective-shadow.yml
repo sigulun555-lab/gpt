@@ -38,7 +38,7 @@ jobs:
       - name: Existing tests
         run: npm test
       - name: Shadow runner unit test
-        run: python -m unittest tests/test_goal3_prospective_shadow.py -v
+        run: python tests/test_goal3_prospective_shadow.py -v
 
   shadow:
     if: github.event_name == 'workflow_dispatch'
