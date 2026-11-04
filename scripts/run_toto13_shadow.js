@@ -16,6 +16,19 @@ function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+function validateOutputPath(outputPath, repoRoot = path.resolve(__dirname, '..')) {
+  if (typeof outputPath !== 'string' || !outputPath.trim()) {
+    throw new Error('output path is required');
+  }
+  const allowedDir = path.resolve(repoRoot, 'shadow', 'toto13', 'predictions');
+  const resolved = path.resolve(repoRoot, outputPath);
+  const relative = path.relative(allowedDir, resolved);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative) || path.extname(resolved) !== '.json') {
+    throw new Error('output path must be a new .json file inside shadow/toto13/predictions/');
+  }
+  return resolved;
+}
+
 function normalizeTeam(value) {
   return String(value || '').normalize('NFKC').trim();
 }
@@ -72,7 +85,7 @@ function predictToto13(history, fixture, config) {
       normalizeTeam(m.home) === team || normalizeTeam(m.away) === team
     ).slice(-config.window);
     const n = matches.length;
-    if (n === 0) return { attack: 1, defense: 1, matches: 0 };
+    if (n === 0) return { attack: 1, defense: 1, matches: 0, unknown: true };
     const goalsFor = matches.map((m) =>
       normalizeTeam(m.home) === team ? m.home_goals : m.away_goals
     );
@@ -86,7 +99,7 @@ function predictToto13(history, fixture, config) {
       attack = 1 + (attack - 1) * trust;
       defense = 1 + (defense - 1) * trust;
     }
-    return { attack, defense, matches: n };
+    return { attack, defense, matches: n, unknown: false };
   }
 
   const h = teamStats(home);
@@ -120,6 +133,7 @@ function predictToto13(history, fixture, config) {
     historyAwayMatches: a.matches,
     priorMatchCount: prior.length,
     priorMaxDate: prior[prior.length - 1].date,
+    unknownTeams: [h.unknown ? home : null, a.unknown ? away : null].filter(Boolean),
   };
 }
 
@@ -145,7 +159,7 @@ function validateFixtures(document) {
   return document.fixtures;
 }
 
-function runRound(historyInput, fixtureDocument, createdAt = new Date().toISOString()) {
+function runRound(historyInput, fixtureDocument, createdAt = new Date().toISOString(), execution = {}) {
   const history = validateHistory(historyInput);
   const fixtures = validateFixtures(fixtureDocument);
   const predictions = fixtures.map((fixture) => {
@@ -187,10 +201,20 @@ function runRound(historyInput, fixtureDocument, createdAt = new Date().toISOStr
       historySources: [...new Set(history.map((m) => m.source || 'unspecified'))].sort(),
     },
     predictions,
+    execution: {
+      repository: execution.repository || null,
+      workflowRunId: execution.workflowRunId || null,
+      workflowRunAttempt: execution.workflowRunAttempt || null,
+      commitSha: execution.commitSha || null,
+      ref: execution.ref || null,
+      eventName: execution.eventName || null,
+      timestampEvidence: 'createdAt is runner-generated; corroborate against the linked GitHub Actions run and artifact creation metadata before scoring',
+    },
     warnings: [
       'Shadow-only research output. Not a production prediction.',
       'History rows may include community-mirror results; source quality must be audited.',
       'Do not score until official results and the pre-deadline prediction timestamp are verified.',
+      ...[...new Set(predictions.flatMap((p) => p.variants.V0_k6_window12.unknownTeams.concat(p.variants.V1_k10_window12.unknownTeams, p.variants.baseline_k0_window12.unknownTeams)))].map((team) => `No prior history for team: ${team}; neutral attack/defense fallback used.`),
     ],
   };
 }
@@ -201,7 +225,9 @@ function main() {
   if (!fixturesPath || !outputPath) {
     throw new Error('usage: node scripts/run_toto13_shadow.js <fixtures.json> <new-output.json>');
   }
-  if (fs.existsSync(outputPath)) throw new Error(`refusing to overwrite existing shadow log: ${outputPath}`);
+  const repoRoot = path.resolve(__dirname, '..');
+  const safeOutputPath = validateOutputPath(outputPath, repoRoot);
+  if (fs.existsSync(safeOutputPath)) throw new Error(`refusing to overwrite existing shadow log: ${safeOutputPath}`);
 
   const historyPath = path.join(__dirname, '..', 'data', 'history.json');
   const historyRaw = fs.readFileSync(historyPath, 'utf8');
@@ -211,7 +237,15 @@ function main() {
   const report = runRound(
     historyDoc.history,
     fixtureDoc,
-    new Date().toISOString()
+    new Date().toISOString(),
+    {
+      repository: process.env.GITHUB_REPOSITORY,
+      workflowRunId: process.env.GITHUB_RUN_ID,
+      workflowRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
+      commitSha: process.env.GITHUB_SHA,
+      ref: process.env.GITHUB_REF,
+      eventName: process.env.GITHUB_EVENT_NAME,
+    }
   );
   report.input.historySha256 = sha256(historyRaw);
   report.input.fixtureSha256 = sha256(fixtureRaw);
@@ -219,7 +253,7 @@ function main() {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   process.stdout.write(JSON.stringify({
-    saved: outputPath,
+    saved: path.relative(repoRoot, safeOutputPath),
     round: report.round,
     fixtures: report.predictions.length,
     historyRows: report.input.historyRows,
@@ -237,4 +271,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { CONFIGS, normalizeTeam, validateHistory, validateFixtures, predictToto13, runRound };
+module.exports = { CONFIGS, normalizeTeam, validateHistory, validateFixtures, validateOutputPath, predictToto13, runRound };
