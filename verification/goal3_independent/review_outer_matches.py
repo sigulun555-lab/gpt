@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Independent audit of the frozen 472-row GOAL3 k=6/k=10 outer predictions."""
 from __future__ import annotations
-import argparse, csv, hashlib, json, math
+import argparse, csv, hashlib, json, math, re
+from datetime import datetime
 from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np
@@ -114,9 +115,12 @@ def residuals(rows):
 def source_audit(root):
     import unicodedata
     aliases=json.loads((root/"data/team_aliases.json").read_text(encoding="utf-8"))["aliases"]
-    canon=lambda s:aliases.get(unicodedata.normalize("NFKC",str(s)).strip(),unicodedata.normalize("NFKC",str(s)).strip())
+    canon=lambda s:aliases.get(unicodedata.normalize("NFKC",str(s)).strip(),
+                               unicodedata.normalize("NFKC",str(s)).strip())
+    alias_counts=Counter(aliases.values())
     h=json.loads((root/"data/history.json").read_text(encoding="utf-8"))["history"]
     keys=set(); td=set(); dup=0; repeat=0; names=set(); apps=Counter(); unknown=set()
+    source_names={"2026":defaultdict(set),"2025":defaultdict(set)}
     for r in h:
         if not isinstance(r.get("date"),str) or not r["date"].startswith("2026-"):
             raise ValueError(f"Non-2026 history date: {r.get('date')!r}")
@@ -130,38 +134,62 @@ def source_audit(root):
         for t in (r["home"],r["away"]):
             n=unicodedata.normalize("NFKC",str(t)).strip()
             if n not in aliases: unknown.add(n)
-            c=canon(t); names.add(c); apps[c]+=1
+            c=canon(t); names.add(c); apps[c]+=1; source_names["2026"][c].add(n)
             if (r["date"],c) in td: repeat+=1
             td.add((r["date"],c))
     c25=[]
     with (root/"verification/goal3_independent/2025.csv").open(encoding="utf-8-sig",newline="") as f:
         c25=list(csv.DictReader(f))
     c25keys=set(); c25dup=0; c25unknown=set(); t25=set(); cats=Counter()
+    bad_score=bad_date=bad_ids=0
     for r in c25:
-        k=(r["date"],r["category"],r["homeTeam"],r["awayTeam"])
+        k=(r.get("date"),r.get("category"),r.get("homeTeam"),r.get("awayTeam"))
         if k in c25keys: c25dup+=1
-        c25keys.add(k); cats[r["category"]]+=1
-        for t in (r["homeTeam"],r["awayTeam"]):
+        c25keys.add(k); cats[r.get("category")] += 1
+        if r.get("category") not in ("1","2","3"): raise ValueError("Unexpected 2025 category")
+        if not re.fullmatch(r"\\d+-\\d+",r.get("score","")): bad_score+=1
+        try: datetime.strptime(r.get("date",""),"%Y/%m/%d")
+        except ValueError: bad_date+=1
+        try:
+            home_id=int(r.get("homeTeamId","")); away_id=int(r.get("awayTeamId",""))
+            if home_id==away_id: bad_ids+=1
+        except (TypeError,ValueError): bad_ids+=1
+        for t in (r.get("homeTeam"),r.get("awayTeam")):
             n=unicodedata.normalize("NFKC",str(t)).strip()
             if n not in aliases: c25unknown.add(n)
-            t25.add(canon(t))
+            c=canon(t); t25.add(c); source_names["2025"][c].add(n)
+    if bad_score or bad_date or bad_ids: raise ValueError("2025 CSV contains invalid score/date/team IDs")
     t26={canon(r[t]) for r in h for t in ("home","away")}
     dates=sorted(r["date"] for r in h)
+    collisions={
+        season:{c:sorted(ns) for c,ns in groups.items() if len(ns)>1}
+        for season,groups in source_names.items()
+    }
     return {
         "history2026":{
             "rows":len(h),"leagueRows":dict(Counter(r["competition"] for r in h)),
-            "dateRange":[dates[0],dates[-1]],"uniqueMatchKeys":len(keys),"duplicateMatchKeys":dup,
+            "dateRange":[dates[0],dates[-1]],"distinctDates":len({r["date"] for r in h}),
+            "uniqueMatchKeys":len(keys),"duplicateMatchKeys":dup,
             "sameTeamSameDateConflicts":repeat,"canonicalTeams":len(names),
             "perTeamAppearancesMinMax":[min(apps.values()),max(apps.values())],
             "unmappedNames":sorted(unknown),"missingFetchedAt":sum(not r.get("fetchedAt") for r in h),
+            "sourceNameCollisionsWithinSeason":collisions["2026"],
             "gitBlobSha":"f5cc8c044758e45b1e679e4ce796e68b3f27a854",
             "source":"community_jleague_csv"
         },
-        "aliases":{"keys":len(aliases),"canonicalValues":len(set(aliases.values())),
-                   "gitBlobSha":"5de22584524ff4c07ddac1d27f49afbbbc5f88ab"},
+        "aliases":{
+            "keys":len(aliases),"canonicalValues":len(alias_counts),
+            "aliasKeysPerCanonicalDistribution":dict(Counter(alias_counts.values())),
+            "canonicalValuesMissingSelfKey":sorted(v for v in alias_counts if v not in aliases),
+            "oneToManyMappings":0,
+            "gitBlobSha":"5de22584524ff4c07ddac1d27f49afbbbc5f88ab"
+        },
         "history2025CommunityCsv":{
             "rows":len(c25),"categoryRows":dict(cats),"uniqueMatchKeys":len(c25keys),
-            "duplicateMatchKeys":c25dup,"unmappedNames":sorted(c25unknown),
+            "duplicateMatchKeys":c25dup,"scoreParseFailures":bad_score,
+            "dateParseFailures":bad_date,"teamIdFailures":bad_ids,
+            "unmappedNames":sorted(c25unknown),
+            "sourceNameCollisionsWithinSeason":collisions["2025"],
             "teamsOnly2025":sorted(t25-t26),"teamsOnly2026":sorted(t26-t25),
             "gitBlobSha":"847d324c5a6168d02efe328f8173418a951af720",
             "caveat":"nested_validation.py does not carry 2025 category into training rows; 2025_plus_2026 pools leagues."
