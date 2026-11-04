@@ -147,7 +147,7 @@ def source_audit(root):
         if k in c25keys: c25dup+=1
         c25keys.add(k); cats[r.get("category")] += 1
         if r.get("category") not in ("1","2","3"): raise ValueError("Unexpected 2025 category")
-        if not re.fullmatch(r"\\d+-\\d+",r.get("score","")): bad_score+=1
+        if not re.fullmatch(r"\d+-\d+",r.get("score","")): bad_score+=1
         try: datetime.strptime(r.get("date",""),"%Y/%m/%d")
         except ValueError: bad_date+=1
         try:
