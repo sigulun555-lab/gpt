@@ -92,9 +92,16 @@ def main() -> None:
     if not isinstance(aliases, dict):
         raise ValueError("Invalid team alias map")
 
+    # This experiment is explicitly 2026-only. Reject a mixed-year history
+    # snapshot rather than silently admitting another season into either arm.
+    source_rows = history_doc.get("history", [])
+    for row in source_rows:
+        row_date = row.get("date")
+        if not isinstance(row_date, str) or not row_date.startswith("2026-"):
+            raise ValueError(f"2026-only history guard: unexpected date {row_date!r}")
+
     # Strict as-of filter: use only J1/J2/J3 results played before each target
     # date and already present in the source snapshot by generatedAt.
-    source_rows = history_doc.get("history", [])
     prepared = []
     for row in source_rows:
         if row.get("competition") not in VALID_LEAGUES:
