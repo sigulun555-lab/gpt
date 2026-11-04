@@ -77,6 +77,23 @@ class ProspectiveShadowTests(unittest.TestCase):
             rejected = subprocess.run(command, capture_output=True, text=True)
             self.assertNotEqual(rejected.returncode, 0)
 
+            # A mixed-year source must fail closed instead of silently using
+            # non-2026 rows in the nominally 2026-only experiment.
+            mixed_history = list(history) + [{**history[0], "date": "2025-12-31"}]
+            mixed_path = tmp / "mixed_history.json"
+            mixed_path.write_text(json.dumps({"history": mixed_history}), encoding="utf-8")
+            mixed_out = tmp / "mixed_shadow.json"
+            mixed_command = [
+                sys.executable, str(RUNNER),
+                "--history", str(mixed_path),
+                "--predictions", str(tmp / "predictions.json"),
+                "--aliases", str(tmp / "aliases.json"),
+                "--out", str(mixed_out),
+            ]
+            mixed_rejected = subprocess.run(mixed_command, capture_output=True, text=True)
+            self.assertNotEqual(mixed_rejected.returncode, 0)
+            self.assertIn("2026-only history guard", mixed_rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
