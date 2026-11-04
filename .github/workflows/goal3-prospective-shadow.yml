@@ -35,6 +35,7 @@ jobs:
         run: |
           python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py tests/test_goal3_prospective_shadow.py
           node --check model.js
+          node --check scripts/auto_pipeline.js
       - name: Existing tests
         run: npm test
       - name: Shadow runner unit test
