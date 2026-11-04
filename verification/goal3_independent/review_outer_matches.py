@@ -240,7 +240,11 @@ def main():
             "dateCluster":bootstrap(rows,arr,"date",lambda r:r["date"],args.replicates,args.seed),
             "matchCluster":bootstrap(rows,arr,"match",lambda r:(r["date"],r["comp"],r["home"],r["away"]),args.replicates,args.seed)
         },
-        "calibration":{"k6":calibration(rows,6),"k10":calibration(rows,10)},
+        "calibration":{
+            "k6":calibration(rows,6),"k10":calibration(rows,10),
+            "byLeague":{str(k):{l:calibration([r for r in rows if r["comp"]==l],k)["meanByCategory"] for l in LEAGUES} for k in (6,10)},
+            "bySide":{str(k):{side:calibration([r for r in rows if r["side"]==side],k)["meanByCategory"] for side in ("home","away")} for k in (6,10)}
+        },
         "poissonResidualsK6":residuals(rows),
         "sourceDataAudit":source_audit(ROOT),
         "interpretation":[
