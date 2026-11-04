@@ -14,8 +14,10 @@ This experiment does not alter production forecasts, model code, market weights,
 - No k=8 sensitivity arm in the primary test.
 - No market blend, Dixon-Coles correction, draw boost, or other simultaneous model change.
 - Each fixture is trained only on matches with a date strictly earlier than its fixture date.
-- Every eligible history row must have a `fetchedAt` timestamp no later than the official snapshot's `generatedAt`. Missing timestamps fail closed.
-- The official GOAL3 round, three fixtures, six team targets, and deadline must be confirmed. Forecast creation at/after deadline is rejected.
+- The existing snapshot pipeline is run first and writes the input files in the workflow workspace. Its `generatedAt` and `lastFetchedAt` values are captured before its HTTP requests; they are retained as declared pipeline metadata and are **not** treated as actual fetch-completion time.
+- The research runner starts only after that fetch step completes and the files are available. It records `snapshotAvailableBy` after reading the inputs; every eligible history row must have a `fetchedAt` timestamp no later than this conservative post-fetch bound. Missing timestamps fail closed. This bound is not claimed to be the exact HTTP completion timestamp.
+- `forecastAsOf` is recorded after both k arms finish fitting. Both `snapshotAvailableBy` and `forecastAsOf` must be strictly before the official deadline; a snapshot or completed forecast at/after the deadline is rejected.
+- The official GOAL3 round, three fixtures, six team targets, and deadline must be confirmed.
 - The artifact records SHA-256 hashes for history, official target snapshot, aliases, runner, and model implementation.
 
 ## Outcomes and adoption rule
@@ -34,4 +36,5 @@ Minimum evidence before adoption review: at least 10 rounds and 30 matches, with
 - Pull-request CI may run syntax/unit tests and read-only retrospective diagnostics, but it does not create or publish prospective shadow forecasts.
 - Each run artifact name includes the official round and GitHub run ID. Existing output files are never overwritten.
 - The runner does not write to `data/`, production files, or the default branch.
+- Production `scripts/auto_pipeline.js` is not modified by this experiment; timestamp handling specific to the shadow is implemented in the research runner.
 - A shadow artifact is evidence of forecast generation, not a claim of improved accuracy.
