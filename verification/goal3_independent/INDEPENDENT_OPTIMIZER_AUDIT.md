@@ -12,7 +12,7 @@ This audit independently reconstructs the frozen 2026-only outer predictions for
 - Away log-rate: `mu + attack[away] - defense[home]`
 - Poisson negative log likelihood, omitting score-only constants, plus `k * (sum(attack^2) + sum(defense^2))`
 - Log-rates are clipped to [-20, 20], matching the documented numerical guard.
-- Optimization uses SciPy L-BFGS-B with a different initialization (log pooled prior mean goals per team-side). The gradient is checked against central finite differences in unit tests.
+- Optimization uses SciPy L-BFGS-B with the same initial intercept (log(1.3)) and max-iteration cap (300) as the reference fit, while the objective and dense design-matrix gradient are implemented separately. The gradient is checked against central finite differences in unit tests. This aligns stopping behavior for a like-for-like probability reconstruction; it does not claim a different optimizer algorithm.
 
 The frozen cohort is 236 matches / 472 team-side targets / 17 target dates. Each fit uses only 2026 history rows strictly earlier than the target date. Same-day matches are excluded. The 2025 CSV is not used.
 
