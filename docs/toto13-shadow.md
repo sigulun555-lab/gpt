@@ -31,7 +31,7 @@ Pass a JSON document containing exactly 13 fixtures. Do not use a 3-match totoGO
 }
 ```
 
-The example above shows the shape only; all 13 real fixtures must be supplied before execution.
+The example above shows the shape only; all 13 real fixtures must be supplied before execution. Each fixture date must be date-only `YYYY-MM-DD` (not a timestamp), so same-day history is reliably excluded.
 
 ## Run
 
