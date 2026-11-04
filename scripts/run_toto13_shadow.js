@@ -206,6 +206,7 @@ function runRound(historyInput, fixtureDocument, createdAt = new Date().toISOStr
       workflowRunId: execution.workflowRunId || null,
       workflowRunAttempt: execution.workflowRunAttempt || null,
       commitSha: execution.commitSha || null,
+      headCommitSha: execution.headCommitSha || null,
       ref: execution.ref || null,
       eventName: execution.eventName || null,
       timestampEvidence: 'createdAt is runner-generated; corroborate against the linked GitHub Actions run and artifact creation metadata before scoring',
@@ -243,6 +244,7 @@ function main() {
       workflowRunId: process.env.GITHUB_RUN_ID,
       workflowRunAttempt: process.env.GITHUB_RUN_ATTEMPT,
       commitSha: process.env.GITHUB_SHA,
+      headCommitSha: process.env.SHADOW_HEAD_SHA,
       ref: process.env.GITHUB_REF,
       eventName: process.env.GITHUB_EVENT_NAME,
     }
