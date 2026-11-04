@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import sys
 from datetime import datetime, timezone
@@ -136,15 +137,18 @@ def main() -> None:
             ph, pa = predict_shrinkage(params, team_index, home, away)
             if abs(sum(ph) - 1.0) > 1e-9 or abs(sum(pa) - 1.0) > 1e-9:
                 raise AssertionError("Goal-category probabilities do not sum to one")
+            n_teams = len(team_index)
+            home_eta = float(params[0] + params[1] +
+                (params[2 + team_index[home]] if home in team_index else 0.0) -
+                (params[2 + n_teams + team_index[away]] if away in team_index else 0.0))
+            away_eta = float(params[0] +
+                (params[2 + team_index[away]] if away in team_index else 0.0) -
+                (params[2 + n_teams + team_index[home]] if home in team_index else 0.0))
             arms[str(int(k))] = {
                 "homeGoalProbabilities": ph,
                 "awayGoalProbabilities": pa,
-                "homeExpectedGoals": float(__import__("math").exp(float(params[0] + params[1] +
-                    (params[2 + team_index[home]] if home in team_index else 0.0) -
-                    (params[2 + len(team_index) + team_index[away]] if away in team_index else 0.0)))),
-                "awayExpectedGoals": float(__import__("math").exp(float(params[0] +
-                    (params[2 + team_index[away]] if away in team_index else 0.0) -
-                    (params[2 + len(team_index) + team_index[home]] if home in team_index else 0.0)))),
+                "homeExpectedGoals": math.exp(max(-20.0, min(20.0, home_eta))),
+                "awayExpectedGoals": math.exp(max(-20.0, min(20.0, away_eta))),
                 "fit": info,
             }
             fit_diagnostics.append({
