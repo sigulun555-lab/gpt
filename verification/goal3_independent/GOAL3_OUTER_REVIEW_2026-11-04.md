@@ -33,6 +33,12 @@ Using the six-decimal CSV:
 
 Negative differences favor k=6. The overall point differences are very small; league signs are not uniform. These results do not establish a k=6 advantage.
 
+## All-k stability table cross-check
+
+Claude's table in PR #20 comment #6626537018 reports k = 0.5, 2, 4, 6, 8, 10, 20, 50, 200. The k=6 and k=10 overall and league Brier/LogLoss values match the independent 472-row CSV recomputation to the shown six decimals. The other seven k values cannot yet be independently recomputed because the all-k per-target artifact has not been committed.
+
+One arithmetic correction to the accompanying interpretation: within k=4, 6, 8, 10, the reported Brier range is 0.717169 - 0.716248 = 0.000921, not within 0.0006. The LogLoss range is 1.312558 - 1.310399 = 0.002159. The local valley is still relatively shallow—k=6 vs k=8 differs by 0.000116 Brier and 0.000711 LogLoss—but k=4 is 0.000921 Brier above k=6. This is descriptive only; these same 472 targets were used in the k-sweep and cannot be used to reselect k.
+
 ## Four-category calibration and Poisson residuals
 
 For k=6, mean predicted probability minus observed frequency:
