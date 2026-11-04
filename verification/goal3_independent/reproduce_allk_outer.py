@@ -105,6 +105,10 @@ def main():
     args=ap.parse_args()
 
     frozen_rows,matches,fold_by_date=load_frozen(args.frozen_csv)
+    raw_history_doc=json.loads(Path(args.history2026).read_text(encoding="utf-8"))
+    raw_history_rows=raw_history_doc.get("history",[])
+    fetched_at_values=sorted({str(r.get("fetchedAt")) for r in raw_history_rows if r.get("fetchedAt")})
+    missing_fetched_at=sum(not r.get("fetchedAt") for r in raw_history_rows)
     h2025,h2026=nv.load_data(args.history2026,args.aliases,args.csv2025)
     source_dates=sorted({m["date"] for m in h2026})
     target_dates=sorted(fold_by_date)
@@ -210,8 +214,13 @@ def main():
             "dateRange":[target_dates[0],target_dates[-1]],
             "foldDates":dict(Counter(str(fold_by_date[d]) for d in target_dates)),
             "leagueTargets":dict(Counter(r["comp"] for r in k6_rows)),
-            "history2026Rows":len(h2026),"history2026DistinctDates":len(source_dates)
+            "history2026Rows":len(h2026),"history2026DistinctDates":len(source_dates),
+            "historySnapshotUpdatedAt":raw_history_doc.get("updatedAt"),
+            "historyFetchedAtUniqueCount":len(fetched_at_values),
+            "historyFetchedAtValues":fetched_at_values,
+            "historyFetchedAtMissingCount":int(missing_fetched_at)
         },
+        "historicalAvailabilityCaveat":"Strict earlier-match-date cutoffs exclude later-dated results and same-day matches, but this retrospective snapshot does not preserve each match's original first-known timestamp. If all rows share the snapshot fetchedAt, exact historical ingestion-time availability cannot be audited."
         "kCandidates":[float(k) for k in K_VALUES],
         "metricsByK":metric_by_k,
         "reconstructionCheck":{
