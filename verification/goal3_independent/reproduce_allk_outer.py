@@ -63,7 +63,7 @@ def metrics(targets):
 
 def moving_block_bootstrap(targets,k_values,reps,seed,rng_kind):
     by_date=defaultdict(list)
-    for i,r in enumerate(targets): by_date[r["date"]].append(i)
+    for i,r in enumerate(targets[k_values[0]]): by_date[r["date"]].append(i)
     dates=sorted(by_date); n=len(dates); block_len=2; n_blocks=math.ceil(n/block_len)
     if rng_kind=="PCG64":
         rng=np.random.default_rng(seed)
