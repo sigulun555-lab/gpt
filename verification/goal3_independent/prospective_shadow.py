@@ -190,6 +190,7 @@ def main() -> None:
         "code": {
             "runnerSha256": sha256_text(code_path.read_text(encoding="utf-8")),
             "modelSha256": sha256_text(model_path.read_text(encoding="utf-8")),
+            "snapshotPipelineSha256": sha256_text((ROOT / "scripts" / "auto_pipeline.js").read_text(encoding="utf-8")),
         },
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
