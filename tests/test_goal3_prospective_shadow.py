@@ -130,7 +130,7 @@ class ProspectiveShadowTests(unittest.TestCase):
                 future_command, capture_output=True, text=True
             )
             self.assertNotEqual(future_rejected.returncode, 0)
-            self.assertIn("pipeline-declared fetchedAt is in the future",
+            self.assertIn("Pipeline-declared fetchedAt is in the future",
                           future_rejected.stderr)
 
             # A snapshot read at/after the official deadline must be rejected.
