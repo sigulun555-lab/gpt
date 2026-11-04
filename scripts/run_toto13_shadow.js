@@ -250,8 +250,8 @@ function main() {
   report.input.historySha256 = sha256(historyRaw);
   report.input.fixtureSha256 = sha256(fixtureRaw);
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
+  fs.mkdirSync(path.dirname(safeOutputPath), { recursive: true });
+  fs.writeFileSync(safeOutputPath, JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   process.stdout.write(JSON.stringify({
     saved: path.relative(repoRoot, safeOutputPath),
     round: report.round,
