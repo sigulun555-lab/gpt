@@ -8,6 +8,9 @@ on:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
       - "tests/test_goal3_prospective_shadow.py"
+      - "verification/goal3_independent/review_outer_matches.py"
+      - "verification/goal3_independent/goal3_outer_matches.csv"
+      - "verification/goal3_independent/GOAL3_OUTER_REVIEW_2026-11-04.md"
       - ".github/workflows/goal3-prospective-shadow.yml"
 
 permissions:
@@ -41,6 +44,20 @@ jobs:
         run: npm test
       - name: Shadow runner unit test
         run: python tests/test_goal3_prospective_shadow.py -v
+      - name: Independent 472-target audit and paired bootstrap
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/review_outer_matches.py \
+            --csv verification/goal3_independent/goal3_outer_matches.csv \
+            --out artifacts/goal3_outer_review.json \
+            --replicates 10000 --seed 1
+      - name: Upload independent GOAL3 outer review
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-outer-review-472-targets-${{ github.run_id }}
+          path: artifacts/goal3_outer_review.json
+          if-no-files-found: error
+          retention-days: 90
 
   shadow:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review')
