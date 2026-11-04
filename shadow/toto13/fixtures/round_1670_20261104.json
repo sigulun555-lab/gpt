@@ -6,112 +6,138 @@
     "name": "スポーツくじ公式",
     "url": "https://store.toto-dream.com/dcs/subos/screen/pi01/spin000/PGSPIN00001DisptotoLotInfo.form?holdCntId=1670",
     "observedAt": "2026-11-04T11:54:00+09:00",
-    "note": "第1670回 totoくじ情報。公式ページのNo.1〜13を転記。公式表示の販売終了は11/07 12:50（ネット決済）。"
+    "note": "第1670回 totoくじ情報。公式ページのNo.1〜13を転記。公式表示の販売終了は11/07 12:50（ネット決済）。 モデル入力のhome/awayはdata/history.jsonのチーム表記（正規化前の略称）に合わせ、officialHome/officialAwayに公式フル表記を保持。"
   },
   "fixtures": [
     {
       "number": 1,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "清水エスパルス",
-      "away": "東京ヴェルディ",
-      "competition": "J1"
+      "home": "清水",
+      "away": "東京V",
+      "competition": "J1",
+      "officialHome": "清水エスパルス",
+      "officialAway": "東京ヴェルディ"
     },
     {
       "number": 2,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "横浜Ｆ・マリノス",
-      "away": "ファジアーノ岡山",
-      "competition": "J1"
+      "home": "横浜FM",
+      "away": "岡山",
+      "competition": "J1",
+      "officialHome": "横浜Ｆ・マリノス",
+      "officialAway": "ファジアーノ岡山"
     },
     {
       "number": 3,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "アビスパ福岡",
-      "away": "Ｖ・ファーレン長崎",
-      "competition": "J1"
+      "home": "福岡",
+      "away": "長崎",
+      "competition": "J1",
+      "officialHome": "アビスパ福岡",
+      "officialAway": "Ｖ・ファーレン長崎"
     },
     {
       "number": 4,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "ＦＣ東京",
-      "away": "鹿島アントラーズ",
-      "competition": "J1"
+      "home": "FC東京",
+      "away": "鹿島",
+      "competition": "J1",
+      "officialHome": "ＦＣ東京",
+      "officialAway": "鹿島アントラーズ"
     },
     {
       "number": 5,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "柏レイソル",
-      "away": "川崎フロンターレ",
-      "competition": "J1"
+      "home": "柏",
+      "away": "川崎F",
+      "competition": "J1",
+      "officialHome": "柏レイソル",
+      "officialAway": "川崎フロンターレ"
     },
     {
       "number": 6,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "名古屋グランパス",
-      "away": "京都サンガF.C.",
-      "competition": "J1"
+      "home": "名古屋",
+      "away": "京都",
+      "competition": "J1",
+      "officialHome": "名古屋グランパス",
+      "officialAway": "京都サンガF.C."
     },
     {
       "number": 7,
       "date": "2026-11-08",
       "dateLabel": "11/08",
-      "home": "ヴィッセル神戸",
-      "away": "浦和レッズ",
-      "competition": "J1"
+      "home": "神戸",
+      "away": "浦和",
+      "competition": "J1",
+      "officialHome": "ヴィッセル神戸",
+      "officialAway": "浦和レッズ"
     },
     {
       "number": 8,
       "date": "2026-11-08",
       "dateLabel": "11/08",
-      "home": "ガンバ大阪",
-      "away": "セレッソ大阪",
-      "competition": "J1"
+      "home": "G大阪",
+      "away": "C大阪",
+      "competition": "J1",
+      "officialHome": "ガンバ大阪",
+      "officialAway": "セレッソ大阪"
     },
     {
       "number": 9,
       "date": "2026-11-08",
       "dateLabel": "11/08",
-      "home": "ジェフユナイテッド千葉",
-      "away": "水戸ホーリーホック",
-      "competition": "J1"
+      "home": "千葉",
+      "away": "水戸",
+      "competition": "J1",
+      "officialHome": "ジェフユナイテッド千葉",
+      "officialAway": "水戸ホーリーホック"
     },
     {
       "number": 10,
       "date": "2026-11-08",
       "dateLabel": "11/08",
-      "home": "ＦＣ町田ゼルビア",
-      "away": "サンフレッチェ広島",
-      "competition": "J1"
+      "home": "町田",
+      "away": "広島",
+      "competition": "J1",
+      "officialHome": "ＦＣ町田ゼルビア",
+      "officialAway": "サンフレッチェ広島"
     },
     {
       "number": 11,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "徳島ヴォルティス",
-      "away": "テゲバジャーロ宮崎",
-      "competition": "J2"
+      "home": "徳島",
+      "away": "宮崎",
+      "competition": "J2",
+      "officialHome": "徳島ヴォルティス",
+      "officialAway": "テゲバジャーロ宮崎"
     },
     {
       "number": 12,
       "date": "2026-11-08",
       "dateLabel": "11/08",
-      "home": "ヴァンラーレ八戸",
-      "away": "北海道コンサドーレ札幌",
-      "competition": "J2"
+      "home": "八戸",
+      "away": "札幌",
+      "competition": "J2",
+      "officialHome": "ヴァンラーレ八戸",
+      "officialAway": "北海道コンサドーレ札幌"
     },
     {
       "number": 13,
       "date": "2026-11-07",
       "dateLabel": "11/07",
-      "home": "サガン鳥栖",
-      "away": "カターレ富山",
-      "competition": "J2"
+      "home": "鳥栖",
+      "away": "富山",
+      "competition": "J2",
+      "officialHome": "サガン鳥栖",
+      "officialAway": "カターレ富山"
     }
   ]
 }
