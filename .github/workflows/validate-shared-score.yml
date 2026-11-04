@@ -23,6 +23,8 @@ jobs:
       - name: Test against live official toto HTML
         run: node tests/test_live_official.js
       - name: Generate isolated toto13 shadow forecast (round 1670)
+        env:
+          SHADOW_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/run_toto13_shadow.js shadow/toto13/fixtures/round_1670_20261104.json shadow/toto13/predictions/round_1670_20261104.json
       - name: Upload toto13 shadow forecast artifact
         uses: actions/upload-artifact@v4
