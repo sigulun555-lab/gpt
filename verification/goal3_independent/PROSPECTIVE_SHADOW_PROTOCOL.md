@@ -30,8 +30,8 @@ Minimum evidence before adoption review: at least 10 rounds and 30 matches, with
 
 ## Operational safeguards
 
-- Workflow is `workflow_dispatch` only for actual shadow forecast generation.
-- Pull-request runs perform syntax checks and synthetic unit tests only; they do not generate or publish live predictions.
+- Actual paired shadow forecast generation runs only on `workflow_dispatch`; pull-request actions, including `ready_for_review`, never launch it.
+- Pull-request CI may run syntax/unit tests and read-only retrospective diagnostics, but it does not create or publish prospective shadow forecasts.
 - Each run artifact name includes the official round and GitHub run ID. Existing output files are never overwritten.
 - The runner does not write to `data/`, production files, or the default branch.
 - A shadow artifact is evidence of forecast generation, not a claim of improved accuracy.
