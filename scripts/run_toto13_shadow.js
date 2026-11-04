@@ -51,7 +51,7 @@ function validateHistory(history) {
 
 function predictToto13(history, fixture, config) {
   const targetDate = fixture.date;
-  if (typeof targetDate !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(targetDate) || !Number.isFinite(Date.parse(targetDate))) {
+  if (typeof targetDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate) || !Number.isFinite(Date.parse(targetDate))) {
     throw new Error('fixture.date must be a valid YYYY-MM-DD date string');
   }
   const home = normalizeTeam(fixture.home);
@@ -138,7 +138,7 @@ function validateFixtures(document) {
     throw new Error('fixture numbers must be unique integers 1..13');
   }
   for (const fixture of document.fixtures) {
-    if (typeof fixture.date !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixture.date) || !Number.isFinite(Date.parse(fixture.date)) || !fixture.home || !fixture.away) {
+    if (typeof fixture.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fixture.date) || !Number.isFinite(Date.parse(fixture.date)) || !fixture.home || !fixture.away) {
       throw new Error(`fixture ${fixture.number} must include YYYY-MM-DD date, home and away`);
     }
   }
