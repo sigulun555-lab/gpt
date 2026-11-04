@@ -68,6 +68,20 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertEqual(record["round"], 9999)
             self.assertEqual(len(record["fixtures"]), 3)
             self.assertEqual(len(record["fitDiagnostics"]), 6)
+            snapshot_available_by = datetime.fromisoformat(
+                record["snapshotAvailableBy"].replace("Z", "+00:00")
+            )
+            forecast_as_of = datetime.fromisoformat(
+                record["forecastAsOf"].replace("Z", "+00:00")
+            )
+            parsed_deadline = datetime.fromisoformat(
+                deadline.replace("Z", "+00:00")
+            )
+            self.assertGreaterEqual(snapshot_available_by, now)
+            self.assertGreaterEqual(forecast_as_of, snapshot_available_by)
+            self.assertLess(forecast_as_of, parsed_deadline)
+            self.assertEqual(record["pipelineGeneratedAt"], as_of)
+            self.assertEqual(record["pipelineDeclaredLastFetchedAt"], as_of)
             for fixture in record["fixtures"]:
                 self.assertEqual(set(fixture["arms"]), {"6", "10"})
                 for arm in fixture["arms"].values():
@@ -93,6 +107,55 @@ class ProspectiveShadowTests(unittest.TestCase):
             mixed_rejected = subprocess.run(mixed_command, capture_output=True, text=True)
             self.assertNotEqual(mixed_rejected.returncode, 0)
             self.assertIn("2026-only history guard", mixed_rejected.stderr)
+
+            # A pipeline-declared fetch timestamp in the future must fail
+            # closed relative to the research runner's post-fetch snapshot read.
+            future_predictions = dict(predictions)
+            future_predictions["totoSource"] = {
+                "lastFetchedAt": (now + timedelta(hours=1)).isoformat()
+            }
+            future_predictions_path = tmp / "future_fetch_predictions.json"
+            future_predictions_path.write_text(
+                json.dumps(future_predictions), encoding="utf-8"
+            )
+            future_out = tmp / "future_fetch_shadow.json"
+            future_command = [
+                sys.executable, str(RUNNER),
+                "--history", str(tmp / "history.json"),
+                "--predictions", str(future_predictions_path),
+                "--aliases", str(tmp / "aliases.json"),
+                "--out", str(future_out),
+            ]
+            future_rejected = subprocess.run(
+                future_command, capture_output=True, text=True
+            )
+            self.assertNotEqual(future_rejected.returncode, 0)
+            self.assertIn("pipeline-declared fetchedAt is in the future",
+                          future_rejected.stderr)
+
+            # A snapshot read at/after the official deadline must be rejected.
+            expired_predictions = dict(predictions)
+            expired_predictions["deadline"] = (
+                now - timedelta(seconds=1)
+            ).isoformat()
+            expired_predictions_path = tmp / "expired_predictions.json"
+            expired_predictions_path.write_text(
+                json.dumps(expired_predictions), encoding="utf-8"
+            )
+            expired_out = tmp / "expired_shadow.json"
+            expired_command = [
+                sys.executable, str(RUNNER),
+                "--history", str(tmp / "history.json"),
+                "--predictions", str(expired_predictions_path),
+                "--aliases", str(tmp / "aliases.json"),
+                "--out", str(expired_out),
+            ]
+            expired_rejected = subprocess.run(
+                expired_command, capture_output=True, text=True
+            )
+            self.assertNotEqual(expired_rejected.returncode, 0)
+            self.assertIn("snapshot available at or after the official deadline",
+                          expired_rejected.stderr)
 
 
 if __name__ == "__main__":
