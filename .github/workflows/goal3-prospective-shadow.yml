@@ -3,6 +3,7 @@ name: GOAL3 Prospective Shadow (k=6 vs k=10)
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
@@ -42,7 +43,7 @@ jobs:
         run: python tests/test_goal3_prospective_shadow.py -v
 
   shadow:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
