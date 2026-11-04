@@ -285,6 +285,19 @@ def main():
                 for model, (ph, pa) in predictions.items():
                     baseline_records[model].extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
         baselines = {name: score(records) for name, records in baseline_records.items()}
+        # Diagnostic only: score every fixed penalty/window on the untouched
+        # outer block. These metrics must not be used to retune this same block.
+        outer_candidate_diagnostics = []
+        for candidate_window in WINDOWS:
+            for candidate_penalty in LAMBDAS:
+                candidate_metrics = evaluate_dates(
+                    test_dates, h2025, h2026, candidate_window, candidate_penalty
+                )
+                outer_candidate_diagnostics.append({
+                    "window": candidate_window,
+                    "lambda": candidate_penalty,
+                    "metrics": candidate_metrics,
+                })
         outer.append({
             "fold": fold_no, "trainCutoffExclusive": test_dates[0],
             "testStart": test_dates[0], "testEnd": test_dates[-1],
@@ -292,6 +305,7 @@ def main():
             "selected": {"window": window, "lambda": lam_pen,
                          "innerSelectionMetrics": selected["inner"]},
             "innerCandidates": candidates,
+            "outerCandidateDiagnosticsNotForSelection": outer_candidate_diagnostics,
             "outerMetrics": {"shrinkageMLE": selected_metrics, **baselines},
             "leakageCheck": "passed: each target date trained on strictly earlier dates",
         })
