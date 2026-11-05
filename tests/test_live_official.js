@@ -39,24 +39,28 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
 
   // Explicitly choose commodityId=02 (totoGOAL3) while allowing the official page
-  // to supply its current round; do not rely on the page's default commodityId=01.
+  // to supply its current round; enforce a known lower bound so a stale old form
+  // cannot pass merely because it contains a positive integer.
   const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1';
   const goal3Response = await fetch(goal3Url, options);
   assert.equal(goal3Response.ok, true, 'official GOAL3 selection page should return HTTP success');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
-  const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  assert.ok(Number.isInteger(goal3.round) && goal3.round > 0,
-    'current official GOAL3 round should be parsed from the selected form');
+  const goal3AsOf = new Date();
+  const goal3 = parseToto(goal3Html, goal3AsOf);
+  assert.ok(Number.isInteger(goal3.round) && goal3.round >= 1670,
+    'current official GOAL3 round should be at least the latest verified round 1670');
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
   assert.ok(typeof goal3.deadline === 'string' && Number.isFinite(Date.parse(goal3.deadline)),
     'current official GOAL3 online deadline should be parsed as a valid timestamp');
+  assert.ok(Date.parse(goal3.deadline) > goal3AsOf.getTime(),
+    'current official GOAL3 sales deadline must still be in the future');
   assert.equal(goal3.fixtures.length, 3, 'GOAL3 should normalize six team rows to three matches');
   assert.ok(goal3.fixtures.every(f => f.home && f.away && f.home !== f.away),
     'all current GOAL3 fixtures should have distinct non-empty home/away teams');
   assert.equal(new Set(goal3.fixtures.map(f => f.home + '|' + f.away)).size, 3,
     'current GOAL3 fixtures should be unique');
-  console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round + ', deadline, and all 3 fixtures');
+  console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round + ', future deadline, and all 3 fixtures');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
