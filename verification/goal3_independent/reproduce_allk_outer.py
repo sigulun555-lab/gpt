@@ -9,6 +9,7 @@ import nested_validation as nv
 
 ROOT=Path(__file__).resolve().parents[2]
 K_VALUES=list(nv.LAMBDAS)
+LOGLOSS_FLOOR=1e-12
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -57,7 +58,7 @@ def metrics(targets):
     return {
         "n":int(len(y)),
         "brier":float(np.mean(np.sum((p-one)**2,axis=1))),
-        "logloss":float(np.mean(-np.log(np.clip(p[np.arange(len(y)),y],1e-15,1)))),
+        "logloss":float(np.mean(-np.log(np.clip(p[np.arange(len(y)),y],LOGLOSS_FLOOR,1)))),
         "accuracy":float(np.mean(np.argmax(p,axis=1)==y))
     }
 
@@ -196,7 +197,7 @@ def main():
         bootstrap_targets[float(k)]=[{
             "date":r["date"],
             "brier":float(np.sum((np.asarray(r["p"])-np.eye(4)[r["actual"]])**2)),
-            "logloss":float(-np.log(max(1e-15,r["p"][r["actual"]])))
+            "logloss":float(-np.log(max(LOGLOSS_FLOOR,r["p"][r["actual"]])))
         } for r in aligned[float(k)]]
     # Report paired moving-block intervals for every candidate versus the
     # fixed k=10 reference. These are exploratory intervals on the same
