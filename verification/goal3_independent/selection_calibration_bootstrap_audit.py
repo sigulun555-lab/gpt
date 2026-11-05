@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import math
+import platform
 from collections import defaultdict
 from pathlib import Path
 
@@ -373,6 +374,7 @@ def audit(report: dict, replicates: int = 50_000, seed: int = 20261105) -> dict:
             },
         },
         "inputProvenance": report.get("provenance", {}),
+        "auditEnvironment": {"python": platform.python_version(), "numpy": np.__version__},
         "selectionStability": selection,
         "fourCategoryCalibration": calibration,
         "limitations": [
@@ -406,6 +408,7 @@ def main() -> None:
         "output": str(output),
         "inputSha256": result["inputSha256"],
         "codeSha256": result["codeSha256"],
+        "auditEnvironment": result["auditEnvironment"],
         "cohort": result["cohort"],
         "selectionAdjustedK6MinusK10": result["selectionStability"]["selectionAdjusted"]["k6MinusK10"],
         "calibrationCriticalValues": {
