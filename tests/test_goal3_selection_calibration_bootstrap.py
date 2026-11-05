@@ -50,6 +50,8 @@ class SelectionCalibrationBootstrapAuditTests(unittest.TestCase):
         first = audit(report, replicates=1000, seed=77)
         second = audit(report, replicates=1000, seed=77)
         self.assertEqual(first, second)
+        self.assertIn("python", first["auditEnvironment"])
+        self.assertIn("numpy", first["auditEnvironment"])
 
         selection = first["selectionStability"]
         self.assertEqual(len(selection["selectionAdjusted"]["intervals"]), 15)
