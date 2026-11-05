@@ -16,6 +16,7 @@ on:
       - "verification/goal3_independent/poisson_residual_cluster_audit.py"
       - "verification/goal3_independent/league_k6_k10_audit.py"
       - "verification/goal3_independent/selection_calibration_bootstrap_audit.py"
+      - "verification/goal3_independent/PROSPECTIVE_SHADOW_PROTOCOL.md"
       - "verification/goal3_independent/SELECTION_CALIBRATION_BOOTSTRAP_AUDIT.md"
       - "verification/goal3_independent/review_outer_matches.py"
       - "verification/goal3_independent/reproduce_allk_outer.py"
