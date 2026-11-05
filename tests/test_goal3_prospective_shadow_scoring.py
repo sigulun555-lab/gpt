@@ -326,7 +326,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             root = Path(tmp)
             manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
             doc = json.loads(manifest.read_text())
-            doc["approvedCodeHashes"].pop("modelSha256")
+            doc["approvedCodeHashes"].pop("scorerSha256")
             manifest.write_text(json.dumps(doc))
             with self.assertRaisesRegex(ValueError, "approvedCodeHashes"):
                 scorer.score_manifest(manifest, replicates=1000, seed=7)
