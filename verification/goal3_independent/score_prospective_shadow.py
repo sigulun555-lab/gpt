@@ -76,7 +76,7 @@ def forecast_errors(f, round_no):
         deadline = ts(f.get("deadline"), "deadline")
     except ValueError:
         deadline = None; e.append("missing_or_invalid_deadline")
-    if snap and asof and snap > asof: e.append("snapshot_after_forecast")
+    if snap and asof and snap >= asof: e.append("snapshot_not_before_forecast")
     if asof and deadline and asof >= deadline: e.append("forecast_not_before_deadline")
 
     inp = f.get("inputs")
@@ -269,6 +269,7 @@ def score_one(entry, base):
         "round": n, "forecastSha256": fsha, "resultsSha256": rsha,
         "forecastTiming": {k: f.get(k) for k in ("snapshotAvailableBy", "forecastAsOf", "deadline")},
         "inputHashes": f.get("inputs", {}), "codeHashes": f.get("code", {}),
+        "resultBasis": res.get("resultBasis"),
         "resultProvenance": [
             {k: x.get(k) for k in ("number", "competition", "sourceType", "sourceUrl", "publishedAt", "retrievedAt")}
             for x in (res.get("fixtures") if isinstance(res.get("fixtures"), list) else [])
