@@ -20,7 +20,11 @@ APPROVED_CODE_PATHS = {
     "runnerSha256": Path(__file__).resolve().with_name("prospective_shadow.py"),
     "modelSha256": Path(__file__).resolve().with_name("nested_validation.py"),
     "snapshotPipelineSha256": Path(__file__).resolve().parents[2] / "scripts" / "auto_pipeline.js",
+    # The scoring implementation itself must be pinned too; otherwise a changed
+    # scorer could run under an unchanged runner/model/pipeline lock.
+    "scorerSha256": Path(__file__).resolve(),
 }
+FORECAST_CODE_HASH_KEYS = ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
 APPROVED_CODE_HASH_KEYS = tuple(APPROVED_CODE_PATHS)
 
 
@@ -315,7 +319,7 @@ def score_one(entry, base, approved_code_hashes):
     failures, missing = failure_counts(f)
     errors = forecast_errors(f, n) + result_errors(res, n, f)
     forecast_code = f.get("code") if isinstance(f.get("code"), dict) else {}
-    for key in APPROVED_CODE_HASH_KEYS:
+    for key in FORECAST_CODE_HASH_KEYS:
         if forecast_code.get(key) != approved_code_hashes[key]:
             errors.append(f"approved_code_hash_mismatch:{key}")
     audit = {
@@ -412,7 +416,10 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     out = {
         "schemaVersion": 1, "protocolVersion": "1.2", "experiment": EXPERIMENT,
         "createdAt": datetime.now(timezone.utc).isoformat(),
-        "manifestSha256": sha(mp), "scoringScriptSha256": sha(Path(__file__)),
+        "manifestSha256": sha(mp),
+        "approvedCodeHashes": approved_code_hashes,
+        "checkedOutCodeHashes": actual_code_hashes,
+        "scoringScriptSha256": sha(Path(__file__)),
         "environment": {"python": platform.python_version(), "numpy": np.__version__},
         "bootstrap": {
             "primaryCluster": "official GOAL3 round",
