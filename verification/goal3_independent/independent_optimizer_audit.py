@@ -31,6 +31,7 @@ SOURCE_GIT_BLOB_SHA = {
 }
 K_VALUES = (6.0, 10.0)
 LEAGUES = ("J1", "J2", "J3")
+LOGLOSS_FLOOR = 1e-12
 
 
 def file_sha256(path: Path) -> str:
@@ -252,7 +253,7 @@ def score(probabilities, actual):
     return {
         "n": int(len(y)),
         "brier": float(np.mean(np.sum((p - one_hot) ** 2, axis=1))),
-        "logloss": float(np.mean(-np.log(np.clip(p[np.arange(len(y)), y], 1e-15, 1.0)))),
+        "logloss": float(np.mean(-np.log(np.clip(p[np.arange(len(y)), y], LOGLOSS_FLOOR, 1.0)))),
         "accuracy": float(np.mean(np.argmax(p, axis=1) == y)),
     }
 
@@ -302,8 +303,8 @@ def moving_block_bootstrap(rows, p6, p10, reps, seed):
     d_brier = np.sum((p6 - np.eye(4)[[r["actual"] for r in rows]]) ** 2, axis=1) - np.sum(
         (p10 - np.eye(4)[[r["actual"] for r in rows]]) ** 2, axis=1
     )
-    d_logloss = -np.log(np.clip(p6[np.arange(len(rows)), [r["actual"] for r in rows]], 1e-15, 1.0)) + np.log(
-        np.clip(p10[np.arange(len(rows)), [r["actual"] for r in rows]], 1e-15, 1.0)
+    d_logloss = -np.log(np.clip(p6[np.arange(len(rows)), [r["actual"] for r in rows]], LOGLOSS_FLOOR, 1.0)) + np.log(
+        np.clip(p10[np.arange(len(rows)), [r["actual"] for r in rows]], LOGLOSS_FLOOR, 1.0)
     )
     d_accuracy = (
         np.argmax(p6, axis=1) == np.asarray([r["actual"] for r in rows])
