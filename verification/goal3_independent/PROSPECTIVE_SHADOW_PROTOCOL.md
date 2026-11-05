@@ -78,6 +78,22 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
+A pre-result independent reviewer lock is committed at
+`verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json`.
+It records the four raw-byte SHA-256 values, the exact source commits, and the
+Git blob SHA-1 cross-checks. The lock was independently computed from the
+contents at codeHashSourceCommit
+`47bac0e2c716479355c12aed054fe2c2f713ee33`; the three generation files are
+byte-identical at generationSourceCommit
+`d5f48314159ffff2f8980738fa02d33ddf2a188b`. The lock file's own commit is
+`b45c432adc035eba1abf2ee4d4ca61387fdee5e9`. Preserve that commit SHA in the
+scoring manifest/review record, and verify that every official result
+`retrievedAt` is later than the lock commit time. If any of the four source
+files changes, this lock is stale and a new independent review/lock is required.
+This lock is a code-identity record only; it does not replace manual fixture
+and official-result verification, and it does not authorize merge, dispatch,
+or production adoption.
+
 The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2", an
 approvedCodeHashes object, and a rounds array. Before scoring, the reviewer
 must independently pin the expected SHA-256 values for runnerSha256,
