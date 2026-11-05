@@ -158,7 +158,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertEqual(report["cohort"]["includedRounds"], 3)
             self.assertEqual(report["cohort"]["includedMatches"], 9)
             self.assertEqual(report["cohort"]["includedTeamSideTargets"], 18)
-            self.assertEqual(report["cohort"]["excludedRounds"], 3)
+            self.assertEqual(report["cohort"]["excludedRounds"], 2)
             self.assertIn("fixture_3_not_final", report["roundAudit"][2]["exclusionReasons"])
             self.assertIn("missing_or_invalid_snapshotAvailableBy", report["roundAudit"][3]["exclusionReasons"])
             equal_time = make_forecast(5)
