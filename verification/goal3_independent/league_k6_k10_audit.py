@@ -12,14 +12,14 @@ from pathlib import Path
 import numpy as np
 
 SCOPES = ("ALL", "J1", "J2", "J3")
-METRICS = ("brier", "logloss", "accuracy")
+METRICS = ("brier", "logloss", "error_rate")
 
 
 def score(p, y):
     return {
         "brier": float(np.square(p - np.eye(4)[y]).sum()),
         "logloss": float(-np.log(max(float(p[y]), 1e-12))),
-        "accuracy": float(int(np.argmax(p) == y)),
+        "error_rate": float(1 - int(np.argmax(p) == y)),
     }
 
 
