@@ -75,6 +75,7 @@ jobs:
           test "$(git log -1 --format=%H "$APPROVED_CODE_LOCK_COMMIT" -- "$LOCK_PATH")" = "$APPROVED_CODE_LOCK_COMMIT"
           test "$(git show "$APPROVED_CODE_LOCK_COMMIT:$LOCK_PATH" | sha256sum | awk '{print $1}')" = "$APPROVED_CODE_LOCK_FILE_SHA256"
           export LOCK_COMMIT_AT
+          echo "LOCK_COMMIT_AT=$LOCK_COMMIT_AT" >> "$GITHUB_ENV"
           python - <<'PY'
           import json, os, subprocess
           from datetime import datetime
