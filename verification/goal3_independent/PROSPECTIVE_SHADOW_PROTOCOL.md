@@ -100,7 +100,7 @@ page and publication/retrieval evidence must still be manually checked; a
 domain allowlist alone does not prove the page content is official. Extra time
 and shoot-outs are not valid inputs.
 
-The scorer verifies the v1.2 forecast timing bounds, input/code hashes, exact
+The v1.2 scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
 k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
 fixture identity, and result provenance. If any one fixture in a round is
 not final or any paired target/provenance field is invalid, the entire round
