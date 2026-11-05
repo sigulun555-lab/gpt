@@ -81,11 +81,16 @@ output path exclusively; an existing output file is never overwritten.
 The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2", an
 approvedCodeHashes object, and a rounds array. Before scoring, the reviewer
 must independently pin the expected SHA-256 values for runnerSha256,
-modelSha256, and snapshotPipelineSha256 from the approved research commit.
-The scorer first compares the manifest lock with the actual checked-out
-runner/model/pipeline files, then rejects any forecast whose self-reported code
-hashes do not match that same lock. Merely copying hashes from the forecast
-into the manifest is not an independent approval. Each entry supplies the
+modelSha256, snapshotPipelineSha256, and scorerSha256 from the exact approved
+research commit. scorerSha256 is the SHA-256 of score_prospective_shadow.py
+itself; it prevents a modified scoring implementation from running under an
+unchanged runner/model/pipeline lock. The scorer first compares the complete
+manifest lock with the actual checked-out runner/model/pipeline/scorer files,
+then rejects any forecast whose self-reported runner/model/pipeline hashes do
+not match that same lock. The forecast artifact does not self-report the scorer
+hash; it belongs only in the reviewer-controlled manifest lock. Merely copying
+hashes from the forecast into the manifest is not an independent approval.
+The output records both the approved lock and the checked-out hashes for audit. Each entry supplies the
 round number, a relative forecastPath
 and its exact forecastSha256, plus a relative resultsPath and its exact
 resultsSha256. Paths that are absolute or escape the manifest directory are
