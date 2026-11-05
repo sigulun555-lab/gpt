@@ -409,6 +409,17 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertEqual(report["codeLock"]["commitSha"], doc["codeLockCommitSha"])
             self.assertEqual(report["codeLock"]["committedAt"], doc["codeLockCommitAt"])
             self.assertEqual(report["codeLock"]["fileSha256"], doc["codeLockFileSha256"])
+            source_time = scorer.ts(
+                scorer.git_bytes(
+                    ROOT, "show", "-s", "--format=%cI",
+                    report["codeLock"]["codeHashSourceCommit"],
+                ).decode("utf-8").strip(),
+                "code hash source commit time",
+            )
+            reviewed_at = scorer.ts(report["codeLock"]["reviewedAt"], "reviewedAt")
+            committed_at = scorer.ts(report["codeLock"]["committedAt"], "committedAt")
+            self.assertGreater(reviewed_at, source_time)
+            self.assertLess(reviewed_at, committed_at)
 
 
 if __name__ == "__main__":
