@@ -15,6 +15,8 @@ FLOOR = 1e-12
 REPS = 10_000
 SEED = 20261105
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+OFFICIAL_RESULT_HOSTS = frozenset({"www.jleague.jp"})
+APPROVED_CODE_HASH_KEYS = ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
 
 
 def sha(path):
@@ -229,8 +231,13 @@ def result_errors(res, round_no, forecast):
         if x.get("sourceType") != "official": e.append(f"fixture_{n}_source_not_official")
         source_url = x.get("sourceUrl")
         u = urlparse(source_url) if isinstance(source_url, str) else None
-        if u is None or u.scheme != "https" or not u.netloc:
-            e.append(f"fixture_{n}_source_url_invalid")
+        if (
+            u is None or u.scheme != "https" or not u.hostname
+            or u.hostname.lower() not in OFFICIAL_RESULT_HOSTS
+            or u.username is not None or u.password is not None
+            or u.port not in (None, 443) or u.fragment
+        ):
+            e.append(f"fixture_{n}_source_url_not_allowlisted_official_host")
         try: ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
         except ValueError: e.append(f"fixture_{n}_retrievedAt_invalid")
         if x.get("publishedAt") is not None:
@@ -274,7 +281,7 @@ def failure_counts(f):
     return failures, missing
 
 
-def score_one(entry, base):
+def score_one(entry, base, approved_code_hashes):
     n = entry.get("round")
     if not isinstance(n, int) or isinstance(n, bool): raise ValueError("manifest round must be integer")
     paths = []
@@ -293,6 +300,10 @@ def score_one(entry, base):
     f, res = read_json(fp), read_json(rp)
     failures, missing = failure_counts(f)
     errors = forecast_errors(f, n) + result_errors(res, n, f)
+    forecast_code = f.get("code") if isinstance(f.get("code"), dict) else {}
+    for key in APPROVED_CODE_HASH_KEYS:
+        if forecast_code.get(key) != approved_code_hashes[key]:
+            errors.append(f"approved_code_hash_mismatch:{key}")
     audit = {
         "round": n, "forecastSha256": fsha, "resultsSha256": rsha,
         "forecastTiming": {k: f.get(k) for k in ("snapshotAvailableBy", "forecastAsOf", "deadline")},
@@ -358,8 +369,15 @@ def boot_mean(records, metric, sampled):
 def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     mp = Path(manifest_path).resolve()
     manifest = read_json(mp)
-    if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != PROTOCOL:
-        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.1")
+    if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != "1.2":
+        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.2")
+    approved_code_hashes = manifest.get("approvedCodeHashes")
+    if not isinstance(approved_code_hashes, dict) or any(
+        not isinstance(approved_code_hashes.get(key), str)
+        or not SHA_RE.fullmatch(approved_code_hashes[key])
+        for key in APPROVED_CODE_HASH_KEYS
+    ):
+        raise ValueError("manifest must pin all approvedCodeHashes before scoring")
     entries = manifest.get("rounds")
     if not isinstance(entries, list) or not entries: raise ValueError("manifest rounds missing")
     if any(not isinstance(x, dict) for x in entries): raise ValueError("manifest round entries must be objects")
@@ -367,7 +385,7 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     if replicates < 1000 or seed < 0: raise ValueError("invalid bootstrap settings")
     included, audits = [], []
     for entry in entries:
-        record, audit = score_one(entry, mp.parent)
+        record, audit = score_one(entry, mp.parent, approved_code_hashes)
         audits.append(audit)
         if record is not None: included.append(record)
     included.sort(key=lambda x: x["round"])
@@ -375,7 +393,7 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     fit = {k: sum(a["fitFailures"][k] for a in audits) for k in KS}
     missing = {k: sum(a["missingForecastTargets"][k] for a in audits) for k in KS}
     out = {
-        "schemaVersion": 1, "protocolVersion": PROTOCOL, "experiment": EXPERIMENT,
+        "schemaVersion": 1, "protocolVersion": "1.2", "experiment": EXPERIMENT,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "manifestSha256": sha(mp), "scoringScriptSha256": sha(Path(__file__)),
         "environment": {"python": platform.python_version(), "numpy": np.__version__},
