@@ -89,9 +89,11 @@ byte-identical at generationSourceCommit
 file's exact last-touch commit SHA and committer timestamp from Git history
 (`git log -1 --format=%H%x00%cI -- <lock-path>`) and fails closed unless the
 manifest pins that exact `codeLockCommitSha`, `codeLockCommitAt`, and
-`codeLockFileSha256`. It also verifies that `reviewedAt` is no later than the
-lock commit, the lock commit is in the checked-out history, and the locked
-source bytes/blob IDs match the recorded source commits. Every official result
+`codeLockFileSha256`. It also verifies that `reviewedAt` is later than the
+code-hash source commit and no later than the lock commit, that both source
+commits are ancestors of the lock commit, and that the lock commit is in the
+checked-out history. Locked source bytes/blob IDs must match the recorded
+source commits. Every official result
 fixture must have a timezone-aware `retrievedAt` strictly later than the lock
 commit time; equal, earlier, or missing timestamps exclude the entire round.
 The GOAL3 research CI checkout fetches full Git history so this check is
