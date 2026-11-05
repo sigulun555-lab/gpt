@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": "1.2",
+  "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
+  "reviewedAt": "2026-11-05T16:24:52Z",
+  "codeHashSourceCommit": "47bac0e2c716479355c12aed054fe2c2f713ee33",
+  "generationSourceCommit": "d5f48314159ffff2f8980738fa02d33ddf2a188b",
+  "approvedCodeHashes": {
+    "runnerSha256": "c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a",
+    "modelSha256": "cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d",
+    "snapshotPipelineSha256": "6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe",
+    "scorerSha256": "6b1373ade671a64aa4a296ec5192f1e999a50f6744c26755a3e608d170aa062b"
+  },
+  "sourceFiles": {
+    "runnerSha256": {
+      "path": "verification/goal3_independent/prospective_shadow.py",
+      "gitBlobSha1": "a82847fbe388a3c6930d8c9a4075baa71cdce35a",
+      "bytes": 13422
+    },
+    "modelSha256": {
+      "path": "verification/goal3_independent/nested_validation.py",
+      "gitBlobSha1": "7ac8f83da420fa577b45e9c5c021ce46387f584e",
+      "bytes": 16885
+    },
+    "snapshotPipelineSha256": {
+      "path": "scripts/auto_pipeline.js",
+      "gitBlobSha1": "ef557e084cab802df7830d949bd1f52ddee5db7c",
+      "bytes": 13006
+    },
+    "scorerSha256": {
+      "path": "verification/goal3_independent/score_prospective_shadow.py",
+      "gitBlobSha1": "d0b80a3e8f3c551f53cdaedef8597cd47ed4409c",
+      "bytes": 26766
+    }
+  },
+  "verification": {
+    "retrieval": "GitHub Contents API base64 bytes at the exact codeHashSourceCommit",
+    "independentGitBlobSha1": "Recomputed Git blob SHA-1 using blob <byte-length> NUL <raw-bytes>; all four matched the API blob SHA",
+    "sha256": "Computed SHA-256 over the same raw bytes; implementation checked against the standard SHA-256 abc test vector",
+    "firstThreeHashesAlsoMatchGenerationSourceCommit": true
+  },
+  "limitations": [
+    "This lock records code identity only; it does not verify official fixture content or result publication.",
+    "Before any result file is retrieved or scored, preserve this lock commit SHA and confirm every result retrievedAt is later than the lock commit time.",
+    "This is not approval to merge, dispatch, or adopt any model change."
+  ],
+  "scope": "GOAL3 research-only k=6 vs k=10; separate from toto13"
+}
