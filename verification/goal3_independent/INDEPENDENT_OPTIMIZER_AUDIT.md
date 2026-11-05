@@ -16,6 +16,10 @@ This audit independently reconstructs the frozen 2026-only outer predictions for
 
 The frozen cohort is 236 matches / 472 team-side targets / 17 target dates. Each fit uses only 2026 history rows strictly earlier than the target date. Same-day matches are excluded. The 2025 CSV is not used.
 
+Scoring uses the prospective protocol v1.1 convention: four-category Brier is
+the sum of squared category errors per team-side target, and natural-log
+LogLoss uses a fixed probability floor of `1e-12`.
+
 ## Input identity guards
 
 The script fails closed unless these SHA-256 values match the all-k artifact's frozen input manifest:
