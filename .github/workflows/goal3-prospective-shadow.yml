@@ -7,6 +7,7 @@ on:
     paths:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/score_prospective_shadow.py"
+      - "verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
       - "verification/goal3_independent/nested_validation.py"
       - "verification/goal3_independent/independent_optimizer_audit.py"
       - "tests/test_goal3_prospective_shadow.py"
@@ -44,6 +45,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
