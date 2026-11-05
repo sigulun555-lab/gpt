@@ -4,11 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       research_ref:
-        description: Research branch containing the frozen GOAL3 shadow runner
+        description: Research branch whose HEAD must match the pinned commit
         required: true
         type: choice
         options:
           - research/goal3-prospective-shadow-20261104-v2
+      confirm_official_fixture_reviewed:
+        description: Confirm the current official round, J1/J2/J3, all three fixtures, and deadline were manually checked immediately before dispatch
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,27 +22,69 @@ concurrency:
   group: goal3-prospective-shadow-dispatch
   cancel-in-progress: false
 
+env:
+  APPROVED_RESEARCH_REF: research/goal3-prospective-shadow-20261104-v2
+  APPROVED_RESEARCH_COMMIT: d5f48314159ffff2f8980738fa02d33ddf2a188b
+  APPROVED_CODE_LOCK_COMMIT: b45c432adc035eba1abf2ee4d4ca61387fdee5e9
+  APPROVED_CODE_LOCK_SOURCE_COMMIT: 47bac0e2c716479355c12aed054fe2c2f713ee33
+  APPROVED_RUNNER_SHA256: c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a
+  APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
+  APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
+  APPROVED_SCORER_SHA256: 6b1373ade671a64aa4a296ec5192f1e999a50f6744c26755a3e608d170aa062b
+
 jobs:
   shadow:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout approved research branch
+      - name: Validate dispatch attestation and selected research ref
+        shell: bash
+        env:
+          REQUESTED_RESEARCH_REF: ${{ inputs.research_ref }}
+          FIXTURE_REVIEWED: ${{ inputs.confirm_official_fixture_reviewed }}
+        run: |
+          set -euo pipefail
+          test "$REQUESTED_RESEARCH_REF" = "$APPROVED_RESEARCH_REF"
+          if [[ "$FIXTURE_REVIEWED" != "true" ]]; then
+            echo "Official fixture review attestation is required." >&2
+            exit 1
+          fi
+
+      - name: Checkout exact approved research commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.research_ref }}
+          ref: d5f48314159ffff2f8980738fa02d33ddf2a188b
+          fetch-depth: 0
+
+      - name: Verify immutable branch head and approved generation hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          REMOTE_SHA="$(git ls-remote origin "refs/heads/$APPROVED_RESEARCH_REF" | awk '{print $1}')"
+          test "$CHECKED_OUT_SHA" = "$APPROVED_RESEARCH_COMMIT"
+          test "$REMOTE_SHA" = "$APPROVED_RESEARCH_COMMIT"
+
+          test "$(sha256sum verification/goal3_independent/prospective_shadow.py | awk '{print $1}')" = "$APPROVED_RUNNER_SHA256"
+          test "$(sha256sum verification/goal3_independent/nested_validation.py | awk '{print $1}')" = "$APPROVED_MODEL_SHA256"
+          test "$(sha256sum scripts/auto_pipeline.js | awk '{print $1}')" = "$APPROVED_SNAPSHOT_PIPELINE_SHA256"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install research dependencies
         run: python -m pip install --disable-pip-version-check numpy scipy
+
       - name: Fetch one official GOAL3 and history snapshot into ephemeral runner
         run: node scripts/auto_pipeline.js
+
       - name: Create paired k=6 and k=10 shadow forecast
         run: |
           mkdir -p artifacts
@@ -46,15 +93,89 @@ jobs:
             --predictions data/predictions.json \
             --aliases data/team_aliases.json \
             --out artifacts/goal3-prospective-shadow.json
+
+      - name: Write immutable dispatch provenance sidecar
+        shell: bash
+        env:
+          FIXTURE_REVIEWED: ${{ inputs.confirm_official_fixture_reviewed }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as stream:
+                  for chunk in iter(lambda: stream.read(1 << 20), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          forecast_path = Path("artifacts/goal3-prospective-shadow.json")
+          forecast = json.loads(forecast_path.read_text(encoding="utf-8"))
+          record = {
+              "schemaVersion": 1,
+              "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
+              "recordedAt": datetime.now(timezone.utc).isoformat(),
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowCommitSha": os.environ["GITHUB_SHA"],
+              "workflowRef": os.environ["GITHUB_REF"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "requestedResearchRef": os.environ["APPROVED_RESEARCH_REF"],
+              "checkedOutResearchCommitSha": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "approvedResearchCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
+              "approvedCodeLockCommitSha": os.environ["APPROVED_CODE_LOCK_COMMIT"],
+              "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
+              "approvedCodeHashes": {
+                  "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
+                  "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
+                  "snapshotPipelineSha256": os.environ["APPROVED_SNAPSHOT_PIPELINE_SHA256"],
+                  "scorerSha256": os.environ["APPROVED_SCORER_SHA256"],
+              },
+              "checkedOutGenerationCodeHashes": {
+                  "runnerSha256": sha("verification/goal3_independent/prospective_shadow.py"),
+                  "modelSha256": sha("verification/goal3_independent/nested_validation.py"),
+                  "snapshotPipelineSha256": sha("scripts/auto_pipeline.js"),
+              },
+              "officialFixtureReviewConfirmed": os.environ["FIXTURE_REVIEWED"] == "true",
+              "forecastSha256": sha(forecast_path),
+              "forecastRound": forecast.get("round"),
+              "forecastTiming": {
+                  key: forecast.get(key)
+                  for key in ("snapshotAvailableBy", "forecastAsOf", "deadline")
+              },
+              "forecastInputHashes": forecast.get("inputs", {}),
+              "forecastCodeHashes": forecast.get("code", {}),
+              "productionImpact": "none",
+          }
+          if record["checkedOutResearchCommitSha"] != record["approvedResearchCommitSha"]:
+              raise SystemExit("checked-out research commit does not match approved commit")
+          if record["checkedOutGenerationCodeHashes"] != {
+              key: record["approvedCodeHashes"][key]
+              for key in ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
+          }:
+              raise SystemExit("checked-out generation code hashes do not match approved lock")
+          Path("artifacts/dispatch-provenance.json").write_text(
+              json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
       - name: Name artifact by round and run
         id: meta
         run: |
           ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])")
           echo "round=$ROUND" >> "$GITHUB_OUTPUT"
-      - name: Upload immutable research-only artifact
+
+      - name: Upload immutable research-only artifact and provenance
         uses: actions/upload-artifact@v4
         with:
           name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
-          path: artifacts/goal3-prospective-shadow.json
+          path: |
+            artifacts/goal3-prospective-shadow.json
+            artifacts/dispatch-provenance.json
           if-no-files-found: error
           retention-days: 90
