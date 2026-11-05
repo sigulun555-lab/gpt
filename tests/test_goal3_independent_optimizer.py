@@ -68,7 +68,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
 
     def test_logloss_uses_protocol_probability_floor(self):
         probabilities = np.asarray([[1e-13, 0.2, 0.3, 0.5 - 1e-13]], dtype=float)
-        result = audit.metrics(probabilities, np.asarray([0], dtype=int))
+        result = audit.score(probabilities, np.asarray([0], dtype=int))
         self.assertAlmostEqual(result["logloss"], -math.log(audit.LOGLOSS_FLOOR), places=12)
 
     def test_poisson_probability_tail_is_nonnegative(self):
