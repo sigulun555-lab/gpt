@@ -224,10 +224,40 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "target": "home and away goals categorized as 0,1,2,3+",
+            "protocolVersion": "1.1",
+            "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
-            "minimumEvidence": {"rounds": 10, "matches": 30},
-            "adoptionRule": "paired round/date-block bootstrap 95% CI upper bound below zero for both Brier and LogLoss; no material J1/J2/J3 deterioration; no increased fit failures or missing forecasts",
+            "scoring": {
+                "brier": "mean team-side sum over four categories of (p - one_hot)^2; range 0..2",
+                "logloss": "mean natural -ln(max(p_observed, 1e-12))",
+                "pairedDifference": "mean(score_k6 - score_k10); negative favors k6",
+            },
+            "minimumEvidence": {
+                "interimDescriptive": {"rounds": 10, "matches": 30},
+                "adoptionReview": {"rounds": 20, "matches": 60},
+            },
+            "bootstrap": {
+                "primaryCluster": "official GOAL3 round; retain all 3 matches and 6 team-side targets",
+                "resampling": "paired round-cluster bootstrap with replacement",
+                "replicates": 10000,
+                "rng": "NumPy PCG64",
+                "seed": 20261105,
+                "interval": "two-sided 95% percentile; NumPy linear quantile",
+                "sameDrawsForBothArmsAndMetrics": True,
+                "sensitivity": "date-cluster bootstrap retaining all matches and both team-sides per date",
+            },
+            "leagueNonInferiority": {
+                "upperBound": "one-sided 90% round-cluster bootstrap",
+                "brierMargin": 0.01,
+                "loglossMargin": 0.02,
+                "requireEachLeagueBelowMargin": True,
+            },
+            "resultHandling": {
+                "score": "official full-time after 90 minutes plus stoppage; exclude extra time and penalties",
+                "incompleteRound": "exclude the entire round if any fixture lacks a final official result; record reason",
+                "provenance": "record result source URL and publication/retrieval timestamp; label community-source data explicitly",
+            },
+            "adoptionRule": "after at least 20 completed rounds and 60 matches, both overall primary 95% round-cluster CI upper bounds must be below zero; all J1/J2/J3 90% non-inferiority bounds must be below their margins; no increase in fit failures or missing targets; provenance and exclusions auditable",
         },
     }
 
