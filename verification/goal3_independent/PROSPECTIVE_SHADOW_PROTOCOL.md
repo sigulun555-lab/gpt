@@ -80,9 +80,11 @@ The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2", an
 approvedCodeHashes object, and a rounds array. Before scoring, the reviewer
 must independently pin the expected SHA-256 values for runnerSha256,
 modelSha256, and snapshotPipelineSha256 from the approved research commit.
-The scorer rejects any forecast whose self-reported code hashes do not match
-those manifest-pinned values. Merely copying the hashes from the forecast into
-the manifest is not an independent approval. Each entry supplies the round number, a relative forecastPath
+The scorer first compares the manifest lock with the actual checked-out
+runner/model/pipeline files, then rejects any forecast whose self-reported code
+hashes do not match that same lock. Merely copying hashes from the forecast
+into the manifest is not an independent approval. Each entry supplies the
+round number, a relative forecastPath
 and its exact forecastSha256, plus a relative resultsPath and its exact
 resultsSha256. Paths that are absolute or escape the manifest directory are
 rejected. Hash mismatches fail closed.
