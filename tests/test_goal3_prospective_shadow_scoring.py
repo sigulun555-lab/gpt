@@ -150,22 +150,10 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         lock = scorer.reviewer_lock_metadata()
         approved = approved_code_hashes()
         locked = scorer.read_json(scorer.LOCK_PATH).get("approvedCodeHashes", {})
-        if locked != approved:
-            print("REVIEWER_LOCK_HASH_DIAGNOSTIC " + json.dumps({
-                key: {"locked": locked.get(key), "checkedOut": approved.get(key)}
-                for key in sorted(set(locked) | set(approved))
-                if locked.get(key) != approved.get(key)
-            }, sort_keys=True))
-        scorer_raw = SCRIPT.read_bytes()
-        scorer_git_blob = hashlib.sha1(
-            b"blob " + str(len(scorer_raw)).encode("ascii") + b"\0" + scorer_raw
-        ).hexdigest()
-        print("REVIEWER_LOCK_RUNTIME " + json.dumps({
-            "scorerSha256": sha(SCRIPT),
-            "scorerBytes": len(scorer_raw),
-            "scorerGitBlobSha1": scorer_git_blob,
-            "lock": lock,
-        }, sort_keys=True))
+        self.assertEqual(
+            locked, approved,
+            "committed reviewer lock must match independently hashed checked-out source files",
+        )
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
