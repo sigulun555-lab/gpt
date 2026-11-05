@@ -82,9 +82,9 @@ jobs:
             --bootstrap-replicates 10000 --bootstrap-seed 20261104
       - name: Date-cluster Poisson residual dispersion audit
         run: |
-          python verification/goal3_independent/poisson_residual_cluster_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_poisson_residual_cluster_audit.json \\
+          python verification/goal3_independent/poisson_residual_cluster_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_poisson_residual_cluster_audit.json \
             --replicates 50000 --seed 20261105
       - name: Upload Poisson residual cluster audit
         uses: actions/upload-artifact@v4
