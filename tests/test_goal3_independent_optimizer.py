@@ -66,6 +66,11 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 self.assertTrue(np.all(p >= 0.0))
                 self.assertAlmostEqual(float(p.sum()), 1.0, places=10)
 
+    def test_logloss_uses_protocol_probability_floor(self):
+        probabilities = np.asarray([[1e-13, 0.2, 0.3, 0.5 - 1e-13]], dtype=float)
+        result = audit.metrics(probabilities, np.asarray([0], dtype=int))
+        self.assertAlmostEqual(result["logloss"], -math.log(audit.LOGLOSS_FLOOR), places=12)
+
     def test_poisson_probability_tail_is_nonnegative(self):
         for rate in (0.15, 0.5, 1.25, 3.5, 10.0):
             p = audit.poisson_categories(rate)
