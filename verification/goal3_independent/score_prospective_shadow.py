@@ -60,7 +60,7 @@ def ts(value, name):
 
 
 def git_blob_sha1(raw):
-    header = f"blob {len(raw)}\\0".encode("ascii")
+    header = f"blob {len(raw)}\0".encode("ascii")
     return hashlib.sha1(header + raw).hexdigest()
 
 
@@ -80,7 +80,7 @@ def reviewer_lock_metadata():
     raw = git_bytes(
         repo_root, "log", "-1", "--format=%H%x00%cI", "--", LOCK_RELATIVE_PATH
     ).decode("utf-8").strip()
-    fields = raw.split("\\0")
+    fields = raw.split("\0")
     if len(fields) != 2 or not COMMIT_RE.fullmatch(fields[0]):
         raise ValueError("cannot resolve exact reviewer lock commit; full Git history is required")
     committed_at = ts(fields[1], "reviewer lock commit time")
