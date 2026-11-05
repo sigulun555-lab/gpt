@@ -380,6 +380,33 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["roundAudit"][0]["included"])
 
 
+    def test_published_result_must_be_strictly_after_reviewer_lock_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            result_path = root / "results-1.json"
+            results = json.loads(result_path.read_text())
+            for fixture in results["fixtures"]:
+                # Retrieval happens after the lock, but the claimed official
+                # publication timestamp is at the lock itself. This must fail:
+                # fetching an already-published result later cannot make it
+                # prospective evidence.
+                fixture["retrievedAt"] = "2026-11-08T12:00:00Z"
+                fixture["publishedAt"] = doc["codeLockCommitAt"]
+            result_path.write_text(json.dumps(results), encoding="utf-8")
+            doc["rounds"][0]["resultsSha256"] = sha(result_path)
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            report = scorer.score_manifest(manifest, replicates=1000, seed=19)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("fixture_1_published_not_after_code_lock", reasons)
+            self.assertIn("fixture_2_published_not_after_code_lock", reasons)
+            self.assertIn("fixture_3_published_not_after_code_lock", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+
     def test_manifest_must_pin_exact_reviewer_lock_commit_time_and_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
