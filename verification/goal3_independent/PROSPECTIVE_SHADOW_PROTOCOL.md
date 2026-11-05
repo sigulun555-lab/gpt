@@ -69,6 +69,57 @@ Consider k=6 for adoption review only after the 20-round / 60-match floor is met
 
 Otherwise retain k=10 for this research comparison. Retaining k=10 is not a claim that it is statistically superior.
 
+## Scoring implementation and immutable result manifest
+
+The research-only scorer is verification/goal3_independent/score_prospective_shadow.py.
+It does not fetch results, generate forecasts, write to data/, or alter any
+existing shadow artifact. It consumes a separate manifest and writes a new
+output path exclusively; an existing output file is never overwritten.
+
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.1", and a
+rounds array. Each entry supplies the round number, a relative forecastPath
+and its exact forecastSha256, plus a relative resultsPath and its exact
+resultsSha256. Paths that are absolute or escape the manifest directory are
+rejected. Hash mismatches fail closed.
+
+Each result JSON contains the matching round number,
+resultBasis: "full_time_90_plus_stoppage", and exactly three fixture records.
+Every fixture record must match the forecast number/date/home/away and provide:
+competition (J1/J2/J3), status: "final", integer fullTimeHomeGoals /
+fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl, and a
+timezone-aware retrievedAt; publishedAt is retained and checked when supplied.
+The official source designation and URL must be independently checked by the
+reviewer. Extra time and shoot-outs are not valid inputs.
+
+The scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
+k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
+fixture identity, and result provenance. If any one fixture in a round is
+not final or any paired target/provenance field is invalid, the entire round
+is excluded and the reason is recorded. It never scores only the available
+matches or one team-side.
+
+The primary analysis resamples complete official rounds with replacement,
+retaining all three matches and six paired team-side targets. It uses 10,000
+NumPy PCG64 replicates, seed 20261105, the same round draws for Brier and
+LogLoss, and linear 2.5/97.5 percentiles. League non-inferiority resamples
+complete rounds containing that league, retaining all that league's targets
+from each sampled round, and reports one-sided 90% upper bounds. If included
+fixtures span multiple calendar dates, a separate date-cluster sensitivity
+bootstrap retains all matches and both team-sides on each sampled date.
+
+The output records the manifest, forecast, results, and scorer SHA-256 values,
+per-round exclusions and official result provenance, fit/missing-target counts,
+overall paired scores, league bounds, and adoption gates. The scorer can only
+return a research status or eligibility for human review; automatic production
+adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
+replicates and seed 20261105; smaller settings are available only to unit tests.
+
+Forecast artifacts created before protocol v1.1 that lack its explicit
+snapshotAvailableBy, historyMaxDeclaredFetchedAt, and protocol-version
+fields are not silently upgraded or included in the v1.1 primary cohort. Keep
+them unchanged and list them as legacy/excluded unless a separately reviewed,
+pre-scoring provenance procedure is documented.
+
 ## Operational safeguards
 
 - Actual paired shadow forecast generation runs only on `workflow_dispatch`; pull-request actions, including `ready_for_review`, never launch it.
