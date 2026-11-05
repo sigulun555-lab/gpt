@@ -25,13 +25,14 @@ concurrency:
 env:
   APPROVED_RESEARCH_REF: research/goal3-prospective-shadow-20261104-v2
   APPROVED_RESEARCH_COMMIT: d5f48314159ffff2f8980738fa02d33ddf2a188b
-  APPROVED_CODE_LOCK_COMMIT: cf31d697456cf8f38550c040d40c039b5806ccdf
-  APPROVED_CODE_LOCK_SOURCE_COMMIT: 3b3be255b1d612a8406f8291856401e856462ea5
-  APPROVED_CODE_LOCK_FILE_SHA256: 798218ac5b250aec34b3e4d61e22f17ddeac823b963a5c1575b873efa8cd46fb
+  APPROVED_CODE_LOCK_COMMIT: 45ab7c9bb0f17afd54e8687deebbb2bd3e654b0d
+  APPROVED_CODE_LOCK_SOURCE_COMMIT: b53e9a7c7d8ff50c1e2c1fc029cccb6509848b3c
+  APPROVED_CODE_LOCK_FILE_SHA256: 509dfacaea00a51bdfd3ef59b8306cab1e45d7740098d5d98185dc6406255b6c
+  APPROVED_CODE_LOCK_REVIEWED_AT: 2026-11-05T18:26:56Z
   APPROVED_RUNNER_SHA256: c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a
   APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
   APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
-  APPROVED_SCORER_SHA256: ead0b67572fdddc304c5c4ff8b88fa55bfce90f49a7842796f5296f99d7875d3
+  APPROVED_SCORER_SHA256: 19ee51b6affd7b236f7e44872939a1250002601803a5ad09088e1685129784d4
 
 jobs:
   shadow:
@@ -97,8 +98,22 @@ jobs:
               raise SystemExit("reviewer lock source commit does not match dispatch pin")
           reviewed = datetime.fromisoformat(lock["reviewedAt"].replace("Z", "+00:00"))
           committed = datetime.fromisoformat(os.environ["LOCK_COMMIT_AT"].replace("Z", "+00:00"))
+          source_committed = datetime.fromisoformat(subprocess.check_output(
+              ["git", "show", "-s", "--format=%cI", os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]],
+              text=True,
+          ).strip().replace("Z", "+00:00"))
+          if reviewed.isoformat() != os.environ["APPROVED_CODE_LOCK_REVIEWED_AT"].replace("Z", "+00:00"):
+              raise SystemExit("reviewedAt does not match dispatch pin")
+          if reviewed < source_committed:
+              raise SystemExit("reviewer lock review predates the code hash source commit")
           if reviewed > committed:
               raise SystemExit("reviewer lock was not reviewed before its commit")
+          for ancestor in (os.environ["APPROVED_RESEARCH_COMMIT"], os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]):
+              check = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", ancestor, os.environ["APPROVED_CODE_LOCK_COMMIT"]]
+              )
+              if check.returncode:
+                  raise SystemExit("reviewer source commit is not an ancestor of the lock commit")
           PY
 
       - name: Setup Node
@@ -161,6 +176,7 @@ jobs:
               "approvedResearchCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
               "approvedCodeLockCommitSha": os.environ["APPROVED_CODE_LOCK_COMMIT"],
               "approvedCodeLockCommitAt": os.environ["LOCK_COMMIT_AT"],
+              "approvedCodeLockReviewedAt": os.environ["APPROVED_CODE_LOCK_REVIEWED_AT"],
               "approvedCodeLockFileSha256": os.environ["APPROVED_CODE_LOCK_FILE_SHA256"],
               "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
               "approvedCodeHashes": {
