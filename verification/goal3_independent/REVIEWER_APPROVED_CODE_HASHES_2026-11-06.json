@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "protocolVersion": "1.2",
   "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
-  "reviewedAt": "2026-11-05T18:11:19Z",
-  "codeHashSourceCommit": "3b3be255b1d612a8406f8291856401e856462ea5",
+  "reviewedAt": "2026-11-05T18:26:56Z",
+  "codeHashSourceCommit": "b53e9a7c7d8ff50c1e2c1fc029cccb6509848b3c",
   "generationSourceCommit": "d5f48314159ffff2f8980738fa02d33ddf2a188b",
   "approvedCodeHashes": {
     "runnerSha256": "c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a",
     "modelSha256": "cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d",
     "snapshotPipelineSha256": "6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe",
-    "scorerSha256": "ead0b67572fdddc304c5c4ff8b88fa55bfce90f49a7842796f5296f99d7875d3"
+    "scorerSha256": "19ee51b6affd7b236f7e44872939a1250002601803a5ad09088e1685129784d4"
   },
   "sourceFiles": {
     "runnerSha256": {
@@ -29,8 +29,8 @@
     },
     "scorerSha256": {
       "path": "verification/goal3_independent/score_prospective_shadow.py",
-      "gitBlobSha1": "e7ef83bfe9b57efd1b3133568815142a2859c27f",
-      "bytes": 33138
+      "gitBlobSha1": "472dfd22bc3d16431bdefc697b780be1ad69344a",
+      "bytes": 33824
     }
   },
   "verification": {
@@ -39,7 +39,9 @@
     "sha256": "Computed SHA-256 over the same raw bytes; implementation checked against the standard SHA-256 abc test vector",
     "firstThreeHashesAlsoMatchGenerationSourceCommit": true,
     "lockCommitBinding": "Scorer resolves the exact last-touch commit and committer time from Git history; manifest must pin commit SHA, commit time, and lock-file SHA-256.",
-    "resultChronology": "Every official result fixture retrievedAt must be strictly later than the reviewer lock commit time; equal or earlier timestamps exclude the whole round."
+    "resultChronology": "Every official result fixture retrievedAt must be strictly later than the reviewer lock commit time; equal or earlier timestamps exclude the whole round.",
+    "reviewedAtAfterCodeHashSourceCommit": true,
+    "sourceCommitsAreAncestorsOfLockCommit": true
   },
   "limitations": [
     "This lock records code identity only; it does not verify official fixture content or result publication.",
