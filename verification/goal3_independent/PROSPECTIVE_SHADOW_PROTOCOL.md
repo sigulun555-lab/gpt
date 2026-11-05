@@ -2,7 +2,9 @@
 
 ## Protocol version and purpose
 
-Protocol v1.2 (scoring provenance hardening; 2026-11-05).
+Scoring-manifest protocol v1.2 (2026-11-05). Forecast artifacts retain their
+existing embedded evaluation protocolVersion 1.1; v1.2 versions the scorer's
+manifest, code-lock, and result-source validation contract.
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
@@ -98,11 +100,14 @@ is exactly www.jleague.jp (no userinfo, nonstandard port, or fragment), and a
 timezone-aware retrievedAt; publishedAt is retained and checked when supplied.
 The exact host allowlist is intentionally narrow; a new official host requires
 a reviewed code change and tests, not a manifest override. The official result
-page and publication/retrieval evidence must still be manually checked; a
-domain allowlist alone does not prove the page content is official. Extra time
-and shoot-outs are not valid inputs.
+page and publication/retrieval evidence must still be manually checked for
+each fixture. This includes confirming the competition assignment (J1/J2/J3),
+fixture identity, final score, and full-time basis against that exact official
+page; do not infer league assignment from team names. A domain allowlist alone
+does not prove the page content is official. Extra time and shoot-outs are not
+valid inputs.
 
-The v1.2 scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
+The v1.2 manifest scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
 k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
 fixture identity, and result provenance. If any one fixture in a round is
 not final or any paired target/provenance field is invalid, the entire round
