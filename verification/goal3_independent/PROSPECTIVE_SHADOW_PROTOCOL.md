@@ -2,7 +2,7 @@
 
 ## Protocol version and purpose
 
-Protocol v1.1 (frozen before any prospective result scoring; 2026-11-05).
+Protocol v1.2 (scoring provenance hardening; 2026-11-05).
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
@@ -76,8 +76,13 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
-The manifest is JSON with schemaVersion: 1, protocolVersion: "1.1", and a
-rounds array. Each entry supplies the round number, a relative forecastPath
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2", an
+approvedCodeHashes object, and a rounds array. Before scoring, the reviewer
+must independently pin the expected SHA-256 values for runnerSha256,
+modelSha256, and snapshotPipelineSha256 from the approved research commit.
+The scorer rejects any forecast whose self-reported code hashes do not match
+those manifest-pinned values. Merely copying the hashes from the forecast into
+the manifest is not an independent approval. Each entry supplies the round number, a relative forecastPath
 and its exact forecastSha256, plus a relative resultsPath and its exact
 resultsSha256. Paths that are absolute or escape the manifest directory are
 rejected. Hash mismatches fail closed.
@@ -86,12 +91,16 @@ Each result JSON contains the matching round number,
 resultBasis: "full_time_90_plus_stoppage", and exactly three fixture records.
 Every fixture record must match the forecast number/date/home/away and provide:
 competition (J1/J2/J3), status: "final", integer fullTimeHomeGoals /
-fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl, and a
+fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl whose hostname
+is exactly www.jleague.jp (no userinfo, nonstandard port, or fragment), and a
 timezone-aware retrievedAt; publishedAt is retained and checked when supplied.
-The official source designation and URL must be independently checked by the
-reviewer. Extra time and shoot-outs are not valid inputs.
+The exact host allowlist is intentionally narrow; a new official host requires
+a reviewed code change and tests, not a manifest override. The official result
+page and publication/retrieval evidence must still be manually checked; a
+domain allowlist alone does not prove the page content is official. Extra time
+and shoot-outs are not valid inputs.
 
-The scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
+The scorer verifies the v1.2 forecast timing bounds, input/code hashes, exact
 k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
 fixture identity, and result provenance. If any one fixture in a round is
 not final or any paired target/provenance field is invalid, the entire round
@@ -111,7 +120,9 @@ The output records the manifest, forecast, results, and scorer SHA-256 values,
 per-round exclusions and official result provenance, fit/missing-target counts,
 overall paired scores, league bounds, and adoption gates. The scorer can only
 return a research status or eligibility for human review; automatic production
-adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
+adoption is hard-disabled. The v1.2 manifest code-hash lock is a separate
+reviewer-controlled approval step; it must be frozen before result scoring and
+cannot be inferred from the forecast artifact. CLI runs are fixed to the pre-registered 10,000
 replicates and seed 20261105; smaller settings are available only to unit tests.
 
 Forecast artifacts created before protocol v1.1 that lack its explicit
