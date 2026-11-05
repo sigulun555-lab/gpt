@@ -83,7 +83,7 @@ A pre-result independent reviewer lock is committed at
 It records the four raw-byte SHA-256 values, the exact source commits, and the
 Git blob SHA-1 cross-checks. The lock was independently computed from the
 contents at codeHashSourceCommit
-`fa90eb590577a401fdff86eb8407993ecefe3d21`; the three generation files are
+`e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d`; the three generation files are
 byte-identical at generationSourceCommit
 `d5f48314159ffff2f8980738fa02d33ddf2a188b`. The scorer resolves the lock
 file's exact last-touch commit SHA and committer timestamp from Git history
