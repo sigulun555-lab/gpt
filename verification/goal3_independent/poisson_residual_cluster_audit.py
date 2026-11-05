@@ -37,6 +37,7 @@ def flatten_targets(report: dict) -> list[dict]:
             rows.append({
                 "date": str(match["date"]),
                 "league": str(match["comp"]),
+                "side": side,
                 "goals": goals,
                 "p": probs_by_k,
             })
