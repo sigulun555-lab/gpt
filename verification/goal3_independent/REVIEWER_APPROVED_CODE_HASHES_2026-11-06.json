@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "protocolVersion": "1.2",
   "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
-  "reviewedAt": "2026-11-05T18:33:03Z",
-  "codeHashSourceCommit": "b53e9a7c7d8ff50c1e2c1fc029cccb6509848b3c",
+  "reviewedAt": "2026-11-05T19:03:34Z",
+  "codeHashSourceCommit": "fa90eb590577a401fdff86eb8407993ecefe3d21",
   "generationSourceCommit": "d5f48314159ffff2f8980738fa02d33ddf2a188b",
   "approvedCodeHashes": {
     "runnerSha256": "c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a",
     "modelSha256": "cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d",
     "snapshotPipelineSha256": "6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe",
-    "scorerSha256": "d4d0fdfdadcc4c63ae8af70bbd03d67d085dd8352cdab00568a09b1e0fd6f460"
+    "scorerSha256": "6513903c4c9defe77e7c402ed01135f8ae9c91e92876b7ae9dc125ad21b713d5"
   },
   "sourceFiles": {
     "runnerSha256": {
@@ -29,24 +29,24 @@
     },
     "scorerSha256": {
       "path": "verification/goal3_independent/score_prospective_shadow.py",
-      "gitBlobSha1": "472dfd22bc3d16431bdefc697b780be1ad69344a",
-      "bytes": 33824
+      "gitBlobSha1": "a2e2b0c1d6079947819a77271d31df2e6fae1732",
+      "bytes": 34029
     }
   },
   "verification": {
-    "retrieval": "GitHub Contents API base64 bytes at the exact codeHashSourceCommit",
-    "independentGitBlobSha1": "Recomputed Git blob SHA-1 using blob <byte-length> NUL <raw-bytes>; all four matched the API blob SHA",
-    "sha256": "Computed by Python hashlib.sha256 over exact checked-out raw bytes; the scorer value is independently reported by the GOAL3 CI test log.",
+    "retrieval": "GitHub Contents API file bytes at the exact codeHashSourceCommit",
+    "independentGitBlobSha1": "API Git blob SHA-1 and exact byte lengths independently checked for all four files",
+    "sha256": "Independent SHA-256 recomputation over exact UTF-8 bytes; scorer value also asserted by the prospective scoring unit test",
     "firstThreeHashesAlsoMatchGenerationSourceCommit": true,
-    "lockCommitBinding": "Scorer resolves the exact last-touch commit and committer time from Git history; manifest must pin commit SHA, commit time, and lock-file SHA-256.",
-    "resultChronology": "Every official result fixture retrievedAt must be strictly later than the reviewer lock commit time; equal or earlier timestamps exclude the whole round.",
+    "lockCommitBinding": "Scorer resolves the exact last-touch commit and committer time for this lock file from full Git history; manifest must pin commit SHA, commit time, and lock-file SHA-256.",
+    "resultChronology": "Every official result fixture retrievedAt must be strictly later than the lock commit. If publishedAt is supplied, it must also be strictly later than the lock commit and no later than retrievedAt.",
     "reviewedAtAfterCodeHashSourceCommit": true,
     "sourceCommitsAreAncestorsOfLockCommit": true,
-    "scorerRawByteCheck": "GOAL3 CI measured 33824 raw bytes, Git blob SHA-1 472dfd22bc3d16431bdefc697b780be1ad69344a, and SHA-256 d4d0fdfdadcc4c63ae8af70bbd03d67d085dd8352cdab00568a09b1e0fd6f460."
+    "scorerRawByteCheck": "Code source commit fa90eb590577a401fdff86eb8407993ecefe3d21: 34029 bytes; Git blob a2e2b0c1d6079947819a77271d31df2e6fae1732; SHA-256 6513903c4c9defe77e7c402ed01135f8ae9c91e92876b7ae9dc125ad21b713d5."
   },
   "limitations": [
-    "This lock records code identity only; it does not verify official fixture content or result publication.",
-    "The scorer enforces the lock commit SHA/time/file hash from full Git history and rejects any fixture retrievedAt not strictly later than the lock commit time.",
+    "This lock records code identity only; it does not verify official fixture content or publication metadata authenticity.",
+    "When publishedAt is unavailable, retrievedAt alone does not prove first public availability; manual evidence must establish chronology or the round remains ineligible.",
     "Manual fixture, competition, full-time score, and official publication evidence review remains required.",
     "This is not approval to merge, dispatch, or adopt any model change."
   ],
