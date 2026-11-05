@@ -217,7 +217,7 @@ async function renderAppWithPayload(marketType) {
     APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5'
   };
   for (const [key, value] of Object.entries(pins)) {
-    assert.ok(dispatchWorkflow.split('\\n').includes('  ' + key + ': ' + value),
+    assert.ok(dispatchWorkflow.split('\n').includes('  ' + key + ': ' + value),
       'GOAL3 dispatch pin must match the independently reviewed v1.2 lock: ' + key);
   }
   assert.ok(dispatchWorkflow.includes('lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]'),
