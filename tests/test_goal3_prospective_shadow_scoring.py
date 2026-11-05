@@ -205,6 +205,30 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["decision"]["automaticProductionAdoption"])
             self.assertEqual(report["decision"]["status"], "REVIEW_CRITERIA_MET_REQUIRES_HUMAN_DECISION")
 
+    def test_each_league_requires_twenty_distinct_rounds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            specs = []
+            for round_no in range(1, 21):
+                fixture_date = "2026-11-07" if round_no % 2 else "2026-11-08"
+                forecast = make_forecast(round_no, fixture_date=fixture_date)
+                results = make_results(round_no, fixture_date=fixture_date)
+                if round_no == 1:
+                    # Keep the round complete, but leave J3 absent from one round.
+                    results["fixtures"][2]["competition"] = "J2"
+                specs.append((round_no, forecast, results))
+            manifest = self.build_manifest(root, specs)
+            report = scorer.score_manifest(manifest, replicates=1000, seed=20261105)
+            self.assertEqual(report["cohort"]["includedRounds"], 20)
+            self.assertTrue(report["decision"]["adoptionReviewEvidenceFloorMet"])
+            self.assertEqual(
+                report["leagueNonInferiority"]["J3"]["brier"]["roundsWithLeagueTargets"], 19
+            )
+            self.assertFalse(report["leagueNonInferiority"]["J3"]["brier"]["passes"])
+            self.assertFalse(report["leagueNonInferiority"]["J3"]["logloss"]["passes"])
+            self.assertFalse(report["decision"]["allLeagueNonInferiorityGuardsPass"])
+            self.assertFalse(report["decision"]["eligibleForHumanAdoptionReview"])
+
     def test_manifest_hash_mismatch_and_path_traversal_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
