@@ -30,7 +30,7 @@ class PoissonResidualClusterAuditTests(unittest.TestCase):
     def test_flatten_preserves_both_sides(self):
         rows = flatten_targets(synthetic_report())
         self.assertEqual(len(rows), 472)
-        self.assertEqual({row["side"] if "side" in row else "both" for row in rows}, {"both"})
+        self.assertEqual({row["side"] for row in rows}, {"home", "away"})
 
     def test_audit_is_reproducible_and_returns_eight_bands(self):
         report = synthetic_report()
