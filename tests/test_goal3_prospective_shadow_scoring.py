@@ -158,7 +158,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             }, sort_keys=True))
         scorer_raw = SCRIPT.read_bytes()
         scorer_git_blob = hashlib.sha1(
-            b"blob " + str(len(scorer_raw)).encode("ascii") + b"\\0" + scorer_raw
+            b"blob " + str(len(scorer_raw)).encode("ascii") + b"\0" + scorer_raw
         ).hexdigest()
         print("REVIEWER_LOCK_RUNTIME " + json.dumps({
             "scorerSha256": sha(SCRIPT),
