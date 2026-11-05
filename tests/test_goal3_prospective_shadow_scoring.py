@@ -139,7 +139,12 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
-            "protocolVersion": "1.1",
+            "protocolVersion": "1.2",
+            "approvedCodeHashes": {
+                "runnerSha256": "d" * 64,
+                "modelSha256": "e" * 64,
+                "snapshotPipelineSha256": "f" * 64,
+            },
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
@@ -263,6 +268,43 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["leagueNonInferiority"]["J3"]["logloss"]["passes"])
             self.assertFalse(report["decision"]["allLeagueNonInferiorityGuardsPass"])
             self.assertFalse(report["decision"]["eligibleForHumanAdoptionReview"])
+
+
+    def test_result_url_must_use_exact_allowlisted_official_host(self):
+        bad_urls = [
+            "https://jleague.jp/match/1/1/",
+            "https://www.jleague.jp.attacker.example/match/1/1/",
+            "https://user@www.jleague.jp/match/1/1/",
+            "https://www.jleague.jp:444/match/1/1/",
+            "http://www.jleague.jp/match/1/1/",
+        ]
+        for url in bad_urls:
+            with self.subTest(url=url):
+                results = make_results(1)
+                results["fixtures"][0]["sourceUrl"] = url
+                errors = scorer.result_errors(results, 1, make_forecast(1))
+                self.assertIn("fixture_1_source_url_not_allowlisted_official_host", errors)
+
+    def test_manifest_pins_code_hashes_and_rejects_forecast_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            forecast = make_forecast(1)
+            forecast["code"]["runnerSha256"] = "9" * 64
+            manifest = self.build_manifest(root, [(1, forecast, make_results(1))])
+            report = scorer.score_manifest(manifest, replicates=1000, seed=7)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("approved_code_hash_mismatch:runnerSha256", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+    def test_manifest_requires_all_approved_code_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            doc = json.loads(manifest.read_text())
+            doc["approvedCodeHashes"].pop("modelSha256")
+            manifest.write_text(json.dumps(doc))
+            with self.assertRaisesRegex(ValueError, "approvedCodeHashes"):
+                scorer.score_manifest(manifest, replicates=1000, seed=7)
 
     def test_manifest_hash_mismatch_and_path_traversal_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
