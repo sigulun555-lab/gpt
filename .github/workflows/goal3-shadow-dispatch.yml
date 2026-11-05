@@ -123,7 +123,7 @@ jobs:
               if not isinstance(entry, dict) or entry.get("path") != path:
                   raise SystemExit(f"reviewer lock source path mismatch: {key}")
               raw = subprocess.check_output(["git", "show", f"{source_commit}:{path}"])
-              blob = hashlib.sha1(f"blob {len(raw)}\\0".encode("ascii") + raw).hexdigest()
+              blob = hashlib.sha1(f"blob {len(raw)}\0".encode("ascii") + raw).hexdigest()
               git_blob = subprocess.check_output(["git", "rev-parse", f"{source_commit}:{path}"], text=True).strip()
               if (hashlib.sha256(raw).hexdigest() != expected[key]
                   or len(raw) != entry.get("bytes")
