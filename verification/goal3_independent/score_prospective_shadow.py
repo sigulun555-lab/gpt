@@ -384,6 +384,7 @@ def result_errors(res, round_no, forecast, code_lock_at):
         source_url = x.get("sourceUrl")
         if not official_result_url_allowed(source_url):
             e.append(f"fixture_{n}_source_url_not_allowlisted_official_host")
+        retrieved_at = None
         try:
             retrieved_at = ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
             if retrieved_at <= code_lock_at:
@@ -392,9 +393,13 @@ def result_errors(res, round_no, forecast, code_lock_at):
             e.append(f"fixture_{n}_retrievedAt_invalid")
         if x.get("publishedAt") is not None:
             try:
-                if ts(x["publishedAt"], f"fixture_{n}_publishedAt") > ts(x["retrievedAt"], f"fixture_{n}_retrievedAt"):
+                published_at = ts(x["publishedAt"], f"fixture_{n}_publishedAt")
+                if published_at <= code_lock_at:
+                    e.append(f"fixture_{n}_published_not_after_code_lock")
+                if retrieved_at is not None and published_at > retrieved_at:
                     e.append(f"fixture_{n}_published_after_retrieval")
-            except ValueError: e.append(f"fixture_{n}_publishedAt_invalid")
+            except ValueError:
+                e.append(f"fixture_{n}_publishedAt_invalid")
     if seen != set(expected): e.append("result_fixture_coverage_incomplete")
     return sorted(set(e))
 
