@@ -25,12 +25,13 @@ concurrency:
 env:
   APPROVED_RESEARCH_REF: research/goal3-prospective-shadow-20261104-v2
   APPROVED_RESEARCH_COMMIT: d5f48314159ffff2f8980738fa02d33ddf2a188b
-  APPROVED_CODE_LOCK_COMMIT: b45c432adc035eba1abf2ee4d4ca61387fdee5e9
-  APPROVED_CODE_LOCK_SOURCE_COMMIT: 47bac0e2c716479355c12aed054fe2c2f713ee33
+  APPROVED_CODE_LOCK_COMMIT: cf31d697456cf8f38550c040d40c039b5806ccdf
+  APPROVED_CODE_LOCK_SOURCE_COMMIT: 3b3be255b1d612a8406f8291856401e856462ea5
+  APPROVED_CODE_LOCK_FILE_SHA256: 798218ac5b250aec34b3e4d61e22f17ddeac823b963a5c1575b873efa8cd46fb
   APPROVED_RUNNER_SHA256: c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a
   APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
   APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
-  APPROVED_SCORER_SHA256: 6b1373ade671a64aa4a296ec5192f1e999a50f6744c26755a3e608d170aa062b
+  APPROVED_SCORER_SHA256: ead0b67572fdddc304c5c4ff8b88fa55bfce90f49a7842796f5296f99d7875d3
 
 jobs:
   shadow:
@@ -68,6 +69,36 @@ jobs:
           test "$(sha256sum verification/goal3_independent/prospective_shadow.py | awk '{print $1}')" = "$APPROVED_RUNNER_SHA256"
           test "$(sha256sum verification/goal3_independent/nested_validation.py | awk '{print $1}')" = "$APPROVED_MODEL_SHA256"
           test "$(sha256sum scripts/auto_pipeline.js | awk '{print $1}')" = "$APPROVED_SNAPSHOT_PIPELINE_SHA256"
+
+          LOCK_PATH="verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
+          LOCK_COMMIT_AT="$(git show -s --format=%cI "$APPROVED_CODE_LOCK_COMMIT")"
+          test "$(git log -1 --format=%H "$APPROVED_CODE_LOCK_COMMIT" -- "$LOCK_PATH")" = "$APPROVED_CODE_LOCK_COMMIT"
+          test "$(git show "$APPROVED_CODE_LOCK_COMMIT:$LOCK_PATH" | sha256sum | awk '{print $1}')" = "$APPROVED_CODE_LOCK_FILE_SHA256"
+          export LOCK_COMMIT_AT
+          python - <<'PY'
+          import json, os, subprocess
+          from datetime import datetime
+
+          lock_path = "verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
+          lock = json.loads(subprocess.check_output(
+              ["git", "show", f"{os.environ['APPROVED_CODE_LOCK_COMMIT']}:{lock_path}"],
+              text=True,
+          ))
+          expected = {
+              "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
+              "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
+              "snapshotPipelineSha256": os.environ["APPROVED_SNAPSHOT_PIPELINE_SHA256"],
+              "scorerSha256": os.environ["APPROVED_SCORER_SHA256"],
+          }
+          if lock.get("approvedCodeHashes") != expected:
+              raise SystemExit("reviewer lock code hashes do not match dispatch pins")
+          if lock.get("codeHashSourceCommit") != os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]:
+              raise SystemExit("reviewer lock source commit does not match dispatch pin")
+          reviewed = datetime.fromisoformat(lock["reviewedAt"].replace("Z", "+00:00"))
+          committed = datetime.fromisoformat(os.environ["LOCK_COMMIT_AT"].replace("Z", "+00:00"))
+          if reviewed > committed:
+              raise SystemExit("reviewer lock was not reviewed before its commit")
+          PY
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -128,6 +159,8 @@ jobs:
               ).strip(),
               "approvedResearchCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
               "approvedCodeLockCommitSha": os.environ["APPROVED_CODE_LOCK_COMMIT"],
+              "approvedCodeLockCommitAt": os.environ["LOCK_COMMIT_AT"],
+              "approvedCodeLockFileSha256": os.environ["APPROVED_CODE_LOCK_FILE_SHA256"],
               "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
               "approvedCodeHashes": {
                   "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
