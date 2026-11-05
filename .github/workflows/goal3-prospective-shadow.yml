@@ -6,9 +6,11 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "verification/goal3_independent/prospective_shadow.py"
+      - "verification/goal3_independent/score_prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
       - "verification/goal3_independent/independent_optimizer_audit.py"
       - "tests/test_goal3_prospective_shadow.py"
+      - "tests/test_goal3_prospective_shadow_scoring.py"
       - "tests/test_goal3_independent_optimizer.py"
       - "tests/test_goal3_poisson_residual_cluster.py"
       - "tests/test_goal3_league_k6_k10_audit.py"
@@ -52,13 +54,15 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
         run: npm test
       - name: Shadow runner unit test
         run: python tests/test_goal3_prospective_shadow.py -v
+      - name: Prospective shadow scoring unit tests
+        run: python tests/test_goal3_prospective_shadow_scoring.py -v
       - name: Independent optimizer unit tests
         run: python tests/test_goal3_independent_optimizer.py -v
       - name: Poisson residual cluster audit unit tests
