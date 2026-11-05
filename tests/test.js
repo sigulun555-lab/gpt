@@ -196,3 +196,33 @@ async function renderAppWithPayload(marketType) {
   assert.equal(totoCards.children[0].children[2].children.length,3,'each standard toto card must show three 1X2 probabilities');
   console.log('PASS app.js UI rendering: GOAL3 3 fixtures with goal bins and standard toto 13 fixtures with 1X2 labels');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+
+// Guard the research-only GOAL3 dispatch pins against stale reviewer-lock revisions.
+{
+  const dispatchWorkflow = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', '.github', 'workflows', 'goal3-shadow-dispatch.yml'),
+    'utf8'
+  );
+  const pins = {
+    APPROVED_RESEARCH_COMMIT: 'd5f48314159ffff2f8980738fa02d33ddf2a188b',
+    APPROVED_CODE_LOCK_REF: 'research/goal3-scoring-provenance-guard-20261105',
+    APPROVED_CODE_LOCK_COMMIT: '752412c08e1497c948b95cd951f29c774dffbad9',
+    APPROVED_CODE_LOCK_SOURCE_COMMIT: 'e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d',
+    APPROVED_CODE_LOCK_FILE_SHA256: '11b0a10982b991cb005734820cde7f5c77be21391d9c9c3d096caaa7e313f207',
+    APPROVED_CODE_LOCK_REVIEWED_AT: '2026-11-05T19:12:33Z',
+    APPROVED_RUNNER_SHA256: 'c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a',
+    APPROVED_MODEL_SHA256: 'cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d',
+    APPROVED_SNAPSHOT_PIPELINE_SHA256: '6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe',
+    APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5'
+  };
+  for (const [key, value] of Object.entries(pins)) {
+    assert.ok(dispatchWorkflow.split('\\n').includes('  ' + key + ': ' + value),
+      'GOAL3 dispatch pin must match the independently reviewed v1.2 lock: ' + key);
+  }
+  assert.ok(dispatchWorkflow.includes('lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]'),
+    'dispatch must bind lock generationSourceCommit to the approved research commit');
+  assert.ok(dispatchWorkflow.includes('reviewer lock source bytes/blob mismatch'),
+    'dispatch must independently verify source bytes and Git blob IDs');
+}
+console.log('PASS GOAL3 dispatch workflow pins and reviewer-lock provenance guard');
