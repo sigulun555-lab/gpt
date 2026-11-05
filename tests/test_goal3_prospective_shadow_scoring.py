@@ -151,15 +151,19 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
                 (3, make_forecast(3), make_results(3, incomplete=True)),
                 (4, make_forecast(4, legacy=True, fixture_date="2026-11-08"),
                  make_results(4, fixture_date="2026-11-08")),
+                (5, make_forecast(5), make_results(5)),
             ])
             report = scorer.score_manifest(manifest, replicates=1000, seed=77)
-            self.assertEqual(report["cohort"]["manifestRounds"], 4)
+            self.assertEqual(report["cohort"]["manifestRounds"], 5)
             self.assertEqual(report["cohort"]["includedRounds"], 2)
             self.assertEqual(report["cohort"]["includedMatches"], 6)
             self.assertEqual(report["cohort"]["includedTeamSideTargets"], 12)
-            self.assertEqual(report["cohort"]["excludedRounds"], 2)
+            self.assertEqual(report["cohort"]["excludedRounds"], 3)
             self.assertIn("fixture_3_not_final", report["roundAudit"][2]["exclusionReasons"])
             self.assertIn("missing_or_invalid_snapshotAvailableBy", report["roundAudit"][3]["exclusionReasons"])
+            equal_time = make_forecast(5)
+            equal_time["forecastAsOf"] = equal_time["snapshotAvailableBy"]
+            self.assertIn("snapshot_not_before_forecast", scorer.forecast_errors(equal_time, 5))
             self.assertEqual(set(report["overall"]), {"brier", "logloss"})
             self.assertTrue(report["bootstrap"]["sameRoundDrawsForBothMetrics"])
             self.assertEqual(report["sensitivity"]["dateCluster"]["status"], "computed")
