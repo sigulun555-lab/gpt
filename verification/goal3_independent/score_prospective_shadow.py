@@ -159,13 +159,28 @@ def validate_reviewer_lock(manifest, approved_code_hashes):
     )
     if hashlib.sha256(lock_at_commit).hexdigest() != meta["fileSha256"]:
         raise ValueError("reviewer lock file bytes do not match the pinned lock commit")
-    for ancestor in (source_commit, generation_commit, meta["commitSha"]):
+
+    reviewed_at = ts(meta["reviewedAt"], "reviewer lock reviewedAt")
+    source_commit_at = ts(
+        git_bytes(repo_root, "show", "-s", "--format=%cI", source_commit).decode("utf-8").strip(),
+        "code hash source commit time",
+    )
+    if reviewed_at < source_commit_at:
+        raise ValueError("reviewer lock reviewedAt predates the code hash source commit")
+
+    for ancestor in (generation_commit, source_commit):
         proc = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", ancestor, "HEAD"],
+            ["git", "merge-base", "--is-ancestor", ancestor, meta["commitSha"]],
             cwd=repo_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
         )
         if proc.returncode:
-            raise ValueError(f"reviewer lock commit ancestry check failed: {ancestor}")
+            raise ValueError(f"reviewer source commit is not an ancestor of lock commit: {ancestor}")
+    proc = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", meta["commitSha"], "HEAD"],
+        cwd=repo_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    if proc.returncode:
+        raise ValueError("reviewer lock commit is not an ancestor of the checked-out HEAD")
     return meta
 
 
