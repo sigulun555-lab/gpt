@@ -148,11 +148,19 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
                 "resultsSha256": sha(result_path),
             })
         lock = scorer.reviewer_lock_metadata()
+        approved = approved_code_hashes()
+        locked = scorer.read_json(scorer.LOCK_PATH).get("approvedCodeHashes", {})
+        if locked != approved:
+            print("REVIEWER_LOCK_HASH_DIAGNOSTIC " + json.dumps({
+                key: {"locked": locked.get(key), "checkedOut": approved.get(key)}
+                for key in sorted(set(locked) | set(approved))
+                if locked.get(key) != approved.get(key)
+            }, sort_keys=True))
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
             "protocolVersion": "1.2",
-            "approvedCodeHashes": approved_code_hashes(),
+            "approvedCodeHashes": approved,
             "codeLockCommitSha": lock["commitSha"],
             "codeLockCommitAt": lock["committedAt"],
             "codeLockFileSha256": lock["fileSha256"],
