@@ -49,7 +49,7 @@ Report J1/J2/J3 separately. Define a material deterioration margin in advance as
 - Brier: +0.01 absolute points (k=6 minus k=10).
 - Log Loss: +0.02 natural-log units (k=6 minus k=10).
 
-For adoption review, the one-sided 90% round-cluster bootstrap upper bound for each league and each primary metric must be below its corresponding margin. If a league lacks enough complete paired rounds to estimate this bound, the adoption condition is not met. These are conservative guardrails, not claims that the margins are universal measures of practical importance.
+For adoption review, the one-sided 90% round-cluster bootstrap upper bound for each league and each primary metric must be below its corresponding margin. For this scorer, the operational minimum is 20 distinct complete rounds containing at least one fixture from that league; if a league has fewer, its non-inferiority guard fails and adoption is not eligible. These are conservative guardrails, not claims that the margins are universal measures of practical importance.
 
 ## Result and exclusion handling
 
