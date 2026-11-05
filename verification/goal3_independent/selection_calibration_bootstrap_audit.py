@@ -22,6 +22,7 @@ K_VALUES = (0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0,
 LEAGUES = ("J1", "J2", "J3")
 SCOPES = ("ALL", "J1", "J2", "J3")
 REFERENCE_K = 10.0
+LOGLOSS_FLOOR = 1e-12
 METRICS = ("brier", "logloss", "accuracy")
 
 
@@ -114,7 +115,7 @@ def score_sums_by_date(rows: list[dict], dates: list[str]):
         for ki, k in enumerate(K_VALUES):
             p = row["probabilities"][k]
             sums["brier"][di, ki] += float(np.square(p - np.eye(4)[y]).sum())
-            sums["logloss"][di, ki] += float(-np.log(np.clip(p[y], 1e-15, 1.0)))
+            sums["logloss"][di, ki] += float(-np.log(np.clip(p[y], LOGLOSS_FLOOR, 1.0)))
             sums["accuracy"][di, ki] += float(int(np.argmax(p) == y))
     return counts, sums
 
