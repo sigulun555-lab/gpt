@@ -10,6 +10,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 LEAGUES = ("J1", "J2", "J3")
 CATS = (0, 1, 2, 3)
+LOGLOSS_FLOOR = 1e-12
 
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -44,7 +45,7 @@ def score(rows):
         if np.max(np.abs(p.sum(axis=1)-1)) > 2e-6:
             raise ValueError(f"k={k} probability sums out of tolerance")
         b = np.sum((p-onehot)**2,axis=1)
-        ll = -np.log(np.clip(p[np.arange(len(y)),y],1e-15,1))
+        ll = -np.log(np.clip(p[np.arange(len(y)),y],LOGLOSS_FLOOR,1))
         ac = (np.argmax(p,axis=1)==y).astype(float)
         arr[k] = {"brier":b,"logloss":ll,"accuracy":ac}
         out[str(k)] = {"n":len(y),"brier":float(b.mean()),"logloss":float(ll.mean()),"accuracy":float(ac.mean())}
