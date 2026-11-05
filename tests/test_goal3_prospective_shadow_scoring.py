@@ -147,11 +147,15 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
                 "resultsPath": result_path.name,
                 "resultsSha256": sha(result_path),
             })
+        lock = scorer.reviewer_lock_metadata()
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
             "protocolVersion": "1.2",
             "approvedCodeHashes": approved_code_hashes(),
+            "codeLockCommitSha": lock["commitSha"],
+            "codeLockCommitAt": lock["committedAt"],
+            "codeLockFileSha256": lock["fileSha256"],
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
@@ -293,7 +297,8 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             with self.subTest(url=url):
                 results = make_results(1)
                 results["fixtures"][0]["sourceUrl"] = url
-                errors = scorer.result_errors(results, 1, make_forecast(1))
+                lock_at = scorer.ts(scorer.reviewer_lock_metadata()["committedAt"], "codeLockCommitAt")
+                errors = scorer.result_errors(results, 1, make_forecast(1), lock_at)
                 self.assertIn("fixture_1_source_url_not_allowlisted_official_host", errors)
 
     def test_manifest_pins_code_hashes_and_rejects_forecast_mismatch(self):
@@ -344,6 +349,66 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             manifest.write_text(json.dumps(doc))
             with self.assertRaisesRegex(ValueError, "escapes"):
                 scorer.score_manifest(manifest, replicates=1000, seed=1)
+
+
+    def test_result_retrieval_must_be_strictly_after_reviewer_lock_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            result_path = root / "results-1.json"
+            results = json.loads(result_path.read_text())
+            for fixture in results["fixtures"]:
+                fixture["retrievedAt"] = doc["codeLockCommitAt"]
+                fixture["publishedAt"] = doc["codeLockCommitAt"]
+            result_path.write_text(json.dumps(results), encoding="utf-8")
+            doc["rounds"][0]["resultsSha256"] = sha(result_path)
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            report = scorer.score_manifest(manifest, replicates=1000, seed=13)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("fixture_1_retrieved_not_after_code_lock", reasons)
+            self.assertIn("fixture_2_retrieved_not_after_code_lock", reasons)
+            self.assertIn("fixture_3_retrieved_not_after_code_lock", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+
+    def test_manifest_must_pin_exact_reviewer_lock_commit_time_and_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            doc["codeLockCommitSha"] = "0" * 40
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "codeLockCommitSha does not match Git history"):
+                scorer.score_manifest(manifest, replicates=1000, seed=17)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            doc["codeLockFileSha256"] = "0" * 64
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "codeLockFileSha256 does not match committed lock file"):
+                scorer.score_manifest(manifest, replicates=1000, seed=17)
+
+
+    def test_report_records_exact_reviewer_lock_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            report = scorer.score_manifest(manifest, replicates=1000, seed=19)
+            self.assertEqual(report["codeLock"]["commitSha"], doc["codeLockCommitSha"])
+            self.assertEqual(report["codeLock"]["committedAt"], doc["codeLockCommitAt"])
+            self.assertEqual(report["codeLock"]["fileSha256"], doc["codeLockFileSha256"])
 
 
 if __name__ == "__main__":
