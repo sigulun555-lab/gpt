@@ -1,0 +1,60 @@
+name: GOAL3 Prospective Shadow Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      research_ref:
+        description: Research branch containing the frozen GOAL3 shadow runner
+        required: true
+        type: choice
+        options:
+          - research/goal3-prospective-shadow-20261104-v2
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goal3-prospective-shadow-dispatch
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout approved research branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.research_ref }}
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Fetch one official GOAL3 and history snapshot into ephemeral runner
+        run: node scripts/auto_pipeline.js
+      - name: Create paired k=6 and k=10 shadow forecast
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/prospective_shadow.py \
+            --history data/history.json \
+            --predictions data/predictions.json \
+            --aliases data/team_aliases.json \
+            --out artifacts/goal3-prospective-shadow.json
+      - name: Name artifact by round and run
+        id: meta
+        run: |
+          ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])")
+          echo "round=$ROUND" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable research-only artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
+          path: artifacts/goal3-prospective-shadow.json
+          if-no-files-found: error
+          retention-days: 90
