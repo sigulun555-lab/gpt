@@ -296,6 +296,19 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertIn("approved_code_hash_mismatch:runnerSha256", reasons)
             self.assertFalse(report["roundAudit"][0]["included"])
 
+
+    def test_manifest_code_lock_must_match_checked_out_source_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [
+                (1, make_forecast(1), make_results(1)),
+            ])
+            doc = json.loads(manifest.read_text())
+            doc["approvedCodeHashes"]["modelSha256"] = "8" * 64
+            manifest.write_text(json.dumps(doc))
+            with self.assertRaisesRegex(ValueError, "do not match checked-out research code"):
+                scorer.score_manifest(manifest, replicates=1000, seed=7)
+
     def test_manifest_requires_all_approved_code_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
