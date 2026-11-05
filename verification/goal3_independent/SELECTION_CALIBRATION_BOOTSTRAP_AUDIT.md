@@ -11,6 +11,10 @@ Input: the immutable goal3_outer_allk_reproduction.json generated
 from the fixed 236-match / 472-team-side / 17-date cohort. All 16 k candidates
 are read from the same per-match predictions.
 
+Scoring follows prospective protocol v1.1: four-category Brier is the sum of
+squared category errors per team-side target; LogLoss uses the natural logarithm
+with a fixed probability floor of `1e-12`.
+
 ## k-selection stability
 
 - Candidates: 0.5, 1, 2, 3, 4, 6, 8, 10, 15, 20, 30, 50, 75, 100, 150, 200.
