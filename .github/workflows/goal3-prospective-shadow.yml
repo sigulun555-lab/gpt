@@ -124,9 +124,9 @@ jobs:
           retention-days: 90
       - name: All-k selection stability and four-category calibration uncertainty
         run: |
-          python verification/goal3_independent/selection_calibration_bootstrap_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_selection_calibration_bootstrap_audit.json \\
+          python verification/goal3_independent/selection_calibration_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_selection_calibration_bootstrap_audit.json \
             --replicates 50000 --seed 20261105
       - name: Upload selection and calibration bootstrap audit
         uses: actions/upload-artifact@v4
