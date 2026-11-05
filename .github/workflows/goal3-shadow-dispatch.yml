@@ -25,14 +25,15 @@ concurrency:
 env:
   APPROVED_RESEARCH_REF: research/goal3-prospective-shadow-20261104-v2
   APPROVED_RESEARCH_COMMIT: d5f48314159ffff2f8980738fa02d33ddf2a188b
-  APPROVED_CODE_LOCK_COMMIT: 93aa6e185e8868bfb1865f68fad2e63f486d58d7
-  APPROVED_CODE_LOCK_SOURCE_COMMIT: b53e9a7c7d8ff50c1e2c1fc029cccb6509848b3c
-  APPROVED_CODE_LOCK_FILE_SHA256: 60617a077b5a9ef4ec26e96779a1fe16e8df831fdc268b5ca0ec48b0d63379d2
-  APPROVED_CODE_LOCK_REVIEWED_AT: 2026-11-05T18:33:03Z
+  APPROVED_CODE_LOCK_REF: research/goal3-scoring-provenance-guard-20261105
+  APPROVED_CODE_LOCK_COMMIT: 752412c08e1497c948b95cd951f29c774dffbad9
+  APPROVED_CODE_LOCK_SOURCE_COMMIT: e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d
+  APPROVED_CODE_LOCK_FILE_SHA256: 11b0a10982b991cb005734820cde7f5c77be21391d9c9c3d096caaa7e313f207
+  APPROVED_CODE_LOCK_REVIEWED_AT: 2026-11-05T19:12:33Z
   APPROVED_RUNNER_SHA256: c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a
   APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
   APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
-  APPROVED_SCORER_SHA256: d4d0fdfdadcc4c63ae8af70bbd03d67d085dd8352cdab00568a09b1e0fd6f460
+  APPROVED_SCORER_SHA256: fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5
 
 jobs:
   shadow:
@@ -66,6 +67,9 @@ jobs:
           REMOTE_SHA="$(git ls-remote origin "refs/heads/$APPROVED_RESEARCH_REF" | awk '{print $1}')"
           test "$CHECKED_OUT_SHA" = "$APPROVED_RESEARCH_COMMIT"
           test "$REMOTE_SHA" = "$APPROVED_RESEARCH_COMMIT"
+          git fetch --no-tags origin "refs/heads/$APPROVED_CODE_LOCK_REF:refs/remotes/origin/$APPROVED_CODE_LOCK_REF"
+          git cat-file -e "$APPROVED_CODE_LOCK_COMMIT^{commit}"
+          git merge-base --is-ancestor "$APPROVED_CODE_LOCK_COMMIT" "refs/remotes/origin/$APPROVED_CODE_LOCK_REF"
 
           test "$(sha256sum verification/goal3_independent/prospective_shadow.py | awk '{print $1}')" = "$APPROVED_RUNNER_SHA256"
           test "$(sha256sum verification/goal3_independent/nested_validation.py | awk '{print $1}')" = "$APPROVED_MODEL_SHA256"
@@ -78,7 +82,7 @@ jobs:
           export LOCK_COMMIT_AT
           echo "LOCK_COMMIT_AT=$LOCK_COMMIT_AT" >> "$GITHUB_ENV"
           python - <<'PY'
-          import json, os, subprocess
+          import hashlib, json, os, subprocess
           from datetime import datetime
 
           lock_path = "verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
@@ -96,6 +100,40 @@ jobs:
               raise SystemExit("reviewer lock code hashes do not match dispatch pins")
           if lock.get("codeHashSourceCommit") != os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]:
               raise SystemExit("reviewer lock source commit does not match dispatch pin")
+          if lock.get("schemaVersion") != 1 or lock.get("protocolVersion") != "1.2":
+              raise SystemExit("reviewer lock schema/protocol does not match dispatch protocol")
+          if lock.get("experiment") != "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10":
+              raise SystemExit("reviewer lock experiment mismatch")
+          if lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]:
+              raise SystemExit("reviewer lock generation source does not match approved research commit")
+          source_files = lock.get("sourceFiles")
+          paths = {
+              "runnerSha256": "verification/goal3_independent/prospective_shadow.py",
+              "modelSha256": "verification/goal3_independent/nested_validation.py",
+              "snapshotPipelineSha256": "scripts/auto_pipeline.js",
+              "scorerSha256": "verification/goal3_independent/score_prospective_shadow.py",
+          }
+          if not isinstance(source_files, dict) or set(source_files) != set(paths):
+              raise SystemExit("reviewer lock source file inventory mismatch")
+          source_commit = os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]
+          generation_commit = os.environ["APPROVED_RESEARCH_COMMIT"]
+          generation_keys = {"runnerSha256", "modelSha256", "snapshotPipelineSha256"}
+          for key, path in paths.items():
+              entry = source_files.get(key)
+              if not isinstance(entry, dict) or entry.get("path") != path:
+                  raise SystemExit(f"reviewer lock source path mismatch: {key}")
+              raw = subprocess.check_output(["git", "show", f"{source_commit}:{path}"])
+              blob = hashlib.sha1(f"blob {len(raw)}\\0".encode("ascii") + raw).hexdigest()
+              git_blob = subprocess.check_output(["git", "rev-parse", f"{source_commit}:{path}"], text=True).strip()
+              if (hashlib.sha256(raw).hexdigest() != expected[key]
+                  or len(raw) != entry.get("bytes")
+                  or blob != entry.get("gitBlobSha1")
+                  or git_blob != entry.get("gitBlobSha1")):
+                  raise SystemExit(f"reviewer lock source bytes/blob mismatch: {key}")
+              if key in generation_keys:
+                  generation_raw = subprocess.check_output(["git", "show", f"{generation_commit}:{path}"])
+                  if hashlib.sha256(generation_raw).hexdigest() != expected[key]:
+                      raise SystemExit(f"generation source bytes mismatch: {key}")
           reviewed = datetime.fromisoformat(lock["reviewedAt"].replace("Z", "+00:00"))
           committed = datetime.fromisoformat(os.environ["LOCK_COMMIT_AT"].replace("Z", "+00:00"))
           source_committed = datetime.fromisoformat(subprocess.check_output(
@@ -179,6 +217,8 @@ jobs:
               "approvedCodeLockReviewedAt": os.environ["APPROVED_CODE_LOCK_REVIEWED_AT"],
               "approvedCodeLockFileSha256": os.environ["APPROVED_CODE_LOCK_FILE_SHA256"],
               "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
+              "approvedCodeLockGenerationSourceCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
+              "approvedCodeLockRef": os.environ["APPROVED_CODE_LOCK_REF"],
               "approvedCodeHashes": {
                   "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
                   "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
