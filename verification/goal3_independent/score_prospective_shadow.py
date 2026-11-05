@@ -16,7 +16,12 @@ REPS = 10_000
 SEED = 20261105
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 OFFICIAL_RESULT_HOSTS = frozenset({"www.jleague.jp"})
-APPROVED_CODE_HASH_KEYS = ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
+APPROVED_CODE_PATHS = {
+    "runnerSha256": Path(__file__).resolve().with_name("prospective_shadow.py"),
+    "modelSha256": Path(__file__).resolve().with_name("nested_validation.py"),
+    "snapshotPipelineSha256": Path(__file__).resolve().parents[2] / "scripts" / "auto_pipeline.js",
+}
+APPROVED_CODE_HASH_KEYS = tuple(APPROVED_CODE_PATHS)
 
 
 def sha(path):
@@ -200,6 +205,21 @@ def forecast_errors(f, round_no):
     return sorted(set(e))
 
 
+def official_result_url_allowed(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        u = urlparse(value)
+        return (
+            u.scheme == "https" and u.hostname is not None
+            and u.hostname.lower() in OFFICIAL_RESULT_HOSTS
+            and u.username is None and u.password is None
+            and u.port in (None, 443) and not u.fragment
+        )
+    except ValueError:
+        return False
+
+
 def result_errors(res, round_no, forecast):
     e = []
     if (not isinstance(res.get("round"), int) or isinstance(res.get("round"), bool)
@@ -230,13 +250,7 @@ def result_errors(res, round_no, forecast):
         if x.get("competition") not in LEAGUES: e.append(f"fixture_{n}_competition_invalid")
         if x.get("sourceType") != "official": e.append(f"fixture_{n}_source_not_official")
         source_url = x.get("sourceUrl")
-        u = urlparse(source_url) if isinstance(source_url, str) else None
-        if (
-            u is None or u.scheme != "https" or not u.hostname
-            or u.hostname.lower() not in OFFICIAL_RESULT_HOSTS
-            or u.username is not None or u.password is not None
-            or u.port not in (None, 443) or u.fragment
-        ):
+        if not official_result_url_allowed(source_url):
             e.append(f"fixture_{n}_source_url_not_allowlisted_official_host")
         try: ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
         except ValueError: e.append(f"fixture_{n}_retrievedAt_invalid")
@@ -378,6 +392,9 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
         for key in APPROVED_CODE_HASH_KEYS
     ):
         raise ValueError("manifest must pin all approvedCodeHashes before scoring")
+    actual_code_hashes = {key: sha(path) for key, path in APPROVED_CODE_PATHS.items()}
+    if approved_code_hashes != actual_code_hashes:
+        raise ValueError("approvedCodeHashes do not match checked-out research code")
     entries = manifest.get("rounds")
     if not isinstance(entries, list) or not entries: raise ValueError("manifest rounds missing")
     if any(not isinstance(x, dict) for x in entries): raise ValueError("manifest round entries must be objects")
