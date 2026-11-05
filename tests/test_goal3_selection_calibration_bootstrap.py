@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import math
 import sys
 import unittest
 from datetime import date, timedelta
@@ -7,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "verification" / "goal3_independent"))
-from selection_calibration_bootstrap_audit import K_VALUES, audit, flatten_targets
+from selection_calibration_bootstrap_audit import K_VALUES, LOGLOSS_FLOOR, audit, flatten_targets, score_sums_by_date
 
 
 def synthetic_report():
@@ -62,6 +63,17 @@ class SelectionCalibrationBootstrapAuditTests(unittest.TestCase):
                          {"k6_by_league", "k10_by_league", "k6_all", "k10_all", "global_32"})
         self.assertEqual(first["fourCategoryCalibration"]["families"]["k6_by_league"]["comparisonCount"], 12)
         self.assertEqual(first["fourCategoryCalibration"]["families"]["global_32"]["comparisonCount"], 32)
+
+    def test_logloss_uses_protocol_probability_floor(self):
+        p = np.asarray([1e-13, 0.2, 0.3, 0.5 - 1e-13], dtype=float)
+        row = {
+            "date": "2026-09-01",
+            "actual": 0,
+            "probabilities": {k: p for k in K_VALUES},
+        }
+        counts, sums = score_sums_by_date([row], ["2026-09-01"])
+        observed = sums["logloss"][0, K_VALUES.index(6.0)] / counts[0]
+        self.assertAlmostEqual(observed, -math.log(LOGLOSS_FLOOR), places=12)
 
     def test_rejects_invalid_probability_vector(self):
         report = synthetic_report()
