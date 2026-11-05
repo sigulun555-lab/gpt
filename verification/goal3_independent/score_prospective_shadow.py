@@ -391,7 +391,9 @@ def result_errors(res, round_no, forecast, code_lock_at):
                 e.append(f"fixture_{n}_retrieved_not_after_code_lock")
         except ValueError:
             e.append(f"fixture_{n}_retrievedAt_invalid")
-        if x.get("publishedAt") is not None:
+        if x.get("publishedAt") is None:
+            e.append(f"fixture_{n}_publishedAt_missing")
+        else:
             try:
                 published_at = ts(x["publishedAt"], f"fixture_{n}_publishedAt")
                 if published_at <= code_lock_at:
