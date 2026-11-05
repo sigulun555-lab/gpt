@@ -17,11 +17,18 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def approved_code_hashes():
+def forecast_code_hashes():
     return {
         "runnerSha256": sha(ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"),
         "modelSha256": sha(ROOT / "verification" / "goal3_independent" / "nested_validation.py"),
         "snapshotPipelineSha256": sha(ROOT / "scripts" / "auto_pipeline.js"),
+    }
+
+
+def approved_code_hashes():
+    return {
+        **forecast_code_hashes(),
+        "scorerSha256": sha(SCRIPT),
     }
 
 
@@ -82,7 +89,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
             "historyMaxDeclaredFetchedAt": "2026-11-04T00:01:00Z",
             "snapshotAvailableBy": snapshot,
         },
-        "code": approved_code_hashes(),
+        "code": forecast_code_hashes(),
         "fitDiagnostics": diagnostics,
         "fixtures": fixtures,
         "evaluation": {"protocolVersion": "1.1"},
@@ -174,6 +181,10 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertIn("snapshot_not_before_forecast", scorer.forecast_errors(equal_time, 5))
             self.assertEqual(set(report["overall"]), {"brier", "logloss"})
             self.assertTrue(report["bootstrap"]["sameRoundDrawsForBothMetrics"])
+            lock = approved_code_hashes()
+            self.assertEqual(report["approvedCodeHashes"], lock)
+            self.assertEqual(report["checkedOutCodeHashes"], lock)
+            self.assertEqual(report["scoringScriptSha256"], lock["scorerSha256"])
             self.assertEqual(report["sensitivity"]["dateCluster"]["status"], "computed")
             self.assertEqual(report["sensitivity"]["dateCluster"]["dates"], 2)
             self.assertFalse(report["decision"]["adoptionReviewEvidenceFloorMet"])
@@ -298,16 +309,17 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
 
 
     def test_manifest_code_lock_must_match_checked_out_source_files(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            manifest = self.build_manifest(root, [
-                (1, make_forecast(1), make_results(1)),
-            ])
-            doc = json.loads(manifest.read_text())
-            doc["approvedCodeHashes"]["modelSha256"] = "8" * 64
-            manifest.write_text(json.dumps(doc))
-            with self.assertRaisesRegex(ValueError, "do not match checked-out research code"):
-                scorer.score_manifest(manifest, replicates=1000, seed=7)
+        for key in ("modelSha256", "scorerSha256"):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                manifest = self.build_manifest(root, [
+                    (1, make_forecast(1), make_results(1)),
+                ])
+                doc = json.loads(manifest.read_text())
+                doc["approvedCodeHashes"][key] = "8" * 64
+                manifest.write_text(json.dumps(doc))
+                with self.assertRaisesRegex(ValueError, "do not match checked-out research code"):
+                    scorer.score_manifest(manifest, replicates=1000, seed=7)
 
     def test_manifest_requires_all_approved_code_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
