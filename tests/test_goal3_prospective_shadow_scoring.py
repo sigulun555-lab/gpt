@@ -17,6 +17,14 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def approved_code_hashes():
+    return {
+        "runnerSha256": sha(ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"),
+        "modelSha256": sha(ROOT / "verification" / "goal3_independent" / "nested_validation.py"),
+        "snapshotPipelineSha256": sha(ROOT / "scripts" / "auto_pipeline.js"),
+    }
+
+
 def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11-07"):
     now = "2026-11-05T04:00:00Z"
     snapshot = "2026-11-05T03:59:00Z"
@@ -74,11 +82,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
             "historyMaxDeclaredFetchedAt": "2026-11-04T00:01:00Z",
             "snapshotAvailableBy": snapshot,
         },
-        "code": {
-            "runnerSha256": "d" * 64,
-            "modelSha256": "e" * 64,
-            "snapshotPipelineSha256": "f" * 64,
-        },
+        "code": approved_code_hashes(),
         "fitDiagnostics": diagnostics,
         "fixtures": fixtures,
         "evaluation": {"protocolVersion": "1.1"},
@@ -140,11 +144,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
             "protocolVersion": "1.2",
-            "approvedCodeHashes": {
-                "runnerSha256": "d" * 64,
-                "modelSha256": "e" * 64,
-                "snapshotPipelineSha256": "f" * 64,
-            },
+            "approvedCodeHashes": approved_code_hashes(),
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
