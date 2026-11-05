@@ -66,6 +66,16 @@ class ProspectiveShadowTests(unittest.TestCase):
             subprocess.run(command, check=True, capture_output=True, text=True)
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
+            evaluation = record["evaluation"]
+            self.assertEqual(evaluation["protocolVersion"], "1.1")
+            self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
+            self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
+            self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
+            self.assertEqual(evaluation["bootstrap"]["rng"], "NumPy PCG64")
+            self.assertEqual(evaluation["bootstrap"]["seed"], 20261105)
+            self.assertEqual(evaluation["leagueNonInferiority"]["brierMargin"], 0.01)
+            self.assertEqual(evaluation["leagueNonInferiority"]["loglossMargin"], 0.02)
+            self.assertIn("1e-12", evaluation["scoring"]["logloss"])
             self.assertEqual(len(record["fixtures"]), 3)
             self.assertEqual(len(record["fitDiagnostics"]), 6)
             snapshot_available_by = datetime.fromisoformat(
