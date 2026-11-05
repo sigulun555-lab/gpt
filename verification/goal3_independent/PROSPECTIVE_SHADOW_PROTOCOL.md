@@ -129,10 +129,11 @@ Every fixture record must match the forecast number/date/home/away and provide:
 competition (J1/J2/J3), status: "final", integer fullTimeHomeGoals /
 fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl whose hostname
 is exactly www.jleague.jp (no userinfo, nonstandard port, or fragment), and a
-timezone-aware retrievedAt strictly later than codeLockCommitAt. If publishedAt
-is supplied, it must also be timezone-aware, strictly later than codeLockCommitAt,
-and no later than retrievedAt. A later retrieval cannot make a result published
-before the reviewer lock eligible. The exact host allowlist is intentionally narrow; a new official host requires
+timezone-aware retrievedAt strictly later than codeLockCommitAt and a
+timezone-aware publishedAt strictly later than codeLockCommitAt and no later
+than retrievedAt. publishedAt is mandatory: a later retrieval cannot make an
+already-published result eligible, and a missing/unverifiable publication time
+excludes the entire round rather than falling back to retrievedAt. The exact host allowlist is intentionally narrow; a new official host requires
 a reviewed code change and tests, not a manifest override. The official result
 page and publication/retrieval evidence must still be manually checked for
 each fixture. This includes confirming the competition assignment (J1/J2/J3),
@@ -143,10 +144,10 @@ valid inputs.
 
 The v1.2 manifest scorer verifies the reviewer lock commit/file/time against
 Git history, the lock's source commits and raw bytes, every result retrievedAt,
-and each supplied publishedAt against the lock commit time. If publishedAt is
-unavailable, retrieval time alone is not proof of first public availability;
-manual evidence must establish chronology or the round remains ineligible. It
-also verifies the v1.1 forecast
+and mandatory publishedAt against the lock commit time and retrieval time. If
+the official source does not provide a verifiable publication timestamp, the
+round remains ineligible; retrievedAt alone is never a substitute. It also
+verifies the v1.1 forecast
 timing bounds, input/code hashes, exact k=6/k=10 arms, all six successful fit
 diagnostics, probability simplexes, fixture identity, and result provenance. If any one fixture in a round is
 not final or any paired target/provenance field is invalid, the entire round
