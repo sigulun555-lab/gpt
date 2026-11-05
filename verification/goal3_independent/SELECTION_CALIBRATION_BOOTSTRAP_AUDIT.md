@@ -52,7 +52,7 @@ python verification/goal3_independent/selection_calibration_bootstrap_audit.py \
 ~~~
 
 The workflow uploads the resulting JSON artifact and runs deterministic unit
-tests. The artifact records the exact input JSON SHA-256 and script SHA-256.
+tests. The artifact records the exact input JSON SHA-256, script SHA-256, Python version, and NumPy version used for the bootstrap calculations.
 
 ## Interpretation limits
 
