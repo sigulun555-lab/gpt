@@ -38,6 +38,8 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
             diagnostics.append({
                 "fixtureNumber": number,
                 "k": int(k),
+                "trainingRows": 429,
+                "trainingCutoffExclusive": fixture_date,
                 "fitSuccess": success,
             })
         fixtures.append({
@@ -52,6 +54,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         "experiment": scorer.EXPERIMENT,
         "round": round_no,
         "forecastAsOf": now,
+        "recordedAt": now,
         "snapshotAvailableBy": snapshot,
         "pipelineGeneratedAt": "2026-11-04T00:00:00Z",
         "pipelineDeclaredLastFetchedAt": "2026-11-04T00:01:00Z",
@@ -171,6 +174,38 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["decision"]["adoptionReviewEvidenceFloorMet"])
             self.assertFalse(report["decision"]["automaticProductionAdoption"])
             self.assertEqual(report["decision"]["status"], "RESEARCH_ONLY_NO_ADOPTION")
+
+    def test_fixture_numbers_and_fit_cutoffs_must_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bad_number = make_forecast(1)
+            bad_number["fixtures"][2]["number"] = 4
+            manifest = self.build_manifest(root, [
+                (1, bad_number, make_results(1)),
+            ])
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("fixture_numbers_not_exactly_1_2_3", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bad_cutoff = make_forecast(2)
+            bad_cutoff["fitDiagnostics"][0]["trainingCutoffExclusive"] = "2026-11-08"
+            manifest = self.build_manifest(root, [
+                (2, bad_cutoff, make_results(2)),
+            ])
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("training_cutoff_mismatch:(1, 6)", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+    def test_recorded_at_must_follow_forecast_and_precede_deadline(self):
+        forecast = make_forecast(1)
+        forecast["recordedAt"] = "2026-11-05T03:58:00Z"
+        self.assertIn("recorded_before_forecast", scorer.forecast_errors(forecast, 1))
+        forecast["recordedAt"] = "2026-11-07T03:50:00Z"
+        self.assertIn("recorded_not_before_deadline", scorer.forecast_errors(forecast, 1))
 
     def test_fit_failure_is_counted_and_blocks_adoption_guard(self):
         with tempfile.TemporaryDirectory() as tmp:
