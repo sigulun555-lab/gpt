@@ -73,11 +73,17 @@ def forecast_errors(f, round_no):
     except ValueError:
         asof = None; e.append("missing_or_invalid_forecastAsOf")
     try:
+        recorded = ts(f.get("recordedAt"), "recordedAt")
+    except ValueError:
+        recorded = None; e.append("missing_or_invalid_recordedAt")
+    try:
         deadline = ts(f.get("deadline"), "deadline")
     except ValueError:
         deadline = None; e.append("missing_or_invalid_deadline")
     if snap and asof and snap >= asof: e.append("snapshot_not_before_forecast")
     if asof and deadline and asof >= deadline: e.append("forecast_not_before_deadline")
+    if asof and recorded and recorded < asof: e.append("recorded_before_forecast")
+    if recorded and deadline and recorded >= deadline: e.append("recorded_not_before_deadline")
 
     inp = f.get("inputs")
     if not isinstance(inp, dict): inp = {}
@@ -118,8 +124,9 @@ def forecast_errors(f, round_no):
     model = f.get("model")
     if not isinstance(model, dict): model = {}
     model_arms = model.get("arms")
-    if not isinstance(model_arms, list) or set(map(str, model_arms)) != set(KS):
-        e.append("arms_not_k6_k10")
+    if (not isinstance(model_arms, list) or len(model_arms) != 2
+        or set(map(str, model_arms)) != set(KS)):
+        e.append("arms_not_exactly_k6_k10")
     if model.get("trainingWindow") != "2026_only": e.append("training_window_not_2026_only")
     if model.get("otherAdjustments") != "none; no market blend, Dixon-Coles or draw boost":
         e.append("unexpected_model_adjustments")
@@ -154,6 +161,16 @@ def forecast_errors(f, round_no):
                 try: pvec(arm.get(f"{side}GoalProbabilities"), f"{n}/{k}/{side}")
                 except (ValueError, TypeError): e.append(f"fixture_{n}_k{k}_{side}_probability_invalid")
 
+    if numbers != {1, 2, 3}:
+        e.append("fixture_numbers_not_exactly_1_2_3")
+
+    fixture_dates = {
+        fx["number"]: fx.get("date")
+        for fx in fixtures
+        if isinstance(fx, dict)
+        and isinstance(fx.get("number"), int)
+        and not isinstance(fx.get("number"), bool)
+    }
     diags = f.get("fitDiagnostics")
     expected = {(n, k) for n in (1, 2, 3) for k in (6, 10)}
     actual = set()
@@ -162,10 +179,21 @@ def forecast_errors(f, round_no):
     else:
         for d in diags:
             if not isinstance(d, dict): e.append("malformed_fit_diagnostic"); continue
-            key = (d.get("fixtureNumber"), d.get("k"))
+            fixture_no, k = d.get("fixtureNumber"), d.get("k")
+            if (not isinstance(fixture_no, int) or isinstance(fixture_no, bool)
+                or not isinstance(k, int) or isinstance(k, bool)):
+                e.append("invalid_fit_diagnostic_key")
+                continue
+            key = (fixture_no, k)
             if key in actual: e.append("duplicate_fit_diagnostic")
             actual.add(key)
             if d.get("fitSuccess") is not True: e.append(f"fit_diagnostic_failed:{key}")
+            training_rows = d.get("trainingRows")
+            if (not isinstance(training_rows, int) or isinstance(training_rows, bool)
+                or training_rows <= 0):
+                e.append(f"invalid_training_rows:{key}")
+            if d.get("trainingCutoffExclusive") != fixture_dates.get(fixture_no):
+                e.append(f"training_cutoff_mismatch:{key}")
         if actual != expected: e.append("fit_diagnostic_coverage_incomplete")
     return sorted(set(e))
 
