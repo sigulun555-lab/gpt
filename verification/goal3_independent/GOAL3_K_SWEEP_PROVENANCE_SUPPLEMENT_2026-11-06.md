@@ -112,9 +112,11 @@ Selection-adjusted simultaneous 95% bands for k=6 minus k=10:
 
 Both bands include zero. The shallow k=6/k=8 region and the non-identical fold winners mean the retrospective evidence does not establish k=6 superiority.
 
-A separate fixed two-arm bootstrap is stored in the outer-review artifact: 10,000 replicates, NumPy default_rng / PCG64, seed 1, percentile intervals. Date-cluster (17 clusters) Brier [-0.0035410, +0.0023444], LogLoss [-0.0082676, +0.0035968]. Match-cluster (236 clusters) Brier [-0.0035980, +0.0022823], LogLoss [-0.0082471, +0.0037677]. All cross zero. These are GPT-side fixed two-arm sensitivity outputs; they are not claimed to be the same RNG sequence or exact reproduction of Claude's separate bootstrap report.
+A separate fixed two-arm bootstrap is stored in the outer-review artifact: 10,000 replicates, NumPy default_rng / PCG64, seed 1, percentile intervals. Date-cluster (17 clusters) Brier [-0.0035410, +0.0023444], LogLoss [-0.0082676, +0.0035968]. Match-cluster (236 clusters) Brier [-0.0035980, +0.0022823], LogLoss [-0.0082471, +0.0037677]. All cross zero. These are GPT-side fixed two-arm sensitivity outputs and use a different RNG sequence from Claude's Python bootstrap.
 
-Claude's reported match-cluster sensitivity remains separately unverified at the source level because the Claude-side script and 944-row detail table have not been supplied. The GPT-side match-cluster artifact does not substitute for those missing Claude inputs.
+Separately, Claude's reported IID date-cluster bootstrap (#6678546873) was independently re-run from the full-precision all-k per-match artifact with Python `random.Random(1)`: 10,000 resamples of 17 dates with replacement, retaining all matches and both team-sides on each sampled date, and linear 2.5/97.5 percentiles. The resulting Brier interval [-0.00360258, +0.00234289] and LogLoss interval [-0.00830826, +0.00358537] reproduce Claude's reported endpoints to six decimals.
+
+Claude's match-cluster sensitivity is not yet exactly reproduced. A separate Python `random.Random(1)` match-cluster rerun from the full-precision artifact gives Brier [-0.00354634, +0.00226183] and LogLoss [-0.00824636, +0.00402148], close but not identical to Claude's reported Brier [-0.003610, +0.002336] and LogLoss [-0.008262, +0.004021]. Without Claude's script, 944-row detail, cluster ordering, and exact RNG call sequence, this difference remains unresolved. The GPT-side match-cluster artifact does not substitute for those missing Claude inputs.
 
 ## 5. Four-category calibration
 
