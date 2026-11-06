@@ -41,6 +41,21 @@ Negative differences favor k=6.
 
 Every interval includes zero. The point estimates are unchanged, but uncertainty widens materially once repeated team identity is resampled as an additional cluster dimension.
 
+### Calendar-window moving-block sensitivity (46-day grid)
+
+A second date-only sensitivity uses the complete calendar grid from 2026-09-19 through 2026-11-03 (46 days), including no-fixture days as zero-target days. Each replicate samples circular calendar-day blocks until 46 calendar positions are drawn, then retains all team-sides from every selected fixture date. This avoids treating irregularly spaced fixture dates as consecutive observations.
+
+| Calendar block | Metric | Point difference | Nominal percentile 95% CI | Selection-adjusted 95% band |
+|---|---|---:|---:|---:|
+| 7 days | Brier | -0.00061667 | [-0.00257278, +0.00116326] | [-0.00285780, +0.00162447] |
+| 7 days | LogLoss | -0.00215879 | [-0.00623644, +0.00139108] | [-0.00679617, +0.00247859] |
+| 14 days | Brier | -0.00061667 | [-0.00212675, +0.00067409] | [-0.00233581, +0.00110247] |
+| 14 days | LogLoss | -0.00215879 | [-0.00570347, +0.00121559] | [-0.00645413, +0.00213656] |
+
+Both block lengths retain the same point estimates and all nominal and selection-adjusted intervals include zero. k=6 is best in 44.64%/51.96% of 7-day replicates (Brier/LogLoss) and 52.21%/53.58% of 14-day replicates. This remains exploratory date-only sensitivity and does not address repeated-team dependence.
+
+The previously mentioned 7-day/14-day figures without a committed extraction implementation are superseded by these explicitly reproducible calendar-grid results; the older figures are not used.
+
 ### All-k selection frequency
 
 | Variant | Metric | k=6 best | k=8 best | k=10 best |
