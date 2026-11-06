@@ -337,7 +337,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                     hess=lambda theta: independent_exact_hessian(
                         theta, xh, xa, k, n_teams
                     ),
-                    method="trust-exact",
+                    method="trust-ncg",
                     options={"gtol": 1e-8, "maxiter": 1000},
                 )
                 self.assertTrue(
@@ -425,7 +425,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         gradients = [item["gradientInfinityNorm"] for item in diagnostics]
         iterations = [item["iterations"] for item in diagnostics]
         print(json.dumps({
-            "solver": "SciPy trust-exact with independently derived exact Hessian",
+            "solver": "SciPy trust-ncg with independently derived exact Hessian",
             "options": {"gtol": 1e-8, "maxiter": 1000},
             "cohort": {"historyRows": 429, "matches": 236, "targets": 472, "dates": 17},
             "fitCount": len(diagnostics),
