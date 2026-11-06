@@ -13,6 +13,7 @@ import json
 import math
 import platform
 from collections import defaultdict
+from datetime import date as Date
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +51,12 @@ def flatten_targets(report: dict) -> tuple[list[dict], list[str]]:
         home, away = match.get("home"), match.get("away")
         if not isinstance(date, str) or league not in LEAGUES:
             raise ValueError("invalid date or league")
+        try:
+            parsed_date = Date.fromisoformat(date)
+        except ValueError as exc:
+            raise ValueError(f"invalid target date: {date!r}") from exc
+        if parsed_date.isoformat() != date or parsed_date.year != 2026:
+            raise ValueError(f"invalid target date: {date!r}")
         if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
             raise ValueError("missing team name")
         home, away = home.strip(), away.strip()

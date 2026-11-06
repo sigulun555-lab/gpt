@@ -36,6 +36,13 @@ class LeagueK6K10AuditTests(unittest.TestCase):
         self.assertEqual(set(first["byScope"]), {"ALL", "J1", "J2", "J3"})
         self.assertEqual(len(first["calibration"]["J1"]["6.0"]), 4)
 
+    def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
+        for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):
+            report = synthetic()
+            report["allKPredictions"][0]["date"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid target date"):
+                build_targets(report)
+
     def test_rejects_boolean_goal_counts(self):
         for field in ("hg", "ag"):
             report = synthetic()

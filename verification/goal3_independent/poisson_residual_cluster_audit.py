@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from datetime import date as Date
 
 import numpy as np
 
@@ -28,13 +29,20 @@ def flatten_targets(report: dict) -> list[dict]:
         date = match.get("date")
         league = match.get("comp")
         home, away = match.get("home"), match.get("away")
-        if not isinstance(date, str) or len(date) != 10 or date[4:5] != "-" or date[7:8] != "-":
+        if not isinstance(date, str):
+            raise ValueError(f"invalid target date at match {index}: {date!r}")
+        try:
+            parsed_date = Date.fromisoformat(date)
+        except ValueError as exc:
+            raise ValueError(f"invalid target date at match {index}: {date!r}") from exc
+        if parsed_date.isoformat() != date or parsed_date.year != 2026:
             raise ValueError(f"invalid target date at match {index}: {date!r}")
         if league not in ("J1", "J2", "J3"):
             raise ValueError(f"invalid competition at match {index}: {league!r}")
         if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
             raise ValueError(f"missing home/away team at match {index}")
-        if home.strip() == away.strip():
+        home, away = home.strip(), away.strip()
+        if home == away:
             raise ValueError(f"same home and away team at match {index}")
         match_key = (date, league, home, away)
         if match_key in seen_match_keys:
@@ -58,6 +66,8 @@ def flatten_targets(report: dict) -> list[dict]:
                     raise ValueError(f"invalid four-category probability vector at match {index}, k={key}, side={side}")
                 if np.any(probs < 0) or np.any(probs > 1) or abs(float(probs.sum()) - 1.0) > 1e-9:
                     raise ValueError(f"probability vector is outside the simplex at match {index}, k={key}, side={side}")
+                if not 0.0 < float(probs[0]) < 1.0:
+                    raise ValueError(f"goal-zero probability must be strictly between 0 and 1 at match {index}, k={key}, side={side}")
                 probs_by_k[k] = probs
             rows.append({
                 "date": date,
@@ -90,7 +100,7 @@ def audit(report: dict, replicates: int = 50_000, seed: int = 20261105) -> dict:
                     continue
                 y = np.asarray([r["goals"] for r in selected], dtype=float)
                 p0 = np.asarray([r["p"][k][0] for r in selected], dtype=float)
-                lam = -np.log(np.clip(p0, 1e-15, 1.0))
+                lam = -np.log(p0)
                 residual = (y - lam) / np.sqrt(lam)
                 by_date[di] = (len(selected), residual.sum(), np.square(residual).sum())
             sufficient[(scope, k)] = by_date

@@ -43,6 +43,29 @@ class PoissonResidualClusterAuditTests(unittest.TestCase):
         self.assertEqual(len(first["results"]), 8)
         self.assertEqual(len(first["pairedK6MinusK10"]), 4)
 
+    def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
+        for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):
+            report = synthetic_report()
+            report["allKPredictions"][0]["date"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid target date"):
+                flatten_targets(report)
+
+    def test_rejects_zero_probability_boundaries_for_finite_poisson_rate(self):
+        for p in ([1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]):
+            report = synthetic_report()
+            report["allKPredictions"][0]["byK"]["6.0"]["home"] = p
+            with self.subTest(p=p), self.assertRaisesRegex(ValueError, "goal-zero probability"):
+                flatten_targets(report)
+
+    def test_normalizes_team_names_before_duplicate_detection(self):
+        report = synthetic_report()
+        duplicate = dict(report["allKPredictions"][0])
+        duplicate["home"] = " Home-0 "
+        duplicate["away"] = " Away-0 "
+        report["allKPredictions"][1] = duplicate
+        with self.assertRaisesRegex(ValueError, "duplicate match key"):
+            flatten_targets(report)
+
     def test_rejects_invalid_probability_vector(self):
         report = synthetic_report()
         report["allKPredictions"][0]["byK"]["6.0"]["home"] = [0.5, 0.5, 0.5, 0.5]

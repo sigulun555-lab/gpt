@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
+from datetime import date as Date
 from pathlib import Path
 import numpy as np
 
@@ -34,6 +35,12 @@ def build_targets(report):
         date, comp = m.get("date"), m.get("comp")
         if not isinstance(date, str) or comp not in ("J1", "J2", "J3"):
             raise ValueError("invalid date or competition")
+        try:
+            parsed_date = Date.fromisoformat(date)
+        except ValueError as exc:
+            raise ValueError(f"invalid target date: {date!r}") from exc
+        if parsed_date.isoformat() != date or parsed_date.year != 2026:
+            raise ValueError(f"invalid target date: {date!r}")
         home, away = m.get("home"), m.get("away")
         if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
             raise ValueError("missing team name")

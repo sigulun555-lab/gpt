@@ -64,6 +64,13 @@ class SelectionCalibrationBootstrapAuditTests(unittest.TestCase):
         self.assertEqual(first["fourCategoryCalibration"]["families"]["k6_by_league"]["comparisonCount"], 12)
         self.assertEqual(first["fourCategoryCalibration"]["families"]["global_32"]["comparisonCount"], 32)
 
+    def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
+        for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):
+            report = synthetic_report()
+            report["allKPredictions"][0]["date"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid target date"):
+                flatten_targets(report)
+
     def test_rejects_boolean_goal_counts_and_fold(self):
         for field in ("hg", "ag"):
             report = synthetic_report()
