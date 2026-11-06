@@ -214,7 +214,8 @@ async function renderAppWithPayload(marketType) {
     APPROVED_RUNNER_SHA256: 'c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a',
     APPROVED_MODEL_SHA256: 'cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d',
     APPROVED_SNAPSHOT_PIPELINE_SHA256: '6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe',
-    APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5'
+    APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5',
+    APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: '6bcb8c8b6ebc94d9ca2b250649e4d2a8fc6dbb31'
   };
   for (const [key, value] of Object.entries(pins)) {
     assert.ok(dispatchWorkflow.split('\n').includes('  ' + key + ': ' + value),
@@ -226,6 +227,12 @@ async function renderAppWithPayload(marketType) {
     'dispatch must independently verify source bytes and Git blob IDs');
   assert.ok(dispatchWorkflow.includes('ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}'),
     'dispatch must receive the exact human-reviewed fixture snapshot');
+  assert.ok(dispatchWorkflow.includes('path: dispatch-source'),
+    'dispatch must separately checkout its validator from the workflow commit');
+  assert.ok(dispatchWorkflow.includes('APPROVED_DISPATCH_VALIDATOR_BLOB_SHA'),
+    'dispatch validator source must be pinned by Git blob SHA');
+  assert.ok(dispatchWorkflow.includes('python dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py'),
+    'dispatch must execute the validator from the workflow checkout, not the research checkout');
   const attestationStep = dispatchWorkflow.indexOf('validate_dispatch_attestation.py');
   const forecastStep = dispatchWorkflow.indexOf('prospective_shadow.py \\');
   assert.ok(attestationStep >= 0 && forecastStep > attestationStep,
