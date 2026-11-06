@@ -100,7 +100,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         options = {
             "maxiter": 2000,
             "ftol": 1e-12,
-            "gtol": 1e-6,
+            "gtol": 1e-5,
             "maxls": 50,
             "maxcor": 20,
         }
