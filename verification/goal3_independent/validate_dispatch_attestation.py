@@ -224,8 +224,11 @@ def self_test() -> None:
     }
     result = validate(attested, payload, now)
     assert result["match"] is True and len(result["snapshotFingerprintSha256"]) == 64
-    assert result["attestedSnapshot"]["reviewedAt"] != result["observedSnapshot"]["reviewedAt"], (
-        "review timestamp must be provenance, not part of fixture identity"
+    assert result["reviewedAt"] != result["validatedAt"], (
+        "human review time must remain distinct from runner validation time"
+    )
+    assert "reviewedAt" not in result["observedSnapshot"], (
+        "observed snapshot identity must not synthesize a human review timestamp"
     )
     expected_fingerprint = hashlib.sha256(canonical(snapshot_identity(result["observedSnapshot"]))).hexdigest()
     assert result["snapshotFingerprintSha256"] == expected_fingerprint
