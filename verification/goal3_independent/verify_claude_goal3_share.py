@@ -317,10 +317,21 @@ def main() -> None:
     aliases_path = ROOT / "data" / "team_aliases.json"
     csv_2025_path = ROOT / "verification" / "goal3_independent" / "2025.csv"
     h2025, h2026 = nv.load_data(str(history_path), str(aliases_path), str(csv_2025_path))
+    expected_input_blobs = {
+        "history.json": (history_path, "f5cc8c044758e45b1e679e4ce796e68b3f27a854"),
+        "team_aliases.json": (aliases_path, "5de22584524ff4c07ddac1d27f49afbbbc5f88ab"),
+        "2025.csv": (csv_2025_path, "847d324c5a6168d02efe328f8173418a951af720"),
+        "nested_validation.py": (nv_path, "7ac8f83da420fa577b45e9c5c021ce46387f584e"),
+        "goal3_outer_matches.csv": (gpt_csv_path, "56892251679b8774a9e1b7ccc4b5beb42e660e36"),
+    }
+    for label, (path, expected_blob) in expected_input_blobs.items():
+        actual_blob = git_blob_sha1(path.read_bytes())
+        if actual_blob != expected_blob:
+            raise AssertionError(f"GPT input blob mismatch for {label}: expected {expected_blob}, got {actual_blob}")
     if len(h2026) != 429:
         raise AssertionError(f"pinned GPT PR history expected 429 valid 2026 rows, got {len(h2026)}")
 
-    h2026_by_key = {(r["date"], r["comp"], r["home"], r["away"]): r for r in h2026}
+    h2026_by_key = {(r["date"], r.get("comp", r.get("competition")), r["home"], r["away"]): r for r in h2026}
     if len(h2026_by_key) != len(h2026):
         raise AssertionError("duplicate 2026 history match key")
     target_keys = sorted(match_groups.keys(), key=lambda x: (x[0], x[2], x[3]))
