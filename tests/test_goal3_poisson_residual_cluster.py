@@ -19,6 +19,8 @@ def synthetic_report():
         matches.append({
             "date": f"2026-10-{1 + (i % 17):02d}",
             "comp": ("J1", "J2", "J3")[i % 3],
+            "home": f"Home-{i}",
+            "away": f"Away-{i}",
             "hg": i % 4,
             "ag": (i + 1) % 4,
             "byK": by_k,
@@ -47,6 +49,32 @@ class PoissonResidualClusterAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             flatten_targets(report)
 
+
+    def test_rejects_duplicate_match_key(self):
+        report = synthetic_report()
+        duplicate = dict(report["allKPredictions"][0])
+        report["allKPredictions"][1]["date"] = duplicate["date"]
+        report["allKPredictions"][1]["comp"] = duplicate["comp"]
+        report["allKPredictions"][1]["home"] = duplicate["home"]
+        report["allKPredictions"][1]["away"] = duplicate["away"]
+        with self.assertRaisesRegex(ValueError, "duplicate match key"):
+            flatten_targets(report)
+
+    def test_rejects_invalid_competition_and_missing_team(self):
+        report = synthetic_report()
+        report["allKPredictions"][0]["comp"] = "J4"
+        with self.assertRaisesRegex(ValueError, "invalid competition"):
+            flatten_targets(report)
+        report = synthetic_report()
+        report["allKPredictions"][0]["home"] = ""
+        with self.assertRaisesRegex(ValueError, "missing home/away team"):
+            flatten_targets(report)
+
+    def test_rejects_boolean_goal_count(self):
+        report = synthetic_report()
+        report["allKPredictions"][0]["hg"] = True
+        with self.assertRaisesRegex(ValueError, "invalid observed goals"):
+            flatten_targets(report)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
