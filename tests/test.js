@@ -226,7 +226,7 @@ async function renderAppWithPayload(marketType) {
   );
   const validatorBytesForBlob = require('node:fs').readFileSync(validatorPathForBlob);
   const validatorGitBlobSha = require('node:crypto').createHash('sha1')
-    .update(Buffer.from('blob ' + validatorBytesForBlob.length + '\\0'))
+    .update(Buffer.from('blob ' + validatorBytesForBlob.length + '\0'))
     .update(validatorBytesForBlob)
     .digest('hex');
   assert.equal(pins.APPROVED_DISPATCH_VALIDATOR_BLOB_SHA, validatorGitBlobSha,
