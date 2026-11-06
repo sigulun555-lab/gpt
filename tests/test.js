@@ -232,6 +232,16 @@ async function renderAppWithPayload(marketType) {
     'fixture attestation must be validated before the forecast is generated');
   assert.ok(dispatchWorkflow.includes('artifacts/fixture-attestation.json'),
     'fixture attestation must be retained in the immutable artifact');
+  const validatorSource = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'),
+    'utf8'
+  );
+  assert.ok(validatorSource.includes('review is older than 10 minutes'),
+    'human review must expire after ten minutes');
+  assert.ok(validatorSource.includes('r"\\d{4}-\\d{2}-\\d{2}"'),
+    'fixture dates must use strict YYYY-MM-DD format');
+  assert.ok(validatorSource.includes('isinstance(fixture["number"], bool)'),
+    'boolean fixture numbers must not pass as integers');
   const {spawnSync} = require('node:child_process');
   const attestationTest = spawnSync(process.env.PYTHON || 'python3', [
     require('node:path').join(__dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'),
