@@ -64,6 +64,24 @@ class SelectionCalibrationBootstrapAuditTests(unittest.TestCase):
         self.assertEqual(first["fourCategoryCalibration"]["families"]["k6_by_league"]["comparisonCount"], 12)
         self.assertEqual(first["fourCategoryCalibration"]["families"]["global_32"]["comparisonCount"], 32)
 
+    def test_rejects_boolean_goal_counts_and_fold(self):
+        for field in ("hg", "ag"):
+            report = synthetic_report()
+            report["allKPredictions"][0][field] = True
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "invalid observed goals"):
+                flatten_targets(report)
+        report = synthetic_report()
+        report["allKPredictions"][0]["fold"] = True
+        with self.assertRaisesRegex(ValueError, "invalid fold"):
+            flatten_targets(report)
+
+    def test_rejects_blank_or_colliding_team_names(self):
+        for field, value in (("home", " "), ("away", ""), ("away", "home-0")):
+            report = synthetic_report()
+            report["allKPredictions"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                flatten_targets(report)
+
     def test_logloss_uses_protocol_probability_floor(self):
         p = np.asarray([1e-13, 0.2, 0.3, 0.5 - 1e-13], dtype=float)
         row = {
