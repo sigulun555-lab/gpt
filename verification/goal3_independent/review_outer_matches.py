@@ -126,13 +126,19 @@ def source_audit(root):
         if not isinstance(r.get("date"),str) or not r["date"].startswith("2026-"):
             raise ValueError(f"Non-2026 history date: {r.get('date')!r}")
         if r.get("competition") not in LEAGUES: raise ValueError("Unexpected history league")
-        if not isinstance(r.get("home_goals"),int) or not isinstance(r.get("away_goals"),int) or min(r["home_goals"],r["away_goals"])<0:
+        if type(r.get("home_goals")) is not int or type(r.get("away_goals")) is not int or min(r["home_goals"],r["away_goals"])<0:
             raise ValueError("Invalid history score")
         if not r.get("fetchedAt"): raise ValueError("Missing fetchedAt")
-        key=(r["date"],r["competition"],r["home"],r["away"])
+        home, away = r.get("home"), r.get("away")
+        if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
+            raise ValueError("Invalid history team name")
+        home, away = home.strip(), away.strip()
+        if home == away:
+            raise ValueError("Same team listed as home and away in history")
+        key=(r["date"],r["competition"],home,away)
         if key in keys: dup+=1
         keys.add(key)
-        for t in (r["home"],r["away"]):
+        for t in (home,away):
             n=unicodedata.normalize("NFKC",str(t)).strip()
             if n not in aliases: unknown.add(n)
             c=canon(t); names.add(c); apps[c]+=1; source_names["2026"][c].add(n)
