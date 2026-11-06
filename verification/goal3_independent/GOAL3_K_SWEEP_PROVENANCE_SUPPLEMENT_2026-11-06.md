@@ -180,3 +180,23 @@ The old 2026-11-04 report's statement that the overall Validate job was red beca
 - No official-result scoring or adoption claim is made from the existing forecast-only round-1670 artifact.
 
 No production model, main branch, market weight, existing prediction log, or existing shadow artifact was modified. No PR was merged and no shadow dispatch was run.
+
+
+## Subsequent research-only history-loader hardening (2026-11-07)
+
+The earlier round-1670 research forecast remains pinned to the original
+`nested_validation.py` Git blob `7ac8f83da420fa577b45e9c5c021ce46387f584e` in toto-lab draft PR #87. It is
+not retroactively relabelled.
+
+This PR #20 research branch now uses
+`nested_validation.py` blob `2b364ae31673b1f7471958084c416ca1ad8901f8`. The only model-path change is
+fail-closed input validation in `load_data`: boolean goal counts (Python
+`bool` is an `int` subclass), negative or partial score pairs, missing team
+names, and home/away names that canonicalize to the same team are rejected.
+Fully unscored rows with both goal fields null remain excluded as before.
+
+The fixed 429-row history snapshot contains no malformed scored J1/J2/J3
+rows, so this guard does not change the training cohort or fitted predictions
+for that snapshot. The pinned round-1666 parity and Claude share-verification
+scripts were updated to expect the new loader blob; their CI reruns are
+required before the updated parity claim is considered verified.
