@@ -357,6 +357,43 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             1e-12,
         )
 
+    def test_exact_hessian_matches_finite_difference_in_clipped_regions(self):
+        prior = self.synthetic_matches()
+        teams, idx, xh, xa, hg, ag = audit.build_design(prior)
+        n = len(teams)
+        rng = np.random.default_rng(97531)
+        for intercept in (20.5, -20.5):
+            theta = rng.normal(0.0, 0.005, size=2 + 2 * n)
+            theta[0] = intercept
+            theta[1] = 0.0
+            raw_home = xh @ theta
+            raw_away = xa @ theta
+            if intercept > 0:
+                self.assertTrue(np.all(raw_home > 20.0))
+                self.assertTrue(np.all(raw_away > 20.0))
+            else:
+                self.assertTrue(np.all(raw_home < -20.0))
+                self.assertTrue(np.all(raw_away < -20.0))
+
+            analytic = independent_exact_hessian(theta, xh, xa, 6.0, n)
+            numeric = np.zeros_like(analytic)
+            eps = 1e-6
+            for j in range(theta.size):
+                plus, minus = theta.copy(), theta.copy()
+                plus[j] += eps
+                minus[j] -= eps
+                grad_plus = audit.independent_objective_gradient(
+                    plus, xh, xa, hg, ag, 6.0, n
+                )[1]
+                grad_minus = audit.independent_objective_gradient(
+                    minus, xh, xa, hg, ag, 6.0, n
+                )[1]
+                numeric[:, j] = (grad_plus - grad_minus) / (2.0 * eps)
+            self.assertLess(
+                float(np.max(np.abs(analytic - numeric))),
+                2e-5,
+            )
+
     def test_exact_newton_reaches_gradient_tolerance_for_all_34_fits(self):
         """Independent exact-Hessian solver sensitivity; read-only on frozen data."""
         aliases_doc = json.loads(
