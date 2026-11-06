@@ -43,13 +43,16 @@ def flatten_targets(report: dict) -> tuple[list[dict], list[str]]:
     seen_matches = set()
     folds_by_date = defaultdict(set)
     for match in matches:
+        if not isinstance(match, dict):
+            raise ValueError("all-k match entry must be an object")
         date = match.get("date")
         league = match.get("comp")
         home, away = match.get("home"), match.get("away")
         if not isinstance(date, str) or league not in LEAGUES:
             raise ValueError("invalid date or league")
-        if not isinstance(home, str) or not home or not isinstance(away, str) or not away:
+        if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
             raise ValueError("missing team name")
+        home, away = home.strip(), away.strip()
         if home == away:
             raise ValueError("same team listed as home and away")
         match_key = (date, league, home, away)
@@ -58,7 +61,7 @@ def flatten_targets(report: dict) -> tuple[list[dict], list[str]]:
         seen_matches.add(match_key)
 
         fold = match.get("fold")
-        if not isinstance(fold, int):
+        if type(fold) is not int or fold not in (1, 2, 3):
             raise ValueError("invalid fold")
         folds_by_date[date].add(fold)
 
@@ -67,7 +70,7 @@ def flatten_targets(report: dict) -> tuple[list[dict], list[str]]:
             raise ValueError("missing byK predictions")
         for side, goal_key in (("home", "hg"), ("away", "ag")):
             goals = match.get(goal_key)
-            if not isinstance(goals, int) or goals < 0:
+            if type(goals) is not int or goals < 0:
                 raise ValueError("invalid observed goals")
             probs_by_k = {}
             for k in K_VALUES:
