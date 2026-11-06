@@ -184,8 +184,11 @@ def main() -> None:
                 raise RuntimeError(f"saved reference order/side mismatch at target {i * 2 + side_index}")
             if not np.isfinite(gpt_probs).all() or not np.isfinite(claude_probs).all():
                 raise RuntimeError("non-finite probabilities")
-            if abs(float(gpt_probs.sum()) - 1.0) > 1e-9 or abs(float(claude_probs.sum()) - 1.0) > 1e-9:
-                raise RuntimeError("probability vector failed normalization guard")
+            if abs(float(gpt_probs.sum()) - 1.0) > 1e-9:
+                raise RuntimeError("GPT full-precision probability vector failed normalization guard")
+            # Claude's archived prediction output is rounded independently to 4dp.
+            if abs(float(claude_probs.sum()) - 1.0) > 0.00025:
+                raise RuntimeError("Claude rounded probability vector exceeds 4dp rounding tolerance")
 
             saved_diff = float(np.max(np.abs(claude_probs - ref_probs)))
             impl_diff = float(np.max(np.abs(gpt_probs - claude_probs)))
