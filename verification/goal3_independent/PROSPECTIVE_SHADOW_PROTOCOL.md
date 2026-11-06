@@ -42,6 +42,7 @@ For target i and category c in {0,1,2,3}, let p(i,c) be the forecast probability
 - **Primary resampling unit:** the official GOAL3 round. Resample complete rounds with replacement; retain all three matches and all six team-side targets in each sampled round. Calculate paired k=6 minus k=10 differences inside each replicate.
 - **Primary bootstrap:** 10,000 replicates, NumPy PCG64, seed 20261105, two-sided 95% percentile interval, NumPy linear quantile definition. Use the same sampled round indices for Brier and Log Loss.
 - **Sensitivity analysis:** if fixtures in the included sample span multiple calendar dates, also report a date-cluster bootstrap that retains all matches and both team-sides on each sampled date. Keep this sensitivity result separate from the primary round-cluster result.
+- **Retrospective-only diagnostics:** The fixed 236-match / 472 team-side / 17-date all-k cohort and any IID target-date, calendar-window, or crossed date/team bootstrap derived from it are exploratory sensitivity analyses only. They do not count toward the prospective 10-round / 30-match or 20-round / 60-match floors, do not replace the primary complete-round bootstrap, and cannot satisfy an adoption gate. IID date resampling does not preserve temporal dependence.
 - Repeated teams across different rounds are not separately clustered. This limitation must be stated; the bootstrap is not proof of independence across rounds.
 
 ## League non-inferiority guard
