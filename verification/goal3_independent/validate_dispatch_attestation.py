@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -64,14 +65,16 @@ def normalized_attestation(value: Any) -> dict[str, Any]:
     for index, fixture in enumerate(fixtures, start=1):
         if not isinstance(fixture, dict) or set(fixture) != FIXTURE_KEYS:
             raise AttestationError(f"fixture {index} must contain exactly number/date/home/away")
-        if fixture["number"] != index:
-            raise AttestationError("attested fixture numbers must be exactly 1, 2, 3 in order")
+        if isinstance(fixture["number"], bool) or not isinstance(fixture["number"], int) or fixture["number"] != index:
+            raise AttestationError("attested fixture numbers must be integer values 1, 2, 3 in order")
         if not all(isinstance(fixture[k], str) and fixture[k].strip() for k in ("date", "home", "away")):
             raise AttestationError(f"fixture {index} date/home/away must be non-empty strings")
+        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", fixture["date"]):
+            raise AttestationError(f"fixture {index} date must be YYYY-MM-DD")
         try:
             date.fromisoformat(fixture["date"])
         except ValueError as exc:
-            raise AttestationError(f"fixture {index} date must be YYYY-MM-DD") from exc
+            raise AttestationError(f"fixture {index} date is not a real calendar date") from exc
         if fixture["home"] == fixture["away"]:
             raise AttestationError(f"fixture {index} home and away must differ")
         normalized.append({
@@ -121,7 +124,8 @@ def observed_snapshot(payload: Any, now: datetime) -> dict[str, Any]:
     for index, row in enumerate(rows, start=1):
         if not isinstance(row, dict):
             raise AttestationError(f"prediction fixture {index} is not an object")
-        if row.get("number") != index or row.get("marketType") != "totoGOAL3":
+        if (isinstance(row.get("number"), bool) or not isinstance(row.get("number"), int)
+            or row.get("number") != index or row.get("marketType") != "totoGOAL3"):
             raise AttestationError(f"prediction fixture {index} numbering/marketType mismatch")
         if row.get("totoRound") != payload["round"] or row.get("totoTargetConfirmed") is not True:
             raise AttestationError(f"prediction fixture {index} round/confirmation mismatch")
