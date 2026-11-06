@@ -17,6 +17,12 @@ audit = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = audit
 spec.loader.exec_module(audit)
 
+NESTED_SCRIPT = ROOT / "verification" / "goal3_independent" / "nested_validation.py"
+nested_spec = importlib.util.spec_from_file_location("goal3_nested_validation", NESTED_SCRIPT)
+nested_validation = importlib.util.module_from_spec(nested_spec)
+sys.modules[nested_spec.name] = nested_validation
+nested_spec.loader.exec_module(nested_validation)
+
 REVIEW_SCRIPT = ROOT / "verification" / "goal3_independent" / "review_outer_matches.py"
 review_spec = importlib.util.spec_from_file_location("review_outer_matches", REVIEW_SCRIPT)
 review = importlib.util.module_from_spec(review_spec)
@@ -604,6 +610,83 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "fourCategoryCalibration": calibration,
             "poissonResidualRMS": residuals,
         }, ensure_ascii=False, indent=2))
+
+
+class NestedValidationHistoryInputTests(unittest.TestCase):
+    @staticmethod
+    def _row(**overrides):
+        row = {
+            "date": "2026-09-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        row.update(overrides)
+        return row
+
+    def _load(self, history_rows):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_path = root / "history.json"
+            aliases_path = root / "aliases.json"
+            csv_path = root / "2025.csv"
+            history_path.write_text(
+                json.dumps({"history": history_rows}), encoding="utf-8"
+            )
+            aliases_path.write_text(
+                json.dumps({"aliases": {}}), encoding="utf-8"
+            )
+            csv_path.write_text(
+                "date,homeTeam,awayTeam,score\\n2025/01/01,A,B,1-0\\n",
+                encoding="utf-8",
+            )
+            return nested_validation.load_data(
+                str(history_path), str(aliases_path), str(csv_path)
+            )
+
+    def test_rejects_boolean_goal_counts(self):
+        for field in ("home_goals", "away_goals"):
+            with self.subTest(field=field), self.assertRaisesRegex(
+                ValueError, "invalid scored goal counts"
+            ):
+                self._load([self._row(**{field: True})])
+
+    def test_rejects_negative_and_partial_goal_counts(self):
+        for changes in (
+            {"home_goals": -1},
+            {"away_goals": -1},
+            {"home_goals": 1, "away_goals": None},
+        ):
+            with self.subTest(changes=changes), self.assertRaisesRegex(
+                ValueError, "invalid scored goal counts"
+            ):
+                self._load([self._row(**changes)])
+
+    def test_rejects_missing_or_colliding_team_names(self):
+        for changes in (
+            {"home": ""},
+            {"away": " "},
+            {"away": "A"},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                self._load([self._row(**changes)])
+
+    def test_skips_fully_unscored_rows(self):
+        history = [
+            self._row(),
+            self._row(
+                date="2026-09-02",
+                home="C",
+                away="D",
+                home_goals=None,
+                away_goals=None,
+            ),
+        ]
+        _, scored = self._load(history)
+        self.assertEqual(len(scored), 1)
+        self.assertEqual((scored[0]["hg"], scored[0]["ag"]), (1, 0))
 
 
 if __name__ == "__main__":
