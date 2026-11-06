@@ -36,7 +36,7 @@ jobs:
       - name: Upload read-only parity report
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-round1666-implementation-parity-\${{ github.sha }}
+          name: goal3-round1666-implementation-parity-${{ github.sha }}
           path: verification/goal3_independent/results/round1666_implementation_parity.json
           if-no-files-found: error
           retention-days: 30
