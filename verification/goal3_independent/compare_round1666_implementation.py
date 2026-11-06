@@ -176,7 +176,7 @@ def main() -> None:
             c_row = claude_rows[i * 2 + side_index]
             ref_row = reference_rows[i * 2 + side_index]
             gpt_probs = np.asarray(gpt_home if side == "home" else gpt_away, dtype=float)
-            claude_probs = np.asarray([float(c_row[f"p{cat}"]) for cat in range(4)], dtype=float)
+            claude_probs = np.asarray([float(c_row["p0"]), float(c_row["p1"]), float(c_row["p2"]), float(c_row["p3plus"])], dtype=float)
             ref_probs = np.asarray([float(ref_row["probabilities"][key]) for key in PROB_KEYS], dtype=float)
             if c_row.get("side") != side:
                 raise RuntimeError(f"Claude output order/side mismatch at target {i * 2 + side_index}")
