@@ -40,7 +40,7 @@ EXPECTED_GIT_BLOBS = {
     "claude_script": "558d4ea89088c19409a56e45ca6d9d6e7dbb87d5",
     "claude_instrumented_script": "7d05c54836d203c0aef60a0459f592a7613bae02",
     "reference_predictions": "9c58f1ada8500f0d19c1e93a1017151f2995083e",
-    "gpt_nested_validation": "7ac8f83da420fa577b45e9c5c021ce46387f584e",
+    "gpt_nested_validation": "2b364ae31673b1f7471958084c416ca1ad8901f8",
     "team_aliases": "5de22584524ff4c07ddac1d27f49afbbbc5f88ab",
 }
 HISTORY_SOURCE_COMMIT = "988700300b65784e56e18adcf729a06aa833a2c8"
