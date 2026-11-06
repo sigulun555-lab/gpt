@@ -371,7 +371,7 @@ def main() -> None:
                 row_index = next(i for i, c in enumerate(compact_rows)
                                  if (c["date"], c["comp"], c["home"], c["away"], c["side"]) == (*key, side))
                 target = target_rows[row_index]
-                if int(hist_match["hg"]) != int(target["g"]) if side == "home" else int(hist_match["ag"]) != int(target["g"]):
+                if int(hist_match["hg"] if side == "home" else hist_match["ag"]) != int(target["g"]):
                     raise AssertionError(f"target goals differ from pinned history for {key} {side}")
                 p = side_probs[side]
                 max_v05_diff = max(max_v05_diff, max(abs(float(a) - float(b)) for a, b in zip(p, target["P"]["6"])))
