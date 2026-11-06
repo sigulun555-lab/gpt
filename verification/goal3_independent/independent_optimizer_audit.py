@@ -60,8 +60,20 @@ def load_history(path: Path, aliases: dict[str, str]):
             raise ValueError(f"non-2026 history row: {date!r}")
         if comp not in LEAGUES:
             continue
+        if isinstance(hg, bool) or isinstance(ag, bool):
+            raise ValueError(f"boolean goal count in 2026 history row: {raw!r}")
         if not isinstance(hg, int) or not isinstance(ag, int) or hg < 0 or ag < 0:
             continue
+        home_raw, away_raw = raw.get("home"), raw.get("away")
+        if (
+            not isinstance(home_raw, str) or not home_raw.strip()
+            or not isinstance(away_raw, str) or not away_raw.strip()
+        ):
+            raise ValueError(f"invalid home/away team name in 2026 history row: {raw!r}")
+        home = canonical(home_raw, aliases)
+        away = canonical(away_raw, aliases)
+        if not home or not away or home == away:
+            raise ValueError(f"canonical home/away team names collide: {home!r}, {away!r}")
         fetched = raw.get("fetchedAt")
         if fetched:
             fetched_at.add(str(fetched))
@@ -70,8 +82,8 @@ def load_history(path: Path, aliases: dict[str, str]):
         rows.append({
             "date": date,
             "comp": comp,
-            "home": canonical(raw["home"], aliases),
-            "away": canonical(raw["away"], aliases),
+            "home": home,
+            "away": away,
             "hg": int(hg),
             "ag": int(ag),
         })
