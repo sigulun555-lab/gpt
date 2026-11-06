@@ -73,11 +73,12 @@ k=6 remains the most frequent winner among the displayed k values, but its frequ
 - 32/32 simultaneous 95% bands include zero.
 - No calibration correction is justified by this sensitivity.
 
-### Poisson Pearson residual dispersion (date × own team)
+### Capped-category Poisson-like residual dispersion (date × own team)
 
 - Global max-|t| critical value: \`2.6138047080\`.
 - 4/8 simultaneous bands include the theoretical reference value 1.
 - ALL and J2 remain below 1 in this exploratory crossed-cluster analysis; J1 and J3 bands include 1.
+- **Top-coding caveat:** the 4-category outcome maps every observed score of 3 or more to `y=3`. This sensitivity therefore uses `y=min(goals,3)` with `λ=-log(p0)` in `(y−λ)^2/λ`; it is a capped-category Pearson-like diagnostic, not the ordinary uncensored Poisson count residual. Top-coding can mechanically lower the dispersion estimate. The separate raw-goal residual audit uses uncapped observed goals (ALL: k=6 0.9358, k=10 0.9277), so its estimates are not directly comparable with this capped sensitivity (ALL: k=6 0.7288, k=10 0.7158). Neither analysis is a formal goodness-of-fit test.
 - This remains a descriptive residual diagnostic, not a formal goodness-of-fit test or a basis for changing the model distribution.
 
 ## Reproduction
