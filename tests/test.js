@@ -231,6 +231,8 @@ async function renderAppWithPayload(marketType) {
     'dispatch must separately checkout its validator from the workflow commit');
   assert.ok(dispatchWorkflow.includes('APPROVED_DISPATCH_VALIDATOR_BLOB_SHA'),
     'dispatch validator source must be pinned by Git blob SHA');
+  assert.ok(dispatchWorkflow.includes('test "$DISPATCH_SOURCE_SHA" = "$GITHUB_SHA"'),
+    'dispatch validator checkout must match the workflow commit SHA');
   assert.ok(dispatchWorkflow.includes('python dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py'),
     'dispatch must execute the validator from the workflow checkout, not the research checkout');
   const attestationStep = dispatchWorkflow.indexOf('validate_dispatch_attestation.py');
