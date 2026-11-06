@@ -194,6 +194,21 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
 
         gradients = [item["gradientInfinityNorm"] for item in diagnostics]
         iterations = [item["iterations"] for item in diagnostics]
+        actual = np.asarray([row["actual"] for row in rows], dtype=int)
+        p6 = np.asarray(predictions[6], dtype=float)
+        p10 = np.asarray(predictions[10], dtype=float)
+        strict_metrics = {
+            "k6": audit.score(p6, actual),
+            "k10": audit.score(p10, actual),
+        }
+        strict_metrics["differenceK6MinusK10"] = {
+            key: strict_metrics["k6"][key] - strict_metrics["k10"][key]
+            for key in ("brier", "logloss", "accuracy")
+        }
+        strict_residuals = {
+            "k6": audit.poisson_residuals(rows, p6, lambda row: True),
+            "k10": audit.poisson_residuals(rows, p10, lambda row: True),
+        }
         summary = {
             "strictOptions": options,
             "fitCount": len(diagnostics),
@@ -206,6 +221,8 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "gradientToleranceMetCount": sum(g <= options["gtol"] for g in gradients),
             "gradientToleranceNotMetCount": sum(g > options["gtol"] for g in gradients),
             "maxProbabilityAbsErrorVsFrozenCsv": max_errors,
+            "strictFitMetrics": strict_metrics,
+            "strictFitPoissonResidualRMS": strict_residuals,
             "interpretation": (
                 "Strict-ftol refits are a sensitivity diagnostic. "
                 "Do not treat SciPy success as gradient convergence or require "
