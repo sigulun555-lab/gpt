@@ -36,6 +36,20 @@ class LeagueK6K10AuditTests(unittest.TestCase):
         self.assertEqual(set(first["byScope"]), {"ALL", "J1", "J2", "J3"})
         self.assertEqual(len(first["calibration"]["J1"]["6.0"]), 4)
 
+    def test_rejects_boolean_goal_counts(self):
+        for field in ("hg", "ag"):
+            report = synthetic()
+            report["allKPredictions"][0][field] = True
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "invalid observed goals"):
+                build_targets(report)
+
+    def test_rejects_blank_or_colliding_team_names(self):
+        for field, value in (("home", " "), ("away", ""), ("away", "home-0")):
+            report = synthetic()
+            report["allKPredictions"][0][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                build_targets(report)
+
     def test_rejects_invalid_probability_sum(self):
         report = synthetic()
         report["allKPredictions"][0]["byK"]["6.0"]["home"] = [0.5, 0.5, 0.5, 0.5]
