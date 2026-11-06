@@ -472,7 +472,8 @@ def main() -> None:
         "four_category_calibration": calibration,
         "k_stability": {
             "date_loo": {**date_loo, "n_omissions": len(dates)},
-            "team_match_loo": {**team_match_loo, "n_omissions": len(teams), "definition": "remove both team-side rows from every match involving the omitted team"},\n            "team_side_loo": {**team_side_loo, "n_omissions": len(teams), "definition": "remove only target rows whose predicted team is the omitted team"},
+            "team_match_loo": {**team_match_loo, "n_omissions": len(teams), "definition": "remove both team-side rows from every match involving the omitted team"},
+            "team_side_loo": {**team_side_loo, "n_omissions": len(teams), "definition": "remove only target rows whose predicted team is the omitted team"},
         },
         "fixed_k6_minus_k10_bootstrap": {
             "reps": 10_000,
