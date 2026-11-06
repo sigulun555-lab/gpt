@@ -2,6 +2,7 @@ import importlib.util
 import json
 import math
 import sys
+import tempfile
 import unittest
 from collections import defaultdict
 from pathlib import Path
@@ -118,6 +119,48 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 "ag": ag,
             })
         return rows
+
+    def test_history_loader_rejects_boolean_goal_counts(self):
+        base = {
+            "date": "2026-01-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        for field in ("home_goals", "away_goals"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp_dir:
+                row = dict(base)
+                row[field] = True
+                path = Path(temp_dir) / "history.json"
+                path.write_text(json.dumps({"history": [row]}), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "boolean goal count"):
+                    audit.load_history(path, {})
+
+    def test_history_loader_rejects_invalid_or_colliding_team_names(self):
+        base = {
+            "date": "2026-01-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        cases = [
+            ({"home": ""}, {}),
+            ({"away": " "}, {}),
+            ({"home": None}, {}),
+            ({}, {"B": "A"}),
+        ]
+        for changes, aliases in cases:
+            with self.subTest(changes=changes, aliases=aliases), tempfile.TemporaryDirectory() as temp_dir:
+                row = dict(base)
+                row.update(changes)
+                path = Path(temp_dir) / "history.json"
+                path.write_text(json.dumps({"history": [row]}), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "invalid home/away team name|canonical home/away team names collide"):
+                    audit.load_history(path, aliases)
 
     def test_dense_gradient_matches_central_finite_difference(self):
         prior = self.synthetic_matches()
