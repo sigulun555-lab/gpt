@@ -65,6 +65,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          DISPATCH_SOURCE_SHA="$(git -C dispatch-source rev-parse HEAD)"
+          test "$DISPATCH_SOURCE_SHA" = "$GITHUB_SHA"
           ACTUAL_VALIDATOR_BLOB="$(git -C dispatch-source rev-parse HEAD:verification/goal3_independent/validate_dispatch_attestation.py)"
           test "$ACTUAL_VALIDATOR_BLOB" = "$APPROVED_DISPATCH_VALIDATOR_BLOB_SHA"
 
