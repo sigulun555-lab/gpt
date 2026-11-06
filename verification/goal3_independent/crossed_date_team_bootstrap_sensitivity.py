@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+from datetime import date
 import numpy as np
 
 K_VALUES = (0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0,
@@ -169,6 +170,73 @@ def _bootstrap_scores(arrays, scores, reps, seed, mode, chunk=500):
     return out
 
 
+
+def _calendar_moving_block_bootstrap(arrays, scores, reps, seed, block_length, chunk=500):
+    parsed = [date.fromisoformat(value) for value in arrays["dates"]]
+    first, last = min(parsed), max(parsed)
+    n_calendar_days = (last - first).days + 1
+    date_offsets = np.asarray([(value - first).days for value in parsed], dtype=np.int16)
+    block_count = math.ceil(n_calendar_days / block_length)
+    rng = np.random.Generator(np.random.PCG64(seed))
+    nk = scores["brier"].shape[1]
+    sims = {metric: np.empty((reps, nk), dtype=float) for metric in scores}
+    min_mass = math.inf
+    for start in range(0, reps, chunk):
+        count = min(chunk, reps - start)
+        starts = rng.integers(0, n_calendar_days, size=(count, block_count))
+        day_counts = np.zeros((count, n_calendar_days), dtype=np.int16)
+        for block in range(block_count):
+            for offset in range(block_length):
+                column = block * block_length + offset
+                if column < n_calendar_days:
+                    day_counts[np.arange(count), (starts[:, block] + offset) % n_calendar_days] += 1
+        weights = day_counts[:, date_offsets[arrays["date_ids"]]].astype(float)
+        denom = weights.sum(axis=1)
+        if np.any(denom <= 0):
+            raise ValueError(f"empty calendar-block bootstrap replicate for {block_length} days")
+        min_mass = min(min_mass, float(denom.min()))
+        for metric, values in scores.items():
+            sims[metric][start:start + count] = (weights @ values) / denom[:, None]
+    point = {metric: values.mean(axis=0) for metric, values in scores.items()}
+    i6, i10 = K_VALUES.index(6.0), K_VALUES.index(10.0)
+    out = {"blockLengthCalendarDays": block_length, "calendarSpanDays": n_calendar_days,
+           "dateRange": [first.isoformat(), last.isoformat()], "rng": "NumPy PCG64",
+           "seed": seed, "replicates": reps, "quantile": "linear percentile",
+           "minimumWeightedTargetMass": min_mass, "k6MinusK10": {}, "bestKFrequency": {}}
+    for metric, values in sims.items():
+        delta = values[:, i6] - values[:, i10]
+        winner = values.argmax(axis=1) if metric == "accuracy" else values.argmin(axis=1)
+        out["k6MinusK10"][metric] = {
+            "pointDifference": float(point[metric][i6] - point[metric][i10]),
+            "percentile95CI": [float(x) for x in np.quantile(delta, [0.025, 0.975], method="linear")],
+        }
+        out["bestKFrequency"][metric] = {
+            f"{k:g}": float(np.mean(winner == i)) for i, k in enumerate(K_VALUES)
+        }
+    contrasts, meta = [], []
+    for metric in ("brier", "logloss"):
+        for ki, k in enumerate(K_VALUES):
+            if k == 10.0:
+                continue
+            delta = sims[metric][:, ki] - sims[metric][:, i10]
+            observed = float(point[metric][ki] - point[metric][i10])
+            se = float(delta.std(ddof=1))
+            if not np.isfinite(se) or se <= 0:
+                raise ValueError(f"invalid calendar-bootstrap SE for {metric}, k={k:g}")
+            contrasts.append((delta - observed) / se)
+            meta.append((metric, k, observed, se))
+    critical = float(np.quantile(np.max(np.abs(np.column_stack(contrasts)), axis=1),
+                                 0.95, method="linear"))
+    out["selectionAdjusted"] = {"family": "15 non-reference k contrasts x 2 primary metrics against k=10",
+                                "maxAbsTCriticalValue": critical, "k6MinusK10": {}}
+    for metric, k, observed, se in meta:
+        if k == 6.0:
+            out["selectionAdjusted"]["k6MinusK10"][metric] = {
+                "differenceK6MinusK10": observed,
+                "simultaneous95Band": [observed - critical * se, observed + critical * se],
+            }
+    return out
+
 def _calibration_and_poisson(arrays, reps, seed, chunk=500):
     rng = np.random.Generator(np.random.PCG64(seed))
     y, p, leagues = arrays["y"], arrays["p"], arrays["leagues"]
@@ -258,6 +326,8 @@ def audit(report, replicates=50000, seed=20261106, strict=True):
     scores = _scores(arrays)
     date_team = _bootstrap_scores(arrays, scores, replicates, seed, "date_x_target_team")
     date_dyad = _bootstrap_scores(arrays, scores, replicates, seed, "date_x_home_away_team_product")
+    calendar_7 = _calendar_moving_block_bootstrap(arrays, scores, replicates, seed, 7)
+    calendar_14 = _calendar_moving_block_bootstrap(arrays, scores, replicates, seed, 14)
     cal_pois = _calibration_and_poisson(arrays, replicates, seed)
     return {
         "experiment": "GOAL3 exploratory crossed date/team-cluster sensitivity; not prospective adoption evidence",
@@ -270,6 +340,7 @@ def audit(report, replicates=50000, seed=20261106, strict=True):
         },
         "crossedBootstrap": {"date_x_target_team": date_team,
                              "date_x_home_away_team_product": date_dyad},
+        "calendarMovingBlockBootstrap": {"7_day": calendar_7, "14_day": calendar_14},
         "dateTeamCalibrationAndPoisson": cal_pois,
         "limitations": [
             "Exploratory sensitivity only; not the pre-registered prospective round-cluster bootstrap.",
