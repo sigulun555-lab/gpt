@@ -272,14 +272,23 @@ def main() -> None:
         date_loo["k6_best_brier"] += int(min(k_keys, key=lambda k: m[k]["brier"]) == "6")
         date_loo["k6_best_logloss"] += int(min(k_keys, key=lambda k: m[k]["logloss"]) == "6")
     teams = sorted({r["target_team"] for r in target_rows})
-    team_loo = {"brier_negative": 0, "logloss_negative": 0, "k6_best_brier": 0, "k6_best_logloss": 0}
+    team_side_loo = {"brier_negative": 0, "logloss_negative": 0, "k6_best_brier": 0, "k6_best_logloss": 0}
+    team_match_loo = {"brier_negative": 0, "logloss_negative": 0, "k6_best_brier": 0, "k6_best_logloss": 0}
     for team in teams:
-        ix = [i for i, r in enumerate(target_rows) if r["target_team"] != team]
-        m = {k: mean_metrics(target_rows, k, ix) for k in k_keys}
-        team_loo["brier_negative"] += int(m["6"]["brier"] < m["10"]["brier"])
-        team_loo["logloss_negative"] += int(m["6"]["logloss"] < m["10"]["logloss"])
-        team_loo["k6_best_brier"] += int(min(k_keys, key=lambda k: m[k]["brier"]) == "6")
-        team_loo["k6_best_logloss"] += int(min(k_keys, key=lambda k: m[k]["logloss"]) == "6")
+        # Target-team LOO removes only the omitted team's own team-side rows.
+        ix_side = [i for i, r in enumerate(target_rows) if r["target_team"] != team]
+        m_side = {k: mean_metrics(target_rows, k, ix_side) for k in k_keys}
+        team_side_loo["brier_negative"] += int(m_side["6"]["brier"] < m_side["10"]["brier"])
+        team_side_loo["logloss_negative"] += int(m_side["6"]["logloss"] < m_side["10"]["logloss"])
+        team_side_loo["k6_best_brier"] += int(min(k_keys, key=lambda k: m_side[k]["brier"]) == "6")
+        team_side_loo["k6_best_logloss"] += int(min(k_keys, key=lambda k: m_side[k]["logloss"]) == "6")
+        # Match-involvement LOO removes both target rows from every match involving the team.
+        ix_match = [i for i, r in enumerate(target_rows) if team not in (r["home"], r["away"])]
+        m_match = {k: mean_metrics(target_rows, k, ix_match) for k in k_keys}
+        team_match_loo["brier_negative"] += int(m_match["6"]["brier"] < m_match["10"]["brier"])
+        team_match_loo["logloss_negative"] += int(m_match["6"]["logloss"] < m_match["10"]["logloss"])
+        team_match_loo["k6_best_brier"] += int(min(k_keys, key=lambda k: m_match[k]["brier"]) == "6")
+        team_match_loo["k6_best_logloss"] += int(min(k_keys, key=lambda k: m_match[k]["logloss"]) == "6")
 
     # Conditional Pearson dispersion from the Poisson mean implied by p(0), separate from raw var/mean.
     pearson = {}
@@ -371,6 +380,40 @@ def main() -> None:
     if max_v05_diff > 1e-8 or max_v05_csv_diff > 5.1e-7:
         raise AssertionError(f"Claude v0.5 k=6 parity failed: max JSON diff={max_v05_diff}, CSV diff={max_v05_csv_diff}")
 
+    # Also exercise the version script's own CLI loader, not only test_versions.py's
+    # injected canonicalized rows. Its labels are raw source names and its sort key
+    # differs from nested_validation; verify that this path remains equivalent here.
+    raw_version_rows = version_module.load_rows(str(history_path))
+    raw_by_key = {}
+    canonical_to_raw_names: dict[str, set[str]] = defaultdict(set)
+    for r in raw_version_rows:
+        ch = nv.canonical(r["home"], aliases)
+        ca = nv.canonical(r["away"], aliases)
+        canonical_to_raw_names[ch].add(r["home"])
+        canonical_to_raw_names[ca].add(r["away"])
+        key = (r["date"], r["competition"], ch, ca)
+        if key in raw_by_key:
+            raise AssertionError(f"duplicate raw-loader canonicalized key: {key}")
+        raw_by_key[key] = r
+    alias_collision_groups = {k: sorted(v) for k, v in canonical_to_raw_names.items() if len(v) > 1}
+    if len(raw_version_rows) != len(h2026) or set(raw_by_key) != set(h2026_by_key):
+        raise AssertionError("goal3_versions.load_rows population differs from pinned nested_validation 2026 history")
+    raw_loader_max_abs_diff = 0.0
+    for d in dates:
+        prior_raw = [r for r in raw_version_rows if r["date"] < d]
+        raw_params = version_module.fit(prior_raw, 6.0)
+        for key in [x for x in target_keys if x[0] == d]:
+            raw_match = raw_by_key[key]
+            raw_home_p, raw_away_p = version_module.predict_side(raw_params, raw_match["home"], raw_match["away"])
+            for side, probs in (("home", raw_home_p), ("away", raw_away_p)):
+                row_index = next(i for i, cc in enumerate(compact_rows)
+                                 if (cc["date"], cc["comp"], cc["home"], cc["away"], cc["side"]) == (*key, side))
+                ref = target_rows[row_index]["P"]["6"]
+                raw_loader_max_abs_diff = max(raw_loader_max_abs_diff,
+                                              max(abs(float(a) - float(b)) for a, b in zip(probs, ref)))
+    if raw_loader_max_abs_diff > 1e-8:
+        raise AssertionError(f"goal3_versions.load_rows CLI-path parity exceeded 1e-8: {raw_loader_max_abs_diff}")
+
     # Review test portability and what the existing v0/v1 assertion actually tests.
     version_test_text = version_bytes["test_versions.py"].decode("utf-8")
     hardcoded_paths = [line.strip() for line in version_test_text.splitlines()
@@ -429,7 +472,7 @@ def main() -> None:
         "four_category_calibration": calibration,
         "k_stability": {
             "date_loo": {**date_loo, "n_omissions": len(dates)},
-            "team_side_loo": {**team_loo, "n_omissions": len(teams)},
+            "team_match_loo": {**team_match_loo, "n_omissions": len(teams), "definition": "remove both team-side rows from every match involving the omitted team"},\n            "team_side_loo": {**team_side_loo, "n_omissions": len(teams), "definition": "remove only target rows whose predicted team is the omitted team"},
         },
         "fixed_k6_minus_k10_bootstrap": {
             "reps": 10_000,
@@ -455,7 +498,7 @@ def main() -> None:
             "gpt_aliases_git_blob_sha1": git_blob_sha1(aliases_path.read_bytes()),
             "gpt_2025_csv_git_blob_sha1": git_blob_sha1(csv_2025_path.read_bytes()),
             "nested_validation_git_blob_sha1": git_blob_sha1(nv_path.read_bytes()),
-            "raw_goal3_versions_loader_canonicalizes_aliases": version_uses_alias_loader,
+            "raw_goal3_versions_loader_canonicalizes_aliases": version_uses_alias_loader,\n            "raw_loader_rows": len(raw_version_rows),\n            "raw_loader_alias_collision_groups": alias_collision_groups,\n            "raw_loader_match_population_matches_nested_validation": set(raw_by_key) == set(h2026_by_key),\n            "raw_loader_k6_max_abs_diff_vs_allk_json": raw_loader_max_abs_diff,\n            "raw_loader_requires_fixture_labels_to_match_raw_history_names": True,
             "test3_bypasses_goal3_versions_load_rows": test3_uses_canonical_gpt_loader,
             "test_versions_has_absolute_claude_paths": bool(hardcoded_paths),
             "test_versions_hardcoded_path_lines": hardcoded_paths,
