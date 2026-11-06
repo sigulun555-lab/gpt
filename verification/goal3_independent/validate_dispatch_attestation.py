@@ -69,7 +69,7 @@ def normalized_attestation(value: Any) -> dict[str, Any]:
             raise AttestationError("attested fixture numbers must be integer values 1, 2, 3 in order")
         if not all(isinstance(fixture[k], str) and fixture[k].strip() for k in ("date", "home", "away")):
             raise AttestationError(f"fixture {index} date/home/away must be non-empty strings")
-        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", fixture["date"]):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", fixture["date"]):
             raise AttestationError(f"fixture {index} date must be YYYY-MM-DD")
         try:
             date.fromisoformat(fixture["date"])
