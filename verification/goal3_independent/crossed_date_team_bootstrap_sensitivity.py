@@ -7,6 +7,7 @@ retrospective 236-match / 472-team-side all-k reconstruction.
 """
 from __future__ import annotations
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -122,7 +123,9 @@ def _bootstrap_scores(arrays, scores, reps, seed, mode, chunk=500):
         for metric, values in scores.items():
             sims[metric][start:start + count] = (weights @ values) / denom[:, None]
     point = {metric: values.mean(axis=0) for metric, values in scores.items()}
-    out = {"method": mode, "minimumWeightedTargetMass": min_mass,
+    out = {"method": mode, "rng": "NumPy PCG64", "seed": seed,
+           "replicates": reps, "quantile": "linear percentile",
+           "minimumWeightedTargetMass": min_mass,
            "bestKFrequency": {}, "k6MinusK10": {}}
     i6, i10 = K_VALUES.index(6.0), K_VALUES.index(10.0)
     for metric, values in sims.items():
@@ -285,8 +288,10 @@ def main():
     ap.add_argument("--replicates", type=int, default=50000)
     ap.add_argument("--seed", type=int, default=20261106)
     args = ap.parse_args()
-    report = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    raw = Path(args.input).read_bytes()
+    report = json.loads(raw.decode("utf-8"))
     result = audit(report, args.replicates, args.seed, strict=True)
+    result["provenance"] = {"inputSha256": hashlib.sha256(raw).hexdigest()}
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"cohort": result["cohort"],
