@@ -31,12 +31,14 @@ ROOT = Path(__file__).resolve().parents[2]
 HISTORY = ROOT / "verification/goal3_independent/inputs/round1666_history_snapshot_2026-10-27.json"
 REFERENCE = ROOT / "verification/goal3_independent/inputs/round1666_claude_predictions_reference.jsonl"
 CLAUDE_SCRIPT = ROOT / "verification/goal3_independent/vendor/claude_round1666_goal3.py"
+CLAUDE_INSTRUMENTED_SCRIPT = ROOT / "verification/goal3_independent/vendor/claude_round1666_goal3_instrumented.py"
 GPT_SCRIPT = ROOT / "verification/goal3_independent/nested_validation.py"
 ALIASES_PATH = ROOT / "data/team_aliases.json"
 
 EXPECTED_GIT_BLOBS = {
     "history": "023d826f568bfd6fff21a38833b9e31458fe056e",
     "claude_script": "558d4ea89088c19409a56e45ca6d9d6e7dbb87d5",
+    "claude_instrumented_script": "7d05c54836d203c0aef60a0459f592a7613bae02",
     "reference_predictions": "9c58f1ada8500f0d19c1e93a1017151f2995083e",
     "gpt_nested_validation": "7ac8f83da420fa577b45e9c5c021ce46387f584e",
     "team_aliases": "5de22584524ff4c07ddac1d27f49afbbbc5f88ab",
@@ -81,11 +83,24 @@ def main() -> None:
     paths = {
         "history": HISTORY,
         "claude_script": CLAUDE_SCRIPT,
+        "claude_instrumented_script": CLAUDE_INSTRUMENTED_SCRIPT,
         "reference_predictions": REFERENCE,
         "gpt_nested_validation": GPT_SCRIPT,
         "team_aliases": ALIASES_PATH,
     }
     blob_hashes = {key: git_blob_sha1(path) for key, path in paths.items()}
+    instrumented_text = CLAUDE_INSTRUMENTED_SCRIPT.read_text(encoding="utf-8")
+    instrumentation_lines = (
+        '                    "expected_goals_full": lam_goals,\n',
+        '                    "p0_full": probs[0], "p1_full": probs[1], "p2_full": probs[2], "p3plus_full": probs[3],\n',
+    )
+    stripped_instrumented = instrumented_text
+    for line in instrumentation_lines:
+        if stripped_instrumented.count(line) != 1:
+            raise RuntimeError("unexpected Claude output instrumentation patch")
+        stripped_instrumented = stripped_instrumented.replace(line, "", 1)
+    if stripped_instrumented != CLAUDE_SCRIPT.read_text(encoding="utf-8"):
+        raise RuntimeError("instrumented Claude copy differs outside output-only precision fields")
     for key, expected in EXPECTED_GIT_BLOBS.items():
         if blob_hashes[key] != expected:
             raise RuntimeError(f"Git blob SHA mismatch for {key}: {blob_hashes[key]} != {expected}")
@@ -133,7 +148,7 @@ def main() -> None:
         claude_out = Path(tmp) / "claude_predictions.json"
         proc = subprocess.run(
             [
-                sys.executable, str(CLAUDE_SCRIPT),
+                sys.executable, str(CLAUDE_INSTRUMENTED_SCRIPT),
                 "--history", str(HISTORY),
                 "--out", str(claude_out),
             ],
@@ -176,26 +191,30 @@ def main() -> None:
             c_row = claude_rows[i * 2 + side_index]
             ref_row = reference_rows[i * 2 + side_index]
             gpt_probs = np.asarray(gpt_home if side == "home" else gpt_away, dtype=float)
-            claude_probs = np.asarray([float(c_row["p0"]), float(c_row["p1"]), float(c_row["p2"]), float(c_row["p3plus"])], dtype=float)
+            claude_probs_rounded = np.asarray([float(c_row["p0"]), float(c_row["p1"]), float(c_row["p2"]), float(c_row["p3plus"])], dtype=float)
+            claude_probs_full = np.asarray([float(c_row["p0_full"]), float(c_row["p1_full"]), float(c_row["p2_full"]), float(c_row["p3plus_full"])], dtype=float)
             ref_probs = np.asarray([float(ref_row["probabilities"][key]) for key in PROB_KEYS], dtype=float)
             if c_row.get("side") != side:
                 raise RuntimeError(f"Claude output order/side mismatch at target {i * 2 + side_index}")
             if ref_row.get("isHome") != (side == "home"):
                 raise RuntimeError(f"saved reference order/side mismatch at target {i * 2 + side_index}")
-            if not np.isfinite(gpt_probs).all() or not np.isfinite(claude_probs).all():
+            if not np.isfinite(gpt_probs).all() or not np.isfinite(claude_probs_full).all():
                 raise RuntimeError("non-finite probabilities")
             if abs(float(gpt_probs.sum()) - 1.0) > 1e-9:
                 raise RuntimeError("GPT full-precision probability vector failed normalization guard")
-            # Claude's archived prediction output is rounded independently to 4dp.
-            if abs(float(claude_probs.sum()) - 1.0) > 0.00025:
+            if abs(float(claude_probs_full.sum()) - 1.0) > 1e-9:
+                raise RuntimeError("Claude instrumented full-precision probability vector failed normalization guard")
+            # The archived/reference fields are independently rounded to 4dp.
+            if abs(float(claude_probs_rounded.sum()) - 1.0) > 0.00025:
                 raise RuntimeError("Claude rounded probability vector exceeds 4dp rounding tolerance")
 
-            saved_diff = float(np.max(np.abs(claude_probs - ref_probs)))
-            impl_diff = float(np.max(np.abs(gpt_probs - claude_probs)))
+            saved_diff = float(np.max(np.abs(claude_probs_rounded - ref_probs)))
+            impl_diff = float(np.max(np.abs(gpt_probs - claude_probs_full)))
             saved_diffs.append(saved_diff)
             implementation_diffs.append(impl_diff)
             gpt_lambda = -math.log(max(float(gpt_probs[0]), 1e-300))
-            claude_lambda = float(c_row["expected_goals"])
+            claude_lambda = float(c_row["expected_goals_full"])
+            claude_lambda_rounded = float(c_row["expected_goals"])
             expected_goal_diffs.append(abs(gpt_lambda - claude_lambda))
             target_results.append({
                 "match": f"{home_raw} vs {away_raw}",
@@ -203,12 +222,14 @@ def main() -> None:
                 "referenceTeam": ref_row["team"],
                 "claudeScriptTeam": c_row["team"],
                 "gptCanonicalTeam": home if side == "home" else away,
-                "claudeExpectedGoalsRounded3dp": claude_lambda,
+                "claudeExpectedGoalsFullPrecision": claude_lambda,
+                "claudeExpectedGoalsRounded3dp": claude_lambda_rounded,
                 "gptExpectedGoalsFromP0": gpt_lambda,
                 "expectedGoalsAbsDifference": abs(gpt_lambda - claude_lambda),
                 "savedReferenceMaxAbsProbabilityDifference": saved_diff,
                 "gptVsClaudeMaxAbsProbabilityDifference": impl_diff,
-                "claudeProbabilitiesRounded4dp": claude_probs.tolist(),
+                "claudeProbabilitiesFullPrecision": claude_probs_full.tolist(),
+                "claudeProbabilitiesRounded4dp": claude_probs_rounded.tolist(),
                 "gptProbabilitiesFullPrecision": gpt_probs.tolist(),
                 "savedReferenceProbabilitiesRounded4dp": ref_probs.tolist(),
             })
@@ -255,12 +276,14 @@ def main() -> None:
             "numpy": np.__version__,
             "scipy": scipy.__version__,
         },
+        "instrumentationPatchVerified": True,
         "optimizerAndPreprocessingDifferences": {
             "claude": {
                 "method": "L-BFGS-B",
                 "options": {"gtol": 1e-10},
                 "preprocessing": "sort by (date, competition); no alias canonicalization",
                 "clippingGradient": "uses clipped residual without zeroing derivative outside +/-20",
+                "fullPrecisionOutputInstrumentation": "output-only fields; exact original code restored by removing two added JSON lines",
                 "probabilityTransform": "scipy.stats.poisson.pmf for 0/1/2; 3+ is 1-sum",
                 "fitSuccess": True,
                 "iterations": claude_nit,
@@ -294,7 +317,8 @@ def main() -> None:
             "equivalentWithin1e-6": max_impl_diff <= 1e-6,
             "targetResults": target_results,
             "interpretation": (
-                "Same stated lambda=10 model specification does not imply identical numerical implementation. "
+                "This comparison uses unrounded probabilities from an output-only instrumented copy of Claude's exact script. "
+                "Any remaining difference is numerical/optimization/preprocessing, not the 4dp archive rounding. "
                 "Keep code-lineage and output comparisons separate; do not double-score the same specification "
                 "as independent model families, but do not substitute one implementation's predictions for the other."
             ),
