@@ -9,11 +9,10 @@ on:
         type: choice
         options:
           - research/goal3-prospective-shadow-20261104-v2
-      confirm_official_fixture_reviewed:
-        description: Confirm the current official round, J1/J2/J3, all three fixtures, and deadline were manually checked immediately before dispatch
+      attested_fixture_snapshot:
+        description: Paste exact JSON reviewed on the official GOAL3 page; reviewedAt must be within 10 minutes. See workflow documentation in the PR.
         required: true
-        type: boolean
-        default: false
+        type: string
 
 permissions:
   contents: read
@@ -44,14 +43,9 @@ jobs:
         shell: bash
         env:
           REQUESTED_RESEARCH_REF: ${{ inputs.research_ref }}
-          FIXTURE_REVIEWED: ${{ inputs.confirm_official_fixture_reviewed }}
         run: |
           set -euo pipefail
           test "$REQUESTED_RESEARCH_REF" = "$APPROVED_RESEARCH_REF"
-          if [[ "$FIXTURE_REVIEWED" != "true" ]]; then
-            echo "Official fixture review attestation is required." >&2
-            exit 1
-          fi
 
       - name: Checkout exact approved research commit
         uses: actions/checkout@v4
@@ -170,6 +164,14 @@ jobs:
       - name: Fetch one official GOAL3 and history snapshot into ephemeral runner
         run: node scripts/auto_pipeline.js
 
+      - name: Bind human-reviewed fixtures to the fetched official snapshot
+        env:
+          ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}
+        run: |
+          python verification/goal3_independent/validate_dispatch_attestation.py \
+            --predictions data/predictions.json \
+            --out artifacts/fixture-attestation.json
+
       - name: Create paired k=6 and k=10 shadow forecast
         run: |
           mkdir -p artifacts
@@ -181,8 +183,6 @@ jobs:
 
       - name: Write immutable dispatch provenance sidecar
         shell: bash
-        env:
-          FIXTURE_REVIEWED: ${{ inputs.confirm_official_fixture_reviewed }}
         run: |
           python - <<'PY'
           import hashlib, json, os, subprocess
@@ -198,6 +198,8 @@ jobs:
 
           forecast_path = Path("artifacts/goal3-prospective-shadow.json")
           forecast = json.loads(forecast_path.read_text(encoding="utf-8"))
+          fixture_attestation_path = Path("artifacts/fixture-attestation.json")
+          fixture_attestation = json.loads(fixture_attestation_path.read_text(encoding="utf-8"))
           record = {
               "schemaVersion": 1,
               "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
@@ -230,7 +232,9 @@ jobs:
                   "modelSha256": sha("verification/goal3_independent/nested_validation.py"),
                   "snapshotPipelineSha256": sha("scripts/auto_pipeline.js"),
               },
-              "officialFixtureReviewConfirmed": os.environ["FIXTURE_REVIEWED"] == "true",
+              "fixtureAttestationSha256": sha(fixture_attestation_path),
+              "fixtureSnapshotFingerprintSha256": fixture_attestation["snapshotFingerprintSha256"],
+              "fixtureAttestation": fixture_attestation,
               "forecastSha256": sha(forecast_path),
               "forecastRound": forecast.get("round"),
               "forecastTiming": {
@@ -266,6 +270,7 @@ jobs:
           name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
           path: |
             artifacts/goal3-prospective-shadow.json
+            artifacts/fixture-attestation.json
             artifacts/dispatch-provenance.json
           if-no-files-found: error
           retention-days: 90
