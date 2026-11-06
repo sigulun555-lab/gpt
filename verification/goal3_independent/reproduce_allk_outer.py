@@ -16,7 +16,7 @@ def sha(path):
 
 def git_blob_sha(path):
     raw=Path(path).read_bytes()
-    header=f"blob {len(raw)}\\0".encode("utf-8")
+    header=f"blob {len(raw)}\0".encode("utf-8")
     return hashlib.sha1(header+raw).hexdigest()
 
 def load_frozen(path):
