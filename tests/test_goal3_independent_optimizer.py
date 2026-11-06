@@ -639,7 +639,7 @@ class NestedValidationHistoryInputTests(unittest.TestCase):
                 json.dumps({"aliases": {}}), encoding="utf-8"
             )
             csv_path.write_text(
-                "date,homeTeam,awayTeam,score\\n2025/01/01,A,B,1-0\\n",
+                "date,homeTeam,awayTeam,score\n2025/01/01,A,B,1-0\n",
                 encoding="utf-8",
             )
             return nested_validation.load_data(
