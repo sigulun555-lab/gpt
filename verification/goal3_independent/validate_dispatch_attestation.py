@@ -20,6 +20,14 @@ FIXTURE_KEYS = {"number", "date", "home", "away"}
 ATTESTATION_KEYS = {
     "officialUrl", "marketType", "round", "deadline", "fixtures", "reviewedAt"
 }
+SNAPSHOT_IDENTITY_KEYS = ("officialUrl", "marketType", "round", "deadline", "fixtures")
+
+
+def snapshot_identity(value: dict[str, Any]) -> dict[str, Any]:
+    """Return only official snapshot fields; review/validation timestamps are provenance, not identity."""
+    return {key: value[key] for key in SNAPSHOT_IDENTITY_KEYS}
+
+
 
 
 class AttestationError(ValueError):
@@ -162,9 +170,13 @@ def validate(attested_raw: Any, payload: Any, now: datetime | None = None) -> di
     observed = observed_snapshot(payload, now_utc)
     if parse_time(observed["deadline"], "fetched deadline") <= now_utc:
         raise AttestationError("fetched official deadline has already passed")
-    if canonical(attested) != canonical(observed):
+    attested_identity = snapshot_identity(attested)
+    observed_identity = snapshot_identity(observed)
+    if canonical(attested_identity) != canonical(observed_identity):
         raise AttestationError("human-reviewed fixture snapshot does not exactly match fetched official snapshot")
-    digest = hashlib.sha256(canonical(observed)).hexdigest()
+    # Fingerprint only the official round/deadline/fixtures. reviewedAt and
+    # validatedAt are provenance timestamps and must not alter snapshot identity.
+    digest = hashlib.sha256(canonical(observed_identity)).hexdigest()
     source_fetched_at = payload["totoSource"]["lastFetchedAt"]
     return {
         "schemaVersion": 1,
@@ -182,7 +194,9 @@ def validate(attested_raw: Any, payload: Any, now: datetime | None = None) -> di
 
 def self_test() -> None:
     now = datetime(2026, 11, 6, 1, 0, tzinfo=timezone.utc)
-    reviewed = now.isoformat().replace("+00:00", "Z")
+    # Deliberately differ from validation time: a valid human review need not
+    # have the exact same timestamp as the runner's observed-snapshot record.
+    reviewed = (now - timedelta(minutes=2)).isoformat().replace("+00:00", "Z")
     fixtures = [
         {"number": 1, "date": "2026-11-07", "home": "清水", "away": "東京Ｖ"},
         {"number": 2, "date": "2026-11-07", "home": "福岡", "away": "長崎"},
@@ -210,6 +224,11 @@ def self_test() -> None:
     }
     result = validate(attested, payload, now)
     assert result["match"] is True and len(result["snapshotFingerprintSha256"]) == 64
+    assert result["attestedSnapshot"]["reviewedAt"] != result["observedSnapshot"]["reviewedAt"], (
+        "review timestamp must be provenance, not part of fixture identity"
+    )
+    expected_fingerprint = hashlib.sha256(canonical(snapshot_identity(result["observedSnapshot"]))).hexdigest()
+    assert result["snapshotFingerprintSha256"] == expected_fingerprint
     mismatch = json.loads(json.dumps(payload, ensure_ascii=False))
     mismatch["predictions"][1]["home"] = "別チーム"
     try:
