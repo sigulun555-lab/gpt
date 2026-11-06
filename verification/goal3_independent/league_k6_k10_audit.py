@@ -29,16 +29,24 @@ def build_targets(report):
         raise ValueError("input has no allKPredictions")
     rows, seen = [], set()
     for m in matches:
+        if not isinstance(m, dict):
+            raise ValueError("all-k match entry must be an object")
         date, comp = m.get("date"), m.get("comp")
         if not isinstance(date, str) or comp not in ("J1", "J2", "J3"):
             raise ValueError("invalid date or competition")
-        mk = (date, comp, m.get("home"), m.get("away"))
+        home, away = m.get("home"), m.get("away")
+        if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
+            raise ValueError("missing team name")
+        home, away = home.strip(), away.strip()
+        if home == away:
+            raise ValueError("same team listed as home and away")
+        mk = (date, comp, home, away)
         if mk in seen:
             raise ValueError(f"duplicate match key: {mk}")
         seen.add(mk)
         for side, goal_key in (("home", "hg"), ("away", "ag")):
             goals = m.get(goal_key)
-            if not isinstance(goals, int) or goals < 0:
+            if type(goals) is not int or goals < 0:
                 raise ValueError("invalid observed goals")
             probs = {}
             for k in ("6.0", "10.0"):
