@@ -224,5 +224,20 @@ async function renderAppWithPayload(marketType) {
     'dispatch must bind lock generationSourceCommit to the approved research commit');
   assert.ok(dispatchWorkflow.includes('reviewer lock source bytes/blob mismatch'),
     'dispatch must independently verify source bytes and Git blob IDs');
+  assert.ok(dispatchWorkflow.includes('ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}'),
+    'dispatch must receive the exact human-reviewed fixture snapshot');
+  const attestationStep = dispatchWorkflow.indexOf('validate_dispatch_attestation.py');
+  const forecastStep = dispatchWorkflow.indexOf('prospective_shadow.py \\');
+  assert.ok(attestationStep >= 0 && forecastStep > attestationStep,
+    'fixture attestation must be validated before the forecast is generated');
+  assert.ok(dispatchWorkflow.includes('artifacts/fixture-attestation.json'),
+    'fixture attestation must be retained in the immutable artifact');
+  const {spawnSync} = require('node:child_process');
+  const attestationTest = spawnSync(process.env.PYTHON || 'python3', [
+    require('node:path').join(__dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'),
+    '--self-test'
+  ], {encoding:'utf8'});
+  assert.equal(attestationTest.status, 0,
+    'dispatch attestation validator self-test failed: ' + (attestationTest.stderr || attestationTest.stdout));
 }
 console.log('PASS GOAL3 dispatch workflow pins and reviewer-lock provenance guard');
