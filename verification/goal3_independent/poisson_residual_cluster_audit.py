@@ -21,22 +21,48 @@ def flatten_targets(report: dict) -> list[dict]:
     if not isinstance(matches, list) or not matches:
         raise ValueError("input has no allKPredictions")
     rows = []
-    for match in matches:
+    seen_match_keys = set()
+    for index, match in enumerate(matches):
+        if not isinstance(match, dict):
+            raise ValueError(f"match {index} is not an object")
+        date = match.get("date")
+        league = match.get("comp")
+        home, away = match.get("home"), match.get("away")
+        if not isinstance(date, str) or len(date) != 10 or date[4:5] != "-" or date[7:8] != "-":
+            raise ValueError(f"invalid target date at match {index}: {date!r}")
+        if league not in ("J1", "J2", "J3"):
+            raise ValueError(f"invalid competition at match {index}: {league!r}")
+        if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip():
+            raise ValueError(f"missing home/away team at match {index}")
+        if home.strip() == away.strip():
+            raise ValueError(f"same home and away team at match {index}")
+        match_key = (date, league, home, away)
+        if match_key in seen_match_keys:
+            raise ValueError(f"duplicate match key: {match_key!r}")
+        seen_match_keys.add(match_key)
+
+        by_k = match.get("byK")
+        if not isinstance(by_k, dict):
+            raise ValueError(f"missing byK object at match {index}")
         for side, goal_key in (("home", "hg"), ("away", "ag")):
             goals = match.get(goal_key)
-            if not isinstance(goals, int) or goals < 0:
-                raise ValueError("invalid observed goals")
+            if type(goals) is not int or goals < 0:
+                raise ValueError(f"invalid observed goals at match {index}, {side}: {goals!r}")
             probs_by_k = {}
             for k in K_VALUES:
-                probs = np.asarray(match["byK"][f"{k}.0"][side], dtype=float)
+                key = f"{k}.0"
+                if key not in by_k or not isinstance(by_k[key], dict) or side not in by_k[key]:
+                    raise ValueError(f"missing k={key} {side} probabilities at match {index}")
+                probs = np.asarray(by_k[key][side], dtype=float)
                 if probs.shape != (4,) or not np.all(np.isfinite(probs)):
-                    raise ValueError("invalid four-category probability vector")
+                    raise ValueError(f"invalid four-category probability vector at match {index}, k={key}, side={side}")
                 if np.any(probs < 0) or np.any(probs > 1) or abs(float(probs.sum()) - 1.0) > 1e-9:
-                    raise ValueError("probability vector is outside the simplex")
+                    raise ValueError(f"probability vector is outside the simplex at match {index}, k={key}, side={side}")
                 probs_by_k[k] = probs
             rows.append({
-                "date": str(match["date"]),
-                "league": str(match["comp"]),
+                "date": date,
+                "league": league,
+                "matchKey": match_key,
                 "side": side,
                 "goals": goals,
                 "p": probs_by_k,
@@ -44,7 +70,6 @@ def flatten_targets(report: dict) -> list[dict]:
     if len(rows) != 2 * len(matches):
         raise AssertionError("target expansion count mismatch")
     return rows
-
 
 def audit(report: dict, replicates: int = 50_000, seed: int = 20261105) -> dict:
     if replicates < 1_000:
