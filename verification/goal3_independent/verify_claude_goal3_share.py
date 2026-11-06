@@ -331,7 +331,17 @@ def main() -> None:
     if len(h2026) != 429:
         raise AssertionError(f"pinned GPT PR history expected 429 valid 2026 rows, got {len(h2026)}")
 
-    h2026_by_key = {(r["date"], r.get("comp", r.get("competition")), r["home"], r["away"]): r for r in h2026}
+    aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
+    raw_history = json.loads(history_path.read_text(encoding="utf-8"))["history"]
+    h2026_by_key = {}
+    for m in raw_history:
+        if (m.get("competition") in ("J1", "J2", "J3")
+                and isinstance(m.get("home_goals"), int) and isinstance(m.get("away_goals"), int)
+                and str(m.get("date", "")).startswith("2026-")):
+            key = (m["date"], m["competition"], nv.canonical(m["home"], aliases), nv.canonical(m["away"], aliases))
+            if key in h2026_by_key:
+                raise AssertionError(f"duplicate canonicalized history key: {key}")
+            h2026_by_key[key] = {"hg": int(m["home_goals"]), "ag": int(m["away_goals"])}
     if len(h2026_by_key) != len(h2026):
         raise AssertionError("duplicate 2026 history match key")
     target_keys = sorted(match_groups.keys(), key=lambda x: (x[0], x[2], x[3]))
