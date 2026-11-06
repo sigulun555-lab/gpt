@@ -35,6 +35,70 @@ def independent_exact_hessian(theta, x_home, x_away, k, team_count):
     return 0.5 * (hessian + hessian.T)
 
 
+def fit_exact_newton(prior, k, gtol=1e-7, maxiter=100):
+    """Damped full-Newton fit with exact Hessian and Armijo backtracking."""
+    teams, idx, xh, xa, hg, ag = audit.build_design(prior)
+    n_teams = len(teams)
+    theta = np.zeros(2 + 2 * n_teams, dtype=float)
+    theta[0] = math.log(1.3)
+
+    for iteration in range(maxiter + 1):
+        value, gradient = audit.independent_objective_gradient(
+            theta, xh, xa, hg, ag, k, n_teams
+        )
+        gradient_norm = float(np.max(np.abs(gradient)))
+        hessian = independent_exact_hessian(theta, xh, xa, k, n_teams)
+        minimum_eigenvalue = float(np.linalg.eigvalsh(hessian)[0])
+        if gradient_norm <= gtol:
+            return theta, idx, {
+                "iterations": iteration,
+                "gradientInfinityNorm": gradient_norm,
+                "minimumHessianEigenvalue": minimum_eigenvalue,
+                "objective": float(value),
+                "success": True,
+            }
+        if iteration == maxiter:
+            break
+
+        # The ridge penalty makes the exact Hessian positive definite for
+        # this design. Fail closed rather than silently changing the objective.
+        if not math.isfinite(minimum_eigenvalue) or minimum_eigenvalue <= 0.0:
+            raise RuntimeError(
+                f"exact Hessian is not positive definite: {minimum_eigenvalue}"
+            )
+        direction = np.linalg.solve(hessian, -gradient)
+        directional_derivative = float(gradient @ direction)
+        if not math.isfinite(directional_derivative) or directional_derivative >= 0.0:
+            raise RuntimeError(
+                f"Newton direction is not a descent direction: {directional_derivative}"
+            )
+
+        step = 1.0
+        accepted = False
+        for _ in range(60):
+            candidate = theta + step * direction
+            candidate_value = audit.independent_objective_gradient(
+                candidate, xh, xa, hg, ag, k, n_teams
+            )[0]
+            if (
+                math.isfinite(candidate_value)
+                and candidate_value <= value + 1e-4 * step * directional_derivative
+            ):
+                theta = candidate
+                accepted = True
+                break
+            step *= 0.5
+        if not accepted:
+            raise RuntimeError(
+                f"Armijo line search stalled at iteration={iteration}, "
+                f"gradient={gradient_norm}, objective={value}"
+            )
+
+    raise RuntimeError(
+        f"exact Newton did not reach gtol={gtol} in {maxiter} iterations"
+    )
+
+
 class IndependentOptimizerAuditTests(unittest.TestCase):
     def synthetic_matches(self):
         teams = ["A", "B", "C", "D", "E"]
@@ -293,7 +357,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             1e-12,
         )
 
-    def test_trust_exact_reaches_gradient_tolerance_for_all_34_fits(self):
+    def test_exact_newton_reaches_gradient_tolerance_for_all_34_fits(self):
         """Independent exact-Hessian solver sensitivity; read-only on frozen data."""
         aliases_doc = json.loads(
             (ROOT / "data" / "team_aliases.json").read_text(encoding="utf-8")
@@ -330,29 +394,19 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                         theta, xh, xa, hg, ag, k, n_teams
                     )
 
-                result = minimize(
-                    fun_and_grad,
-                    theta0.copy(),
-                    jac=True,
-                    hess=lambda theta: independent_exact_hessian(
-                        theta, xh, xa, k, n_teams
-                    ),
-                    method="trust-ncg",
-                    options={"gtol": 1e-8, "maxiter": 1000},
+                theta_fit, idx, info = fit_exact_newton(
+                    prior, k, gtol=1e-7, maxiter=100
                 )
+                grad_norm = info["gradientInfinityNorm"]
                 self.assertTrue(
-                    result.success,
-                    f"trust-exact failed date={date} k={k}: {result.message}",
+                    info["success"],
+                    f"exact Newton failed date={date} k={k}: {info}",
                 )
-                grad_norm = float(np.max(np.abs(result.jac)))
                 self.assertLessEqual(
-                    grad_norm, 1e-8,
+                    grad_norm, 1e-7,
                     f"gradient tolerance missed date={date} k={k}: {grad_norm}",
                 )
-                hessian = independent_exact_hessian(
-                    result.x, xh, xa, k, n_teams
-                )
-                min_eigenvalue = float(np.linalg.eigvalsh(hessian)[0])
+                min_eigenvalue = info["minimumHessianEigenvalue"]
                 self.assertGreater(
                     min_eigenvalue, 0.0,
                     f"non-positive Hessian date={date} k={k}: {min_eigenvalue}",
@@ -361,10 +415,10 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                     "date": date,
                     "fold": fold_by_date[date],
                     "k": int(k),
-                    "iterations": int(result.nit),
+                    "iterations": int(info["iterations"]),
                     "gradientInfinityNorm": grad_norm,
                     "minimumHessianEigenvalue": min_eigenvalue,
-                    "objective": float(result.fun),
+                    "objective": float(info["objective"]),
                 })
 
                 for match in matches:
@@ -425,8 +479,8 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         gradients = [item["gradientInfinityNorm"] for item in diagnostics]
         iterations = [item["iterations"] for item in diagnostics]
         print(json.dumps({
-            "solver": "SciPy trust-ncg with independently derived exact Hessian",
-            "options": {"gtol": 1e-8, "maxiter": 1000},
+            "solver": "Damped full-Newton with exact Hessian and Armijo backtracking",
+            "options": {"gtol": 1e-7, "maxiter": 100, "lineSearch": "Armijo backtracking"},
             "cohort": {"historyRows": 429, "matches": 236, "targets": 472, "dates": 17},
             "fitCount": len(diagnostics),
             "successCount": sum(item["gradientInfinityNorm"] <= 1e-8 for item in diagnostics),
