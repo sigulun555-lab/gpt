@@ -8,6 +8,7 @@ on:
       - "verification/goal3_independent/inputs/round1666_history_snapshot_2026-10-27.json"
       - "verification/goal3_independent/inputs/round1666_claude_predictions_reference.jsonl"
       - "verification/goal3_independent/vendor/claude_round1666_goal3.py"
+      - "verification/goal3_independent/vendor/claude_round1666_goal3_instrumented.py"
       - "verification/goal3_independent/compare_round1666_implementation.py"
       - "verification/goal3_independent/nested_validation.py"
       - "data/team_aliases.json"
