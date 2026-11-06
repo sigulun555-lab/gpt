@@ -330,7 +330,7 @@ def main() -> None:
         "history.json": (history_path, "f5cc8c044758e45b1e679e4ce796e68b3f27a854"),
         "team_aliases.json": (aliases_path, "5de22584524ff4c07ddac1d27f49afbbbc5f88ab"),
         "2025.csv": (csv_2025_path, "847d324c5a6168d02efe328f8173418a951af720"),
-        "nested_validation.py": (nv_path, "7ac8f83da420fa577b45e9c5c021ce46387f584e"),
+        "nested_validation.py": (nv_path, "2b364ae31673b1f7471958084c416ca1ad8901f8"),
         "goal3_outer_matches.csv": (gpt_csv_path, "56892251679b8774a9e1b7ccc4b5beb42e660e36"),
     }
     for label, (path, expected_blob) in expected_input_blobs.items():
