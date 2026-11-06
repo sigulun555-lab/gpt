@@ -1,10 +1,13 @@
 import importlib.util
+import json
 import math
 import sys
 import unittest
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+from scipy.optimize import minimize
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "verification" / "goal3_independent" / "independent_optimizer_audit.py"
@@ -76,6 +79,119 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             p = audit.poisson_categories(rate)
             self.assertTrue(np.all(p >= 0.0))
             self.assertAlmostEqual(float(p.sum()), 1.0, places=10)
+
+    def test_strict_optimizer_convergence_and_probability_parity_on_frozen_cohort(self):
+        """Re-fit all 34 date/k combinations with tighter stopping controls.
+
+        This is a research-only sensitivity check. It does not write predictions,
+        change the frozen CSV, or alter any production path.
+        """
+        aliases_doc = json.loads((ROOT / "data" / "team_aliases.json").read_text(encoding="utf-8"))
+        aliases = aliases_doc.get("aliases", {})
+        history, history_audit = audit.load_history(ROOT / "data" / "history.json", aliases)
+        rows, matches, dates, fold_by_date = audit.load_frozen(
+            ROOT / "verification" / "goal3_independent" / "goal3_outer_matches.csv"
+        )
+        self.assertEqual(history_audit["rows"], 429)
+        self.assertEqual(len(matches), 236)
+        self.assertEqual(len(rows), 472)
+        self.assertEqual(len(dates), 17)
+
+        options = {
+            "maxiter": 2000,
+            "ftol": 1e-12,
+            "gtol": 1e-6,
+            "maxls": 50,
+            "maxcor": 20,
+        }
+        predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
+        row_indices_by_date = defaultdict(list)
+        for i, row in enumerate(rows):
+            row_indices_by_date[row["date"]].append(i)
+        diagnostics = []
+
+        for date in dates:
+            prior = [match for match in history if match["date"] < date]
+            self.assertGreater(len(prior), 0, f"empty strict prior for {date}")
+            teams, idx, x_home, x_away, hg, ag = audit.build_design(prior)
+            n_teams = len(teams)
+            theta0 = np.zeros(2 + 2 * n_teams, dtype=float)
+            theta0[0] = math.log(1.3)
+
+            for k in (6.0, 10.0):
+                def fun_and_jac(theta):
+                    return audit.independent_objective_gradient(
+                        theta, x_home, x_away, hg, ag, k, n_teams
+                    )
+
+                result = minimize(
+                    fun_and_jac,
+                    theta0.copy(),
+                    jac=True,
+                    method="L-BFGS-B",
+                    options=options,
+                )
+                self.assertTrue(
+                    result.success,
+                    f"strict fit failed date={date} k={k}: {result.message}",
+                )
+                grad_norm = float(np.max(np.abs(result.jac)))
+                self.assertLessEqual(
+                    grad_norm,
+                    options["gtol"],
+                    f"gradient tolerance not met date={date} k={k}: {grad_norm}",
+                )
+                diagnostics.append({
+                    "date": date,
+                    "fold": fold_by_date[date],
+                    "k": int(k),
+                    "iterations": int(result.nit),
+                    "gradientInfinityNorm": grad_norm,
+                    "objective": float(result.fun),
+                })
+
+                for match in matches:
+                    if match["date"] != date:
+                        continue
+                    p_home, p_away = audit.predict_independent(
+                        result.x, idx, match["home"], match["away"]
+                    )
+                    for row_index in row_indices_by_date[date]:
+                        row = rows[row_index]
+                        if (
+                            row["comp"], row["home"], row["away"]
+                        ) != (
+                            match["comp"], match["home"], match["away"]
+                        ):
+                            continue
+                        predictions[int(k)][row_index] = (
+                            p_home if row["side"] == "home" else p_away
+                        )
+
+        self.assertEqual(len(diagnostics), 34)
+        self.assertTrue(all(p is not None for k in (6, 10) for p in predictions[k]))
+
+        max_errors = {}
+        for k in (6, 10):
+            strict = np.asarray(predictions[k], dtype=float)
+            frozen = np.asarray(
+                [[row[f"k{k}_p{category}"] for category in range(4)] for row in rows],
+                dtype=float,
+            )
+            max_error = float(np.max(np.abs(strict - frozen)))
+            max_errors[str(k)] = max_error
+            self.assertLessEqual(max_error, 2e-6)
+
+        gradients = [item["gradientInfinityNorm"] for item in diagnostics]
+        iterations = [item["iterations"] for item in diagnostics]
+        print({
+            "strictOptions": options,
+            "fitCount": len(diagnostics),
+            "maxGradientInfinityNorm": max(gradients),
+            "medianGradientInfinityNorm": float(np.median(gradients)),
+            "maxIterations": max(iterations),
+            "maxProbabilityAbsErrorVsFrozenCsv": max_errors,
+        })
 
 
 if __name__ == "__main__":
