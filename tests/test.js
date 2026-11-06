@@ -215,7 +215,7 @@ async function renderAppWithPayload(marketType) {
     APPROVED_MODEL_SHA256: 'cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d',
     APPROVED_SNAPSHOT_PIPELINE_SHA256: '6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe',
     APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5',
-    APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: '6bcb8c8b6ebc94d9ca2b250649e4d2a8fc6dbb31'
+    APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: 'beb258df59942a74db001d2ab30d44b4ffd4515a'
   };
   for (const [key, value] of Object.entries(pins)) {
     assert.ok(dispatchWorkflow.split('\n').includes('  ' + key + ': ' + value),
