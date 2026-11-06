@@ -17,6 +17,12 @@ audit = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = audit
 spec.loader.exec_module(audit)
 
+REVIEW_SCRIPT = ROOT / "verification" / "goal3_independent" / "review_outer_matches.py"
+review_spec = importlib.util.spec_from_file_location("review_outer_matches", REVIEW_SCRIPT)
+review = importlib.util.module_from_spec(review_spec)
+sys.modules[review_spec.name] = review
+review_spec.loader.exec_module(review)
+
 
 def independent_exact_hessian(theta, x_home, x_away, k, team_count):
     """Exact Hessian for the independently written clipped Poisson objective."""
@@ -119,6 +125,30 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 "ag": ag,
             })
         return rows
+
+    def test_outer_source_audit_rejects_boolean_goal_counts(self):
+        for field in ("home_goals", "away_goals"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                (root / "data").mkdir()
+                (root / "data" / "team_aliases.json").write_text(
+                    json.dumps({"aliases": {"A": "A", "B": "B"}}), encoding="utf-8"
+                )
+                row = {
+                    "date": "2026-01-01",
+                    "competition": "J1",
+                    "home": "A",
+                    "away": "B",
+                    "home_goals": 1,
+                    "away_goals": 0,
+                    "fetchedAt": "2026-01-02T00:00:00Z",
+                }
+                row[field] = True
+                (root / "data" / "history.json").write_text(
+                    json.dumps({"history": [row]}), encoding="utf-8"
+                )
+                with self.assertRaisesRegex(ValueError, "Invalid history score"):
+                    review.source_audit(root)
 
     def test_history_loader_rejects_boolean_goal_counts(self):
         base = {
