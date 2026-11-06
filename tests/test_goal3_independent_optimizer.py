@@ -209,6 +209,13 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "k6": audit.poisson_residuals(rows, p6, lambda row: True),
             "k10": audit.poisson_residuals(rows, p10, lambda row: True),
         }
+        strict_calibration = {
+            "k6": audit.calibration(rows, p6, 6, lambda row: True),
+            "k10": audit.calibration(rows, p10, 10, lambda row: True),
+        }
+        strict_bootstrap = audit.moving_block_bootstrap(
+            rows, p6, p10, reps=10000, seed=20261105
+        )
         summary = {
             "strictOptions": options,
             "fitCount": len(diagnostics),
@@ -223,6 +230,8 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "maxProbabilityAbsErrorVsFrozenCsv": max_errors,
             "strictFitMetrics": strict_metrics,
             "strictFitPoissonResidualRMS": strict_residuals,
+            "strictFitFourCategoryCalibration": strict_calibration,
+            "strictFitBootstrap10k": strict_bootstrap,
             "interpretation": (
                 "Strict-ftol refits are a sensitivity diagnostic. "
                 "Do not treat SciPy success as gradient convergence or require "
