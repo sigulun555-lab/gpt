@@ -425,7 +425,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                     if match["date"] != date:
                         continue
                     p_home, p_away = audit.predict_independent(
-                        result.x, idx, match["home"], match["away"]
+                        theta_fit, idx, match["home"], match["away"]
                     )
                     for row_index in row_indices_by_date[date]:
                         row = rows[row_index]
