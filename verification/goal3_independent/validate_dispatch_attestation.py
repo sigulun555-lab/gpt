@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +68,10 @@ def normalized_attestation(value: Any) -> dict[str, Any]:
             raise AttestationError("attested fixture numbers must be exactly 1, 2, 3 in order")
         if not all(isinstance(fixture[k], str) and fixture[k].strip() for k in ("date", "home", "away")):
             raise AttestationError(f"fixture {index} date/home/away must be non-empty strings")
+        try:
+            date.fromisoformat(fixture["date"])
+        except ValueError as exc:
+            raise AttestationError(f"fixture {index} date must be YYYY-MM-DD") from exc
         if fixture["home"] == fixture["away"]:
             raise AttestationError(f"fixture {index} home and away must differ")
         normalized.append({
@@ -85,7 +89,7 @@ def normalized_attestation(value: Any) -> dict[str, Any]:
     }
 
 
-def observed_snapshot(payload: Any) -> dict[str, Any]:
+def observed_snapshot(payload: Any, now: datetime) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise AttestationError("predictions payload must be a JSON object")
     if payload.get("status") != "predictions_generated" or payload.get("predictionsGenerated") is not True:
@@ -106,7 +110,6 @@ def observed_snapshot(payload: Any) -> dict[str, Any]:
     parse_time(payload.get("deadline"), "fetched deadline")
     fetched_at = parse_time(source.get("lastFetchedAt"), "totoSource.lastFetchedAt")
     generated_at = parse_time(payload.get("generatedAt"), "generatedAt")
-    now = datetime.now(timezone.utc)
     if fetched_at > now + timedelta(minutes=1) or generated_at > now + timedelta(minutes=1):
         raise AttestationError("pipeline timestamps are in the future")
     if now - fetched_at > timedelta(minutes=10) or now - generated_at > timedelta(minutes=10):
@@ -152,7 +155,9 @@ def validate(attested_raw: Any, payload: Any, now: datetime | None = None) -> di
         raise AttestationError("reviewedAt is more than one minute in the future")
     if now_utc - reviewed_at > timedelta(minutes=10):
         raise AttestationError("official fixture review is older than 10 minutes; review and dispatch again")
-    observed = observed_snapshot(payload)
+    observed = observed_snapshot(payload, now_utc)
+    if parse_time(observed["deadline"], "fetched deadline") <= now_utc:
+        raise AttestationError("fetched official deadline has already passed")
     if canonical(attested) != canonical(observed):
         raise AttestationError("human-reviewed fixture snapshot does not exactly match fetched official snapshot")
     digest = hashlib.sha256(canonical(observed)).hexdigest()
