@@ -221,7 +221,17 @@ async function renderAppWithPayload(marketType) {
     assert.ok(dispatchWorkflow.split('\n').includes('  ' + key + ': ' + value),
       'GOAL3 dispatch pin must match the independently reviewed v1.2 lock: ' + key);
   }
-  assert.ok(dispatchWorkflow.includes('lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]'),
+  const validatorPathForBlob = require('node:path').join(
+    __dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'
+  );
+  const validatorBytesForBlob = require('node:fs').readFileSync(validatorPathForBlob);
+  const validatorGitBlobSha = require('node:crypto').createHash('sha1')
+    .update(Buffer.from('blob ' + validatorBytesForBlob.length + '\\0'))
+    .update(validatorBytesForBlob)
+    .digest('hex');
+  assert.equal(pins.APPROVED_DISPATCH_VALIDATOR_BLOB_SHA, validatorGitBlobSha,
+    'dispatch validator blob pin must match the exact checked-in validator bytes');
+    assert.ok(dispatchWorkflow.includes('lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]'),
     'dispatch must bind lock generationSourceCommit to the approved research commit');
   assert.ok(dispatchWorkflow.includes('reviewer lock source bytes/blob mismatch'),
     'dispatch must independently verify source bytes and Git blob IDs');
