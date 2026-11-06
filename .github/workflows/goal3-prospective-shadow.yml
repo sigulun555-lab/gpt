@@ -104,9 +104,9 @@ jobs:
             --bootstrap-replicates 10000 --bootstrap-seed 20261104
       - name: Crossed date-team bootstrap sensitivity
         run: |
-          python verification/goal3_independent/crossed_date_team_bootstrap_sensitivity.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_crossed_date_team_bootstrap_sensitivity.json \\
+          python verification/goal3_independent/crossed_date_team_bootstrap_sensitivity.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_crossed_date_team_bootstrap_sensitivity.json \
             --replicates 50000 --seed 20261106
       - name: Upload crossed date-team bootstrap sensitivity
         uses: actions/upload-artifact@v4
