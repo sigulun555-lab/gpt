@@ -12,9 +12,12 @@ spec.loader.exec_module(module)
 
 
 def synthetic_report():
+    from datetime import date, timedelta
     teams = [f"T{i}" for i in range(8)]
     matches = []
-    for day_i, date in enumerate(("2026-01-03", "2026-01-10")):
+    first = date(2026, 1, 3)
+    for day_i in range(17):
+        date_text = (first + timedelta(days=3 * day_i)).isoformat()
         for i in range(len(teams)):
             for j in range(i + 1, len(teams)):
                 hg = (i + day_i) % 4
@@ -25,17 +28,16 @@ def synthetic_report():
                     home = [0.31 - shift, 0.29, 0.22, 0.18 + shift]
                     away = [0.28 - shift, 0.30, 0.24, 0.18 + shift]
                     by_k[f"{k:.1f}"] = {"home": home, "away": away}
-                matches.append({"date": date, "comp": "J1", "fold": day_i + 1,
+                matches.append({"date": date_text, "comp": "J1", "fold": day_i // 6 + 1,
                                 "home": teams[i], "away": teams[j],
                                 "hg": hg, "ag": ag, "byK": by_k})
     return {"allKPredictions": matches}
 
-
 class CrossedDateTeamBootstrapTests(unittest.TestCase):
     def test_expands_both_team_sides_and_checks_simplex(self):
         arrays = module.build_arrays(synthetic_report(), strict=False)
-        self.assertEqual(len(arrays["y"]), 112)
-        self.assertEqual(len(arrays["dates"]), 2)
+        self.assertEqual(len(arrays["y"]), 952)
+        self.assertEqual(len(arrays["dates"]), 17)
         self.assertEqual(len(arrays["teams"]), 8)
 
     def test_rejects_invalid_probability_simplex(self):
@@ -55,11 +57,13 @@ class CrossedDateTeamBootstrapTests(unittest.TestCase):
         first = module.audit(report, replicates=1000, seed=77, strict=False)
         second = module.audit(report, replicates=1000, seed=77, strict=False)
         self.assertEqual(first, second)
-        self.assertEqual(first["cohort"]["teamSideTargets"], 112)
+        self.assertEqual(first["cohort"]["teamSideTargets"], 952)
         self.assertIn("date_x_target_team", first["crossedBootstrap"])
         self.assertIn("date_x_home_away_team_product", first["crossedBootstrap"])
         self.assertGreater(first["crossedBootstrap"]["date_x_target_team"]["minimumWeightedTargetMass"], 0)
         self.assertEqual(first["dateTeamCalibrationAndPoisson"]["calibration"]["familySize"], 16)
+        self.assertEqual(first["calendarMovingBlockBootstrap"]["7_day"]["blockLengthCalendarDays"], 7)
+        self.assertEqual(first["calendarMovingBlockBootstrap"]["14_day"]["blockLengthCalendarDays"], 14)
 
 
 if __name__ == "__main__":
