@@ -14,6 +14,11 @@ LOGLOSS_FLOOR=1e-12
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
+def git_blob_sha(path):
+    raw=Path(path).read_bytes()
+    header=f"blob {len(raw)}\\0".encode("utf-8")
+    return hashlib.sha1(header+raw).hexdigest()
+
 def load_frozen(path):
     with Path(path).open(encoding="utf-8-sig",newline="") as f:
         rows=list(csv.DictReader(f))
@@ -230,9 +235,9 @@ def main():
             "aliasesSha256":sha(args.aliases),
             "history2025CsvSha256":sha(args.csv2025),
             "nestedValidationPySha256":sha(Path(__file__).with_name("nested_validation.py")),
-            "nestedValidationPyGitBlobSha":"7ac8f83da420fa577b45e9c5c021ce46387f584e",
+            "nestedValidationPyGitBlobSha":git_blob_sha(Path(__file__).with_name("nested_validation.py")),
             "pr19NestedValidationPyGitBlobSha":"5f73df9e6fdb43d5cf333c04036f87ae16c20d1f",
-            "modelCodeDifference":"PR #20 nested_validation.py is byte-identical to PR #19 version after removing only the explicit 2026-only date guard."
+            "modelCodeDifference":"PR #20 retains PR #19's penalized Poisson objective, gradient, L-BFGS-B settings, and prediction transform; it adds a 2026-only date guard and fail-closed history input validation for score types/ranges and team identity."
         },
         "cohort":{
             "teamSideTargets":len(k6_rows),"matches":len(matches),"dates":len(target_dates),
