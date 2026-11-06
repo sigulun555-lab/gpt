@@ -33,6 +33,7 @@ env:
   APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
   APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
   APPROVED_SCORER_SHA256: fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5
+  APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: 6bcb8c8b6ebc94d9ca2b250649e4d2a8fc6dbb31
 
 jobs:
   shadow:
@@ -52,6 +53,20 @@ jobs:
         with:
           ref: d5f48314159ffff2f8980738fa02d33ddf2a188b
           fetch-depth: 0
+
+      - name: Checkout dispatch validator from the workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: dispatch-source
+          fetch-depth: 1
+
+      - name: Verify pinned dispatch validator source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_VALIDATOR_BLOB="$(git -C dispatch-source rev-parse HEAD:verification/goal3_independent/validate_dispatch_attestation.py)"
+          test "$ACTUAL_VALIDATOR_BLOB" = "$APPROVED_DISPATCH_VALIDATOR_BLOB_SHA"
 
       - name: Verify immutable branch head and approved generation hashes
         shell: bash
@@ -168,7 +183,7 @@ jobs:
         env:
           ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}
         run: |
-          python verification/goal3_independent/validate_dispatch_attestation.py \
+          python dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py \
             --predictions data/predictions.json \
             --out artifacts/fixture-attestation.json
 
@@ -221,6 +236,11 @@ jobs:
               "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
               "approvedCodeLockGenerationSourceCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
               "approvedCodeLockRef": os.environ["APPROVED_CODE_LOCK_REF"],
+              "dispatchValidatorCommitSha": subprocess.check_output(
+                  ["git", "-C", "dispatch-source", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "approvedDispatchValidatorBlobSha": os.environ["APPROVED_DISPATCH_VALIDATOR_BLOB_SHA"],
+              "dispatchValidatorSha256": sha("dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py"),
               "approvedCodeHashes": {
                   "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
                   "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
