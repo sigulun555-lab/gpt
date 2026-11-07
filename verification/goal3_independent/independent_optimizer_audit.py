@@ -14,6 +14,7 @@ import json
 import math
 import unicodedata
 from collections import Counter, defaultdict
+from datetime import date as Date
 from pathlib import Path
 
 import numpy as np
@@ -49,21 +50,37 @@ def canonical(name: str, aliases: dict[str, str]) -> str:
 
 def load_history(path: Path, aliases: dict[str, str]):
     doc = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(doc, dict) or not isinstance(doc.get("history"), list):
+        raise ValueError("history document must contain a list")
     rows = []
     fetched_at = set()
     missing_fetched_at = 0
-    for raw in doc.get("history", []):
+    for row_index, raw in enumerate(doc["history"]):
+        if not isinstance(raw, dict):
+            raise ValueError(f"history row {row_index} must be an object")
         date = raw.get("date")
         comp = raw.get("competition")
         hg, ag = raw.get("home_goals"), raw.get("away_goals")
-        if not isinstance(date, str) or not date.startswith("2026-"):
-            raise ValueError(f"non-2026 history row: {date!r}")
+        if not isinstance(date, str):
+            raise ValueError(f"invalid 2026 history date at row {row_index}: {date!r}")
+        try:
+            parsed_date = Date.fromisoformat(date)
+        except ValueError as exc:
+            raise ValueError(f"invalid 2026 history date at row {row_index}: {date!r}") from exc
+        if parsed_date.isoformat() != date or parsed_date.year != 2026:
+            raise ValueError(f"non-canonical or non-2026 history date at row {row_index}: {date!r}")
         if comp not in LEAGUES:
             continue
         if isinstance(hg, bool) or isinstance(ag, bool):
-            raise ValueError(f"boolean goal count in 2026 history row: {raw!r}")
-        if not isinstance(hg, int) or not isinstance(ag, int) or hg < 0 or ag < 0:
+            raise ValueError(f"boolean goal count in 2026 history row {row_index}: {raw!r}")
+        # Only a fully unscored fixture may be excluded. A partial, negative,
+        # floating-point, or otherwise malformed score is a data error.
+        if hg is None and ag is None:
             continue
+        if type(hg) is not int or type(ag) is not int or hg < 0 or ag < 0:
+            raise ValueError(
+                f"invalid scored goal counts in 2026 history row {row_index}: {hg!r}-{ag!r}"
+            )
         home_raw, away_raw = raw.get("home"), raw.get("away")
         if (
             not isinstance(home_raw, str) or not home_raw.strip()
