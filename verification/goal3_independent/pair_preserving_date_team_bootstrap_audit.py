@@ -120,7 +120,7 @@ def prepare_arrays(document: dict, enforce_expected_cohort: bool = True) -> dict
     away_index = np.asarray([team_map[x] for x in aways_raw], dtype=np.int64)
 
     # Flatten in match order: home target then away target. Both share match weight.
-    probabilities = np.asarray(probability_rows, dtype=float).reshape(len(matches), 2, len(K_VALUES), 4)
+    probabilities = np.asarray(probability_rows, dtype=float).transpose(0, 2, 1, 3).reshape(len(matches), 2, len(K_VALUES), 4)
     probabilities = probabilities.reshape(2 * len(matches), len(K_VALUES), 4)
     actual = np.minimum(np.asarray([v for pair in zip(home_goals, away_goals) for v in pair]), 3)
     goals = np.asarray([v for pair in zip(home_goals, away_goals) for v in pair], dtype=np.int64)
