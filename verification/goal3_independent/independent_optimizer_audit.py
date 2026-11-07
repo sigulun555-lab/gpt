@@ -246,6 +246,89 @@ def fit_independent(prior, k):
     return result.x, idx, info
 
 
+
+def exact_hessian(theta, x_home, x_away, k, team_count):
+    """Exact Hessian of the clipped penalized-Poisson objective."""
+    eta_h_raw = x_home @ theta
+    eta_a_raw = x_away @ theta
+    active_h = ((eta_h_raw > -20.0) & (eta_h_raw < 20.0)).astype(float)
+    active_a = ((eta_a_raw > -20.0) & (eta_a_raw < 20.0)).astype(float)
+    rate_h = np.exp(np.clip(eta_h_raw, -20.0, 20.0))
+    rate_a = np.exp(np.clip(eta_a_raw, -20.0, 20.0))
+    weighted_h = rate_h * active_h
+    weighted_a = rate_a * active_a
+    hessian = x_home.T @ (x_home * weighted_h[:, None])
+    hessian += x_away.T @ (x_away * weighted_a[:, None])
+    diagonal = np.zeros(theta.size, dtype=float)
+    diagonal[2:] = 2.0 * k
+    hessian[np.diag_indices_from(hessian)] += diagonal
+    return 0.5 * (hessian + hessian.T)
+
+
+def fit_exact_newton(prior, k, gtol=1e-7, maxiter=100):
+    """Research-only exact-Hessian Newton fit with one frozen gtol for both k arms."""
+    teams, idx, xh, xa, hg, ag = build_design(prior)
+    n_teams = len(teams)
+    theta = np.zeros(2 + 2 * n_teams, dtype=float)
+    theta[0] = math.log(1.3)
+    minimum_eigenvalues = []
+
+    for iteration in range(maxiter + 1):
+        value, gradient = independent_objective_gradient(
+            theta, xh, xa, hg, ag, k, n_teams
+        )
+        gradient_norm = float(np.max(np.abs(gradient)))
+        hessian = exact_hessian(theta, xh, xa, k, n_teams)
+        minimum_eigenvalue = float(np.linalg.eigvalsh(hessian)[0])
+        minimum_eigenvalues.append(minimum_eigenvalue)
+        if gradient_norm <= gtol:
+            return theta, idx, {
+                "success": True,
+                "status": "converged_gradient_tolerance",
+                "message": f"gradient infinity norm <= {gtol:g}",
+                "iterations": iteration,
+                "objective": float(value),
+                "gradientInfinityNorm": gradient_norm,
+                "minimumHessianEigenvalueAlongPath": min(minimum_eigenvalues),
+                "minimumHessianEigenvalueAtSolution": minimum_eigenvalue,
+                "gradientTolerance": float(gtol),
+            }
+        if iteration == maxiter:
+            break
+        if not math.isfinite(minimum_eigenvalue) or minimum_eigenvalue <= 0.0:
+            raise RuntimeError(
+                f"exact Hessian is not positive definite for k={k}: {minimum_eigenvalue}"
+            )
+        direction = np.linalg.solve(hessian, -gradient)
+        directional_derivative = float(gradient @ direction)
+        if not math.isfinite(directional_derivative) or directional_derivative >= 0.0:
+            raise RuntimeError(
+                f"Newton direction is not a descent direction for k={k}: {directional_derivative}"
+            )
+        step = 1.0
+        accepted = False
+        for _ in range(60):
+            candidate = theta + step * direction
+            candidate_value = independent_objective_gradient(
+                candidate, xh, xa, hg, ag, k, n_teams
+            )[0]
+            if (
+                math.isfinite(candidate_value)
+                and candidate_value <= value + 1e-4 * step * directional_derivative
+            ):
+                theta = candidate
+                accepted = True
+                break
+            step *= 0.5
+        if not accepted:
+            raise RuntimeError(
+                f"exact Newton Armijo line search stalled for k={k}, "
+                f"iteration={iteration}, gradient={gradient_norm}"
+            )
+    raise RuntimeError(
+        f"exact Newton failed to reach gtol={gtol:g} for k={k} in {maxiter} iterations"
+    )
+
 def poisson_categories(rate):
     lam = float(rate)
     p0 = math.exp(-lam)
@@ -414,7 +497,9 @@ def main():
             raise ValueError(f"frozen cohort/source history mismatch: {key}")
 
     predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
+    strict_predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
     fit_diagnostics = []
+    strict_fit_diagnostics = []
     row_indices_by_date = defaultdict(list)
     for i, r in enumerate(rows):
         row_indices_by_date[r["date"]].append(i)
@@ -425,19 +510,44 @@ def main():
         date_matches = [m for m in matches if m["date"] == date]
         for k in K_VALUES:
             theta, idx, info = fit_independent(prior, k)
+            strict_theta, strict_idx, strict_info = fit_exact_newton(
+                prior, k, gtol=1e-7, maxiter=100
+            )
+            if idx != strict_idx:
+                raise ValueError(f"team-index mismatch between solvers for {date}, k={k}")
             fit_diagnostics.append({
                 "date": date, "fold": fold_by_date[date], "k": int(k), **info,
             })
+            strict_fit_diagnostics.append({
+                "date": date,
+                "fold": fold_by_date[date],
+                "k": int(k),
+                "defaultLbfgsb": {
+                    "success": info["success"],
+                    "status": info["status"],
+                    "message": info["message"],
+                    "objective": info["objective"],
+                    "gradientInfinityNorm": info["gradientInfinityNorm"],
+                    "iterations": info["iterations"],
+                },
+                "strictExactNewton": strict_info,
+                "defaultMinusStrictObjective": float(info["objective"] - strict_info["objective"]),
+                "maxAbsParameterDifference": float(np.max(np.abs(theta - strict_theta))),
+            })
             for m in date_matches:
                 ph, pa = predict_independent(theta, idx, m["home"], m["away"])
+                strict_ph, strict_pa = predict_independent(strict_theta, strict_idx, m["home"], m["away"])
                 for i in row_indices_by_date[date]:
                     r = rows[i]
                     if (r["comp"], r["home"], r["away"]) != (m["comp"], m["home"], m["away"]):
                         continue
                     predictions[int(k)][i] = ph if r["side"] == "home" else pa
+                    strict_predictions[int(k)][i] = strict_ph if r["side"] == "home" else strict_pa
 
     if any(x is None for k in (6, 10) for x in predictions[k]):
         raise ValueError("one or more frozen target rows were not independently predicted")
+    if any(x is None for k in (6, 10) for x in strict_predictions[k]):
+        raise ValueError("one or more frozen target rows were not strictly re-optimized")
 
     max_error, mean_abs_error = {}, {}
     for k in (6, 10):
@@ -474,6 +584,66 @@ def main():
             },
         },
         "note": "Descriptive Pearson residual RMS only; not a formal goodness-of-fit test.",
+    }
+
+
+    strict_probability_error, strict_probability_drift = {}, {}
+    for k in (6, 10):
+        strict = np.asarray(strict_predictions[k], dtype=float)
+        default = np.asarray(predictions[k], dtype=float)
+        frozen = np.asarray([[r[f"k{k}_p{c}"] for c in range(4)] for r in rows], dtype=float)
+        strict_probability_error[str(k)] = float(np.max(np.abs(strict - frozen)))
+        strict_probability_drift[str(k)] = float(np.max(np.abs(strict - default)))
+
+    strict_p6 = np.asarray(strict_predictions[6], dtype=float)
+    strict_p10 = np.asarray(strict_predictions[10], dtype=float)
+    strict_metrics = {"k6": score(strict_p6, actual), "k10": score(strict_p10, actual)}
+    strict_metrics["differenceK6MinusK10"] = {
+        key: float(strict_metrics["k6"][key] - strict_metrics["k10"][key])
+        for key in ("brier", "logloss", "accuracy")
+    }
+    strict_bootstrap = moving_block_bootstrap(
+        rows, strict_p6, strict_p10, args.bootstrap_replicates, args.seed
+    )
+    strict_gradients = [x["strictExactNewton"]["gradientInfinityNorm"] for x in strict_fit_diagnostics]
+    default_gradients = [x["defaultLbfgsb"]["gradientInfinityNorm"] for x in strict_fit_diagnostics]
+    strict_stationarity = {
+        "criterion": {
+            "solver": "damped full-Newton with exact Hessian and Armijo backtracking",
+            "gradientInfinityNormAtMost": 1e-7,
+            "maxIterations": 100,
+            "armijoC1": 1e-4,
+            "maxBacktrackingHalvings": 60,
+            "identicalForBothKArms": True,
+            "selectionOrAdoptionTuning": False,
+        },
+        "fitCount": len(strict_fit_diagnostics),
+        "convergedCount": sum(x["strictExactNewton"]["success"] for x in strict_fit_diagnostics),
+        "nonConvergedCount": sum(not x["strictExactNewton"]["success"] for x in strict_fit_diagnostics),
+        "maxGradientInfinityNorm": float(max(strict_gradients)),
+        "medianGradientInfinityNorm": float(np.median(strict_gradients)),
+        "minimumHessianEigenvalueAlongAllPaths": float(min(
+            x["strictExactNewton"]["minimumHessianEigenvalueAlongPath"] for x in strict_fit_diagnostics
+        )),
+        "defaultLbfgsb": {
+            "successCount": sum(x["defaultLbfgsb"]["success"] for x in strict_fit_diagnostics),
+            "gradientAbove1e2Count": sum(g > 1e-2 for g in default_gradients),
+            "maxGradientInfinityNorm": float(max(default_gradients)),
+            "stopMessages": dict(Counter(x["defaultLbfgsb"]["message"] for x in strict_fit_diagnostics)),
+        },
+        "probabilitySensitivity": {
+            "maxAbsStrictVsDefaultLbfgsb": strict_probability_drift,
+            "maxAbsStrictVsFrozenCsv": strict_probability_error,
+            "frozenCsvReconstructionTolerance": args.max_probability_error,
+            "strictVsFrozenWithinTolerance": {
+                str(k): strict_probability_error[str(k)] <= args.max_probability_error for k in (6, 10)
+            },
+            "interpretation": "The strict Newton solution is an optimizer-stationarity sensitivity, not a parity reconstruction of the frozen default L-BFGS-B probabilities. Exceeding the frozen-CSV parity tolerance here is not treated as a failure of the default reconstruction check."
+        },
+        "metrics": strict_metrics,
+        "circularMovingBlockBootstrap": strict_bootstrap,
+        "perDateAndK": strict_fit_diagnostics,
+        "decision": "Research-only solver sensitivity. It does not replace the frozen default-L-BFGS-B predictions or the pre-registered prospective protocol."
     }
 
     passed = all(v <= args.max_probability_error for v in max_error.values())
@@ -522,6 +692,7 @@ def main():
         "bootstrap": bootstrap,
         "fourCategoryCalibration": calibration_report,
         "poissonResidualDiagnostics": residual_report,
+        "strictStationarityAudit": strict_stationarity,
         "reproductionCommand": (
             "python verification/goal3_independent/independent_optimizer_audit.py "
             "--history data/history.json --aliases data/team_aliases.json "
@@ -541,6 +712,14 @@ def main():
         "bootstrap95": {k: bootstrap[k]["ci95"] for k in ("brier", "logloss", "accuracy")},
         "fitCount": len(fit_diagnostics),
         "failureCount": report["fitDiagnostics"]["failureCount"],
+        "strictStationarity": {
+            "convergedCount": strict_stationarity["convergedCount"],
+            "fitCount": strict_stationarity["fitCount"],
+            "maxGradientInfinityNorm": strict_stationarity["maxGradientInfinityNorm"],
+            "defaultGradientAbove1e2Count": strict_stationarity["defaultLbfgsb"]["gradientAbove1e2Count"],
+            "probabilityDriftVsDefault": strict_probability_drift,
+            "strictMetricsDifferenceK6MinusK10": strict_metrics["differenceK6MinusK10"],
+        },
         "output": str(out_path),
     }, ensure_ascii=False, indent=2))
 
