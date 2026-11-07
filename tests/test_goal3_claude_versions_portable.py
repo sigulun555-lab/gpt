@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -121,8 +122,10 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
             "--target-date", "2026-01-13", "--fixtures", str(self.fixtures_path),
             "--versions", "v0,v2", "--out", str(no_market_out),
         ]
-        with patch.object(sys, "argv", argv):
-            self.g3.main()
+        completed = subprocess.run(
+            [sys.executable, str(MODULE_PATH), *argv[1:]],
+            check=True, capture_output=True, text=True,
+        )
         no_market = json.loads(no_market_out.read_text(encoding="utf-8"))
         self.assertEqual(no_market["versions"]["v2"]["status"], "not_run")
         self.assertEqual(no_market["versions"]["v0"]["status"], "ok")
@@ -134,8 +137,10 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
             "--market", str(self.market_path), "--versions", "v2",
             "--out", str(with_market_out),
         ]
-        with patch.object(sys, "argv", argv):
-            self.g3.main()
+        completed = subprocess.run(
+            [sys.executable, str(MODULE_PATH), *argv[1:]],
+            check=True, capture_output=True, text=True,
+        )
         with_market = json.loads(with_market_out.read_text(encoding="utf-8"))
         self.assertEqual(with_market["versions"]["v2"]["status"], "ok")
         for fixture in with_market["versions"]["v2"]["fixtures"]:
