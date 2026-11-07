@@ -48,3 +48,35 @@ The report includes per-date/per-k fit diagnostics, independent probability reco
 ## Interpretation limits
 
 This is a retrospective independent optimizer reconstruction, not prospective evidence. The history snapshot's common `fetchedAt` does not establish the original first-known time of every historical result. The 17-date cohort is small, and k=6 is not adopted based on this audit. Existing prospective shadow artifacts remain immutable and separate.
+
+
+## 2026-11-07 solver-stationarity sensitivity (same frozen cohort)
+
+The PR #20 workflow run `42328643873` executed an additional solver sensitivity test over the same 17 target dates and both penalties (34 fits total). This test is read-only and is not used to create or overwrite any forecast artifact.
+
+### Why a second solver was needed
+
+The reference-style L-BFGS-B run (default stopping controls, `maxiter=300`) reported SciPy success for 34/34 fits, but the separately calculated infinity norm of the analytic gradient reached 0.0359705. A stricter L-BFGS-B sensitivity run (`maxiter=2000, ftol=1e-12, gtol=1e-6, maxls=50, maxcor=20`) still met the requested gradient tolerance in only 1/34 fits (maximum norm 0.000471082). Therefore SciPy's `success` flag and the requested stationarity tolerance are reported separately.
+
+### Independent exact-Hessian check
+
+The unit-test suite also solves all 34 date/k fits with a separately implemented damped full-Newton method, exact Hessian, and Armijo backtracking:
+
+- Requested gradient infinity-norm tolerance: `1e-7`.
+- Converged fits: 34/34.
+- Maximum gradient infinity norm: `7.1546155e-9`.
+- Median gradient infinity norm: `2.7067415e-10`.
+- Maximum Newton iterations: 4.
+- Minimum Hessian eigenvalue across fits: `11.5921286` (positive).
+
+The exact-Hessian fits are a numerical sensitivity solution to the same clipped penalized-Poisson objective, not a replacement for the frozen historical outputs. Relative to the frozen six-decimal probabilities, maximum probability drift was `4.11258e-5` for k=6 and `5.35220e-5` for k=10. The resulting point estimates were:
+
+| Metric | k=6 exact Newton | k=10 exact Newton | k6-k10 |
+|---|---:|---:|---:|
+| Four-category Brier | 0.716246640 | 0.716864843 | -0.000618204 |
+| Natural LogLoss | 1.310395659 | 1.312557595 | -0.002161937 |
+| Accuracy | 37.5000% | 36.6525% | +0.8475 pp |
+
+The 10,000-replicate circular date moving-block bootstrap remained inconclusive: Brier 95% interval `[-0.0025415, +0.0013501]`; LogLoss `[-0.0060867, +0.0016913]`. Both include zero. The point-estimate direction is unchanged, but this solver sensitivity does not establish k=6 superiority.
+
+The test output now reports `successCount` separately from `gradientToleranceMetCount` and `stricter1e8Count`, avoiding the previous ambiguity where a 1e-8 count was labelled as generic solver success. The exact-Hessian result is a research-only diagnostic; it changes no production model, market weight, prediction log, main branch, or existing shadow artifact.
