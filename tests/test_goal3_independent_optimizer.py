@@ -840,5 +840,65 @@ class NestedValidationHistoryInputTests(unittest.TestCase):
         self.assertEqual((scored[0]["hg"], scored[0]["ag"]), (1, 0))
 
 
+
+class StrictOptimizerModuleTests(unittest.TestCase):
+    @staticmethod
+    def _prior():
+        teams = ["A", "B", "C", "D", "E", "F"]
+        score_pairs = [
+            (1, 0), (2, 1), (0, 0), (1, 2), (3, 1), (0, 1),
+            (2, 2), (1, 1), (0, 2), (2, 0), (1, 0), (0, 0),
+            (3, 2), (1, 1), (2, 1), (0, 2), (2, 0), (1, 3),
+            (1, 0), (2, 2), (0, 1), (3, 1), (1, 2), (0, 0),
+        ]
+        rows = []
+        for i, (hg, ag) in enumerate(score_pairs):
+            home = teams[i % len(teams)]
+            away = teams[(i + 1) % len(teams)]
+            rows.append({
+                "date": f"2026-08-{i + 1:02d}",
+                "comp": "J1",
+                "home": home,
+                "away": away,
+                "hg": hg,
+                "ag": ag,
+            })
+        return rows
+
+    def test_module_exact_newton_uses_same_strict_gradient_tolerance_for_both_arms(self):
+        prior = self._prior()
+        for k in (6.0, 10.0):
+            with self.subTest(k=k):
+                theta, index, info = audit.fit_exact_newton(prior, k, gtol=1e-7, maxiter=100)
+                self.assertTrue(info["success"])
+                self.assertEqual(info["status"], "converged_gradient_tolerance")
+                self.assertEqual(info["gradientTolerance"], 1e-7)
+                self.assertLessEqual(info["gradientInfinityNorm"], 1e-7)
+                self.assertGreater(info["minimumHessianEigenvalueAtSolution"], 0.0)
+                self.assertTrue(np.all(np.isfinite(theta)))
+                self.assertEqual(len(index), 6)
+
+    def test_module_exact_hessian_matches_finite_difference_of_gradient(self):
+        prior = self._prior()
+        _, _, xh, xa, hg, ag = audit.build_design(prior)
+        k = 6.0
+        theta = np.linspace(-0.04, 0.05, xh.shape[1])
+        team_count = (theta.size - 2) // 2
+        analytic = audit.exact_hessian(theta, xh, xa, k, team_count)
+        numeric = np.zeros_like(analytic)
+        step = 1e-5
+        for j in range(theta.size):
+            delta = np.zeros_like(theta)
+            delta[j] = step
+            grad_plus = audit.independent_objective_gradient(
+                theta + delta, xh, xa, hg, ag, k, team_count
+            )[1]
+            grad_minus = audit.independent_objective_gradient(
+                theta - delta, xh, xa, hg, ag, k, team_count
+            )[1]
+            numeric[:, j] = (grad_plus - grad_minus) / (2 * step)
+        self.assertLess(float(np.max(np.abs(analytic - numeric))), 1e-6)
+
+
 if __name__ == "__main__":
     unittest.main()
