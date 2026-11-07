@@ -10,7 +10,9 @@ Scope: GOAL3 research-only cross-check for PR #20. This document does not alter 
 
 The original Claude generation manifest does not contain SHA-256 values for data/history.json, data/team_aliases.json, or nested_validation.py. The README identifies a dependency commit, so the independent verifier now fetches that exact commit and records SHA-256 plus Git blob SHA-1 for history, aliases, 2025.csv, and nested_validation.py. It also compares the documented data inputs byte-for-byte with the current PR #20 inputs.
 
-Important limitation: this proves the documented commit's file contents and the GPT-side reproduction inputs; it does not prove which local files Claude's original generation process actually read. The report therefore leaves execution_linkage_proven=false and does not call the missing original manifest complete.
+The verifier also imports the documented nested_validation.py from that commit and reruns its loader against the byte-identical history, aliases, and 2025.csv inputs. The old and current loaders return exactly the same 1,140 2025 rows and 429 2026 rows. The complete nested_validation.py files differ because the PR #20 version adds strict fail-closed input validation, but the code from def bin_goals onward (including fit/predict) is byte-identical. This establishes that the loader hardening did not change the historical training population or the model core.
+
+Important limitation: this proves the documented commit's file contents and the GPT-side reproduction inputs; it does not prove which local files were read during the original Claude generation. The report therefore leaves execution_linkage_proven=false and does not call the missing original manifest complete.
 
 ## Portable version tests
 

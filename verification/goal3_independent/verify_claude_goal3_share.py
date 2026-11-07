@@ -348,6 +348,36 @@ def main() -> None:
     aliases_path = ROOT / "data" / "team_aliases.json"
     csv_2025_path = ROOT / "verification" / "goal3_independent" / "2025.csv"
     h2025, h2026 = nv.load_data(str(history_path), str(aliases_path), str(csv_2025_path))
+
+    # Re-run the loader from the exact GPT PR #19 dependency commit documented
+    # by Claude. This tests whether the later fail-closed loader changed the
+    # actual 2025/2026 training population, independently of the model core.
+    documented_nv_path = ROOT / "verification" / "goal3_independent" / "results" / "_claude_documented_nested_validation.py"
+    documented_nv_path.write_bytes(documented_gpt_bytes["nested_validation.py"])
+    documented_nv_spec = importlib.util.spec_from_file_location("claude_documented_nested_validation", documented_nv_path)
+    documented_nv = importlib.util.module_from_spec(documented_nv_spec)
+    documented_nv_spec.loader.exec_module(documented_nv)
+    documented_h2025, documented_h2026 = documented_nv.load_data(
+        str(history_path), str(aliases_path), str(csv_2025_path)
+    )
+    old_nested_text = documented_gpt_bytes["nested_validation.py"].decode("utf-8")
+    current_nested_text = nv_path.read_text(encoding="utf-8")
+    old_core = old_nested_text.split("def bin_goals", 1)[1]
+    current_core = current_nested_text.split("def bin_goals", 1)[1]
+    documented_loader_equivalence = {
+        "documented_commit": CLAUDE_DOCUMENTED_GPT_COMMIT,
+        "2025_rows": len(documented_h2025),
+        "2026_rows": len(documented_h2026),
+        "2025_rows_exact_match": documented_h2025 == h2025,
+        "2026_rows_exact_match": documented_h2026 == h2026,
+        "strict_loader_population_unchanged": documented_h2025 == h2025 and documented_h2026 == h2026,
+        "nested_validation_full_file_identical": old_nested_text == current_nested_text,
+        "nested_validation_core_from_bin_goals_identical": old_core == current_core,
+    }
+    if not documented_loader_equivalence["strict_loader_population_unchanged"]:
+        raise AssertionError(f"documented dependency loader population differs from PR #20: {documented_loader_equivalence}")
+    if not documented_loader_equivalence["nested_validation_core_from_bin_goals_identical"]:
+        raise AssertionError("documented nested_validation fit/predict core differs from current PR #20 code")
     expected_input_blobs = {
         "history.json": (history_path, "f5cc8c044758e45b1e679e4ce796e68b3f27a854"),
         "team_aliases.json": (aliases_path, "5de22584524ff4c07ddac1d27f49afbbbc5f88ab"),
@@ -386,6 +416,8 @@ def main() -> None:
             "git_blob_sha1": git_blob_sha1(documented_bytes),
             "matches_pr20_current_bytes": documented_bytes == current_bytes,
         }
+    documented_dependency_manifest["nested_validation.py"]["core_from_bin_goals_identical"] = documented_loader_equivalence["nested_validation_core_from_bin_goals_identical"]
+    documented_dependency_manifest["nested_validation.py"]["documented_loader_population_unchanged"] = documented_loader_equivalence["strict_loader_population_unchanged"]
 
     aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
     raw_history = json.loads(history_path.read_text(encoding="utf-8"))["history"]
@@ -525,6 +557,7 @@ def main() -> None:
                 "note": "The Claude README documents this GPT PR #19 dependency commit. These hashes verify that commit and compare it with PR #20, but the original run manifest is absent, so the exact local bytes consumed at generation time are not proven.",
             },
             "claude_documented_dependency_snapshot": documented_dependency_manifest,
+            "documented_loader_reproduction": documented_loader_equivalence,
             "gpt_independent_reproduction_manifest": {
                 "status": "verified",
                 "inputs": independent_input_manifest,

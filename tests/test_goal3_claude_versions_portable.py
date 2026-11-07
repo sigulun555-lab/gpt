@@ -161,6 +161,13 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         original = provenance["claude_original_generation_manifest"]
         self.assertEqual(original["status"], "not_provided")
         self.assertFalse(original["execution_linkage_proven"])
+        loader = provenance["documented_loader_reproduction"]
+        self.assertEqual(loader["2025_rows"], 1140)
+        self.assertEqual(loader["2026_rows"], 429)
+        self.assertTrue(loader["2025_rows_exact_match"])
+        self.assertTrue(loader["2026_rows_exact_match"])
+        self.assertFalse(loader["nested_validation_full_file_identical"])
+        self.assertTrue(loader["nested_validation_core_from_bin_goals_identical"])
         independent = provenance["gpt_independent_reproduction_manifest"]
         self.assertEqual(independent["status"], "verified")
         for key in ("history.json", "team_aliases.json", "2025.csv", "nested_validation.py"):
