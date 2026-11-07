@@ -164,8 +164,8 @@ jobs:
       - name: Pair-preserving date/team bootstrap sensitivity
         run: |
           python verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py \
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_pair_preserving_date_team_bootstrap_audit.json \\
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_pair_preserving_date_team_bootstrap_audit.json \
             --replicates 50000 --seed 20261110
       - name: Upload pair-preserving date/team bootstrap sensitivity
         uses: actions/upload-artifact@v4
