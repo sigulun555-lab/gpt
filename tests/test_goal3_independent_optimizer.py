@@ -347,8 +347,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         }
         predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
         row_indices_by_date = defaultdict(list)
-        for i, row in enumerate(rows):
-            row_indices_by_date[row["date"]].append(i)
+        for i, row in enumerate(rows):            row_indices_by_date[row["date"]].append(i)
         diagnostics = []
 
         for date in dates:
@@ -571,10 +570,12 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         self.assertEqual(len(dates), 17)
 
         predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
+        default_predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
         row_indices_by_date = defaultdict(list)
         for i, row in enumerate(rows):
             row_indices_by_date[row["date"]].append(i)
         diagnostics = []
+        parameter_diagnostics = []
 
         for date in dates:
             prior = [match for match in history if match["date"] < date]
@@ -593,6 +594,33 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 theta_fit, idx, info = fit_exact_newton(
                     prior, k, gtol=1e-7, maxiter=100
                 )
+                default_theta, default_idx, default_info = audit.fit_independent(prior, k)
+                self.assertEqual(default_idx, idx)
+                parameter_delta = theta_fit - default_theta
+                team_count = len(idx)
+                objective_gap = float(default_info["objective"] - info["objective"])
+                self.assertGreaterEqual(
+                    objective_gap, -1e-7,
+                    f"default L-BFGS-B objective beats exact Newton beyond tolerance: date={date} k={k} gap={objective_gap}",
+                )
+                parameter_diagnostics.append({
+                    "date": date,
+                    "fold": fold_by_date[date],
+                    "k": int(k),
+                    "defaultLbfsgbGradientInfinityNorm": float(default_info["gradientInfinityNorm"]),
+                    "exactNewtonGradientInfinityNorm": float(info["gradientInfinityNorm"]),
+                    "maxAbsParameterDifference": float(np.max(np.abs(parameter_delta))),
+                    "l2ParameterDifference": float(np.linalg.norm(parameter_delta)),
+                    "maxAbsByBlock": {
+                        "intercept": float(abs(parameter_delta[0])),
+                        "homeAdvantage": float(abs(parameter_delta[1])),
+                        "attack": float(np.max(np.abs(parameter_delta[2:2 + team_count]))),
+                        "defense": float(np.max(np.abs(parameter_delta[2 + team_count:]))),
+                    },
+                    "defaultObjective": float(default_info["objective"]),
+                    "exactNewtonObjective": float(info["objective"]),
+                    "defaultMinusExactObjective": objective_gap,
+                })
                 grad_norm = info["gradientInfinityNorm"]
                 self.assertTrue(
                     info["success"],
@@ -634,13 +662,22 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                         predictions[int(k)][row_index] = (
                             p_home if row["side"] == "home" else p_away
                         )
+                        default_p_home, default_p_away = audit.predict_independent(
+                            default_theta, default_idx, match["home"], match["away"]
+                        )
+                        default_predictions[int(k)][row_index] = (
+                            default_p_home if row["side"] == "home" else default_p_away
+                        )
 
         self.assertEqual(len(diagnostics), 34)
+        self.assertEqual(len(parameter_diagnostics), 34)
         self.assertTrue(all(
             p is not None for k in (6, 10) for p in predictions[k]
         ))
         p6 = np.asarray(predictions[6], dtype=float)
         p10 = np.asarray(predictions[10], dtype=float)
+        default_p6 = np.asarray(default_predictions[6], dtype=float)
+        default_p10 = np.asarray(default_predictions[10], dtype=float)
         actual = np.asarray([row["actual"] for row in rows], dtype=int)
         frozen = {
             k: np.asarray([
@@ -674,6 +711,28 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         }
         gradients = [item["gradientInfinityNorm"] for item in diagnostics]
         iterations = [item["iterations"] for item in diagnostics]
+        default_vs_exact_probability_drift = {
+            "k6": float(np.max(np.abs(p6 - default_p6))),
+            "k10": float(np.max(np.abs(p10 - default_p10))),
+        }
+        parameter_summary_by_k = {}
+        for k in (6, 10):
+            items = [item for item in parameter_diagnostics if item["k"] == k]
+            parameter_summary_by_k[str(k)] = {
+                "fitCount": len(items),
+                "maxAbsParameterDifference": max(x["maxAbsParameterDifference"] for x in items),
+                "medianAbsParameterDifference": float(np.median([x["maxAbsParameterDifference"] for x in items])),
+                "p95AbsParameterDifference": float(np.quantile([x["maxAbsParameterDifference"] for x in items], 0.95, method="linear")),
+                "maxL2ParameterDifference": max(x["l2ParameterDifference"] for x in items),
+                "maxDefaultGradientInfinityNorm": max(x["defaultLbfsgbGradientInfinityNorm"] for x in items),
+                "maxExactNewtonGradientInfinityNorm": max(x["exactNewtonGradientInfinityNorm"] for x in items),
+                "minimumDefaultMinusExactObjective": min(x["defaultMinusExactObjective"] for x in items),
+                "maximumDefaultMinusExactObjective": max(x["defaultMinusExactObjective"] for x in items),
+                "maxAbsByBlock": {
+                    block: max(x["maxAbsByBlock"][block] for x in items)
+                    for block in ("intercept", "homeAdvantage", "attack", "defense")
+                },
+            }
         print(json.dumps({
             "solver": "Damped full-Newton with exact Hessian and Armijo backtracking",
             "options": {"gtol": 1e-7, "maxiter": 100, "lineSearch": "Armijo backtracking"},
@@ -689,7 +748,10 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "maxIterations": max(iterations),
             "minimumHessianEigenvalue": min(item["minimumHessianEigenvalue"] for item in diagnostics),
             "maxProbabilityDriftVsFrozenDefault": max_drift,
-            "metrics": metrics,
+            "maxProbabilityDriftExactNewtonVsDefaultLbfsgb": default_vs_exact_probability_drift,
+            "defaultLbfsgbVsExactNewtonParameterSummary": parameter_summary_by_k,
+            "defaultLbfsgbVsExactNewtonPerFit": parameter_diagnostics,
+            "metrics": metrics
             "movingBlockBootstrap10k": bootstrap,
             "fourCategoryCalibration": calibration,
             "poissonResidualRMS": residuals,
