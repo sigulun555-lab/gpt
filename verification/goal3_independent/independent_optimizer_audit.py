@@ -31,6 +31,14 @@ SOURCE_GIT_BLOB_SHA = {
     "frozenCsv": "56892251679b8774a9e1b7ccc4b5beb42e660e36",
 }
 K_VALUES = (6.0, 10.0)
+STRICT_LBFGSB_OPTIONS = {
+    "maxiter": 2000,
+    "ftol": 1e-12,
+    "gtol": 1e-6,
+    "maxls": 50,
+    "maxcor": 20,
+}
+STRICT_LBFGSB_GRADIENT_TOLERANCE = 1e-6
 LEAGUES = ("J1", "J2", "J3")
 LOGLOSS_FLOOR = 1e-12
 
@@ -216,7 +224,7 @@ def independent_objective_gradient(theta, x_home, x_away, hg, ag, k, team_count)
     return float(value), grad
 
 
-def fit_independent(prior, k):
+def fit_independent(prior, k, options=None):
     teams, idx, xh, xa, hg, ag = build_design(prior)
     n = len(teams)
     theta0 = np.zeros(2 + 2 * n, dtype=float)
@@ -226,9 +234,10 @@ def fit_independent(prior, k):
     def fun_and_jac(theta):
         return independent_objective_gradient(theta, xh, xa, hg, ag, k, n)
 
+    optimizer_options = {"maxiter": 300} if options is None else dict(options)
     result = minimize(
         fun_and_jac, theta0, jac=True, method="L-BFGS-B",
-        options={"maxiter": 300},
+        options=optimizer_options,
     )
     info = {
         "success": bool(result.success),
@@ -240,6 +249,7 @@ def fit_independent(prior, k):
         "trainingMatches": len(prior),
         "trainingDates": len({r["date"] for r in prior}),
         "teamCount": n,
+        "optimizerOptions": optimizer_options,
     }
     if not result.success or not np.all(np.isfinite(result.x)):
         raise RuntimeError(f"independent optimizer failed for k={k}: {info}")
@@ -497,6 +507,7 @@ def main():
             raise ValueError(f"frozen cohort/source history mismatch: {key}")
 
     predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
+    strict_lbfgsb_predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
     strict_predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
     fit_diagnostics = []
     strict_fit_diagnostics = []
@@ -510,10 +521,13 @@ def main():
         date_matches = [m for m in matches if m["date"] == date]
         for k in K_VALUES:
             theta, idx, info = fit_independent(prior, k)
+            strict_lbfgsb_theta, strict_lbfgsb_idx, strict_lbfgsb_info = fit_independent(
+                prior, k, options=STRICT_LBFGSB_OPTIONS
+            )
             strict_theta, strict_idx, strict_info = fit_exact_newton(
                 prior, k, gtol=1e-7, maxiter=100
             )
-            if idx != strict_idx:
+            if idx != strict_idx or idx != strict_lbfgsb_idx:
                 raise ValueError(f"team-index mismatch between solvers for {date}, k={k}")
             fit_diagnostics.append({
                 "date": date, "fold": fold_by_date[date], "k": int(k), **info,
@@ -530,22 +544,31 @@ def main():
                     "gradientInfinityNorm": info["gradientInfinityNorm"],
                     "iterations": info["iterations"],
                 },
+                "strictLbfgsb": strict_lbfgsb_info,
                 "strictExactNewton": strict_info,
                 "defaultMinusStrictObjective": float(info["objective"] - strict_info["objective"]),
                 "maxAbsParameterDifference": float(np.max(np.abs(theta - strict_theta))),
             })
             for m in date_matches:
                 ph, pa = predict_independent(theta, idx, m["home"], m["away"])
+                strict_lbfgsb_ph, strict_lbfgsb_pa = predict_independent(
+                    strict_lbfgsb_theta, strict_lbfgsb_idx, m["home"], m["away"]
+                )
                 strict_ph, strict_pa = predict_independent(strict_theta, strict_idx, m["home"], m["away"])
                 for i in row_indices_by_date[date]:
                     r = rows[i]
                     if (r["comp"], r["home"], r["away"]) != (m["comp"], m["home"], m["away"]):
                         continue
                     predictions[int(k)][i] = ph if r["side"] == "home" else pa
+                    strict_lbfgsb_predictions[int(k)][i] = (
+                        strict_lbfgsb_ph if r["side"] == "home" else strict_lbfgsb_pa
+                    )
                     strict_predictions[int(k)][i] = strict_ph if r["side"] == "home" else strict_pa
 
     if any(x is None for k in (6, 10) for x in predictions[k]):
         raise ValueError("one or more frozen target rows were not independently predicted")
+    if any(x is None for k in (6, 10) for x in strict_lbfgsb_predictions[k]):
+        raise ValueError("one or more frozen target rows were not strict-L-BFGS-B re-optimized")
     if any(x is None for k in (6, 10) for x in strict_predictions[k]):
         raise ValueError("one or more frozen target rows were not strictly re-optimized")
 
@@ -595,6 +618,47 @@ def main():
         strict_probability_error[str(k)] = float(np.max(np.abs(strict - frozen)))
         strict_probability_drift[str(k)] = float(np.max(np.abs(strict - default)))
 
+    strict_lbfgsb_p6 = np.asarray(strict_lbfgsb_predictions[6], dtype=float)
+    strict_lbfgsb_p10 = np.asarray(strict_lbfgsb_predictions[10], dtype=float)
+    strict_lbfgsb_metrics = {
+        "k6": score(strict_lbfgsb_p6, actual),
+        "k10": score(strict_lbfgsb_p10, actual),
+    }
+    strict_lbfgsb_metrics["differenceK6MinusK10"] = {
+        key: float(strict_lbfgsb_metrics["k6"][key] - strict_lbfgsb_metrics["k10"][key])
+        for key in ("brier", "logloss", "accuracy")
+    }
+    strict_lbfgsb_bootstrap = moving_block_bootstrap(
+        rows, strict_lbfgsb_p6, strict_lbfgsb_p10, args.bootstrap_replicates, args.seed
+    )
+    strict_lbfgsb_calibration = {
+        str(k): {
+            "all": calibration(rows, p, k, lambda r: True),
+            "byLeague": {
+                league: calibration(rows, p, k, lambda r, league=league: r["comp"] == league)
+                for league in LEAGUES
+            },
+        }
+        for k, p in ((6, strict_lbfgsb_p6), (10, strict_lbfgsb_p10))
+    }
+    strict_lbfgsb_residuals = {
+        str(k): {
+            "all": poisson_residuals(rows, p, lambda r: True),
+            "byLeague": {
+                league: poisson_residuals(rows, p, lambda r, league=league: r["comp"] == league)
+                for league in LEAGUES
+            },
+        }
+        for k, p in ((6, strict_lbfgsb_p6), (10, strict_lbfgsb_p10))
+    }
+    strict_lbfgsb_gradients = [x["strictLbfgsb"]["gradientInfinityNorm"] for x in strict_fit_diagnostics]
+    strict_lbfgsb_default_drift, strict_lbfgsb_frozen_drift = {}, {}
+    for k, strict_p in ((6, strict_lbfgsb_p6), (10, strict_lbfgsb_p10)):
+        default_p = np.asarray(predictions[k], dtype=float)
+        frozen_p = np.asarray([[r[f"k{k}_p{c}"] for c in range(4)] for r in rows], dtype=float)
+        strict_lbfgsb_default_drift[str(k)] = float(np.max(np.abs(strict_p - default_p)))
+        strict_lbfgsb_frozen_drift[str(k)] = float(np.max(np.abs(strict_p - frozen_p)))
+
     strict_p6 = np.asarray(strict_predictions[6], dtype=float)
     strict_p10 = np.asarray(strict_predictions[10], dtype=float)
     strict_metrics = {"k6": score(strict_p6, actual), "k10": score(strict_p10, actual)}
@@ -631,6 +695,34 @@ def main():
             "maxGradientInfinityNorm": float(max(default_gradients)),
             "stopMessages": dict(Counter(x["defaultLbfgsb"]["message"] for x in strict_fit_diagnostics)),
         },
+        "stricterLbfgsbSensitivity": {
+            "options": STRICT_LBFGSB_OPTIONS,
+            "gradientTolerance": STRICT_LBFGSB_GRADIENT_TOLERANCE,
+            "fitCount": len(strict_fit_diagnostics),
+            "scipySuccessCount": sum(x["strictLbfgsb"]["success"] for x in strict_fit_diagnostics),
+            "gradientToleranceMetCount": sum(g <= STRICT_LBFGSB_GRADIENT_TOLERANCE for g in strict_lbfgsb_gradients),
+            "gradientToleranceNotMetCount": sum(g > STRICT_LBFGSB_GRADIENT_TOLERANCE for g in strict_lbfgsb_gradients),
+            "maxGradientInfinityNorm": float(max(strict_lbfgsb_gradients)),
+            "medianGradientInfinityNorm": float(np.median(strict_lbfgsb_gradients)),
+            "perDateAndK": [
+                {"date": x["date"], "fold": x["fold"], "k": x["k"], **x["strictLbfgsb"]}
+                for x in strict_fit_diagnostics
+            ],
+            "metrics": strict_lbfgsb_metrics,
+            "circularMovingBlockBootstrap": strict_lbfgsb_bootstrap,
+            "fourCategoryCalibration": strict_lbfgsb_calibration,
+            "poissonResidualDiagnostics": strict_lbfgsb_residuals,
+            "probabilitySensitivity": {
+                "maxAbsVsDefaultLbfgsb": strict_lbfgsb_default_drift,
+                "maxAbsVsFrozenCsv": strict_lbfgsb_frozen_drift,
+                "frozenCsvReconstructionTolerance": args.max_probability_error,
+                "withinFrozenCsvTolerance": {
+                    str(k): strict_lbfgsb_frozen_drift[str(k)] <= args.max_probability_error
+                    for k in (6, 10)
+                },
+            },
+            "interpretation": "Stricter L-BFGS-B sensitivity only; SciPy success is not gradient convergence, and this refit does not replace frozen default-stopping predictions.",
+        },
         "probabilitySensitivity": {
             "maxAbsStrictVsDefaultLbfgsb": strict_probability_drift,
             "maxAbsStrictVsFrozenCsv": strict_probability_error,
@@ -658,6 +750,7 @@ def main():
             "logRateClip": [-20.0, 20.0],
             "maxIterations": 300,
             "stoppingControls": "SciPy L-BFGS-B defaults except maxiter=300",
+            "strictLbfgsbSensitivityOptions": STRICT_LBFGSB_OPTIONS,
         },
         "provenance": {
             "sha256": actual_sha,
@@ -719,6 +812,8 @@ def main():
             "defaultGradientAbove1e2Count": strict_stationarity["defaultLbfgsb"]["gradientAbove1e2Count"],
             "probabilityDriftVsDefault": strict_probability_drift,
             "strictMetricsDifferenceK6MinusK10": strict_metrics["differenceK6MinusK10"],
+            "strictLbfgsbGradientToleranceMetCount": strict_stationarity["stricterLbfgsbSensitivity"]["gradientToleranceMetCount"],
+            "strictLbfgsbMaxGradientInfinityNorm": strict_stationarity["stricterLbfgsbSensitivity"]["maxGradientInfinityNorm"],
         },
         "output": str(out_path),
     }, ensure_ascii=False, indent=2))
