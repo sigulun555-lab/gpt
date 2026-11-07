@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gc
 import hashlib
 import importlib.util
 import io
@@ -17,6 +18,7 @@ import math
 import random
 import re
 import urllib.request
+import warnings
 from collections import defaultdict
 from pathlib import Path
 
@@ -331,13 +333,52 @@ def main() -> None:
         raw_dispersion[comp] = {"n": len(group), "mean_goals": mean_g, "sample_variance": var_g,
                                 "raw_variance_to_mean": var_g / mean_g if mean_g else None}
 
-    # Import the exact version runner from Claude's pinned source commit.
+    # Preserve Claude's exact pinned source bytes, then create a separate
+    # research-only copy that closes file handles without changing model logic.
     version_path = ROOT / "verification" / "goal3_independent" / "results" / "_claude_goal3_versions.py"
+    portable_version_path = ROOT / "verification" / "goal3_independent" / "results" / "_claude_goal3_versions_portable.py"
     version_path.parent.mkdir(parents=True, exist_ok=True)
-    version_path.write_bytes(version_bytes["goal3_versions.py"])
-    spec = importlib.util.spec_from_file_location("claude_goal3_versions", version_path)
-    version_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(version_module)
+    original_version_bytes = version_bytes["goal3_versions.py"]
+    version_path.write_bytes(original_version_bytes)
+    original_version_source = original_version_bytes.decode("utf-8")
+    portable_version_source = original_version_source
+    file_handle_patches = [
+        (
+            "load_rows_history",
+            '    H = json.load(open(history_path, encoding="utf-8"))["history"]\\n',
+            '    with open(history_path, encoding="utf-8") as f:\\n        H = json.load(f)["history"]\\n',
+        ),
+        (
+            "cli_fixtures",
+            '    fixtures = [tuple(x) for x in json.load(open(a.fixtures, encoding="utf-8"))]\\n',
+            '    with open(a.fixtures, encoding="utf-8") as f:\\n        fixtures = [tuple(x) for x in json.load(f)]\\n',
+        ),
+        (
+            "cli_market",
+            '    market_raw = json.load(open(a.market, encoding="utf-8")) if a.market else None\\n',
+            '    if a.market:\\n        with open(a.market, encoding="utf-8") as f:\\n            market_raw = json.load(f)\\n    else:\\n        market_raw = None\\n',
+        ),
+        (
+            "cli_output",
+            '    json.dump(result, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)\\n',
+            '    with open(a.out, "w", encoding="utf-8") as f:\\n        json.dump(result, f, ensure_ascii=False, indent=2)\\n',
+        ),
+    ]
+    applied_file_handle_patches = []
+    for patch_name, old_text, new_text in file_handle_patches:
+        if portable_version_source.count(old_text) != 1:
+            raise AssertionError(f"expected exactly one pinned source occurrence for {patch_name}")
+        portable_version_source = portable_version_source.replace(old_text, new_text, 1)
+        applied_file_handle_patches.append(patch_name)
+    portable_version_path.write_text(portable_version_source, encoding="utf-8")
+    portable_version_sha256 = hashlib.sha256(portable_version_source.encode("utf-8")).hexdigest()
+
+    original_spec = importlib.util.spec_from_file_location("claude_goal3_versions_original", version_path)
+    original_version_module = importlib.util.module_from_spec(original_spec)
+    original_spec.loader.exec_module(original_version_module)
+    portable_spec = importlib.util.spec_from_file_location("claude_goal3_versions_portable", portable_version_path)
+    version_module = importlib.util.module_from_spec(portable_spec)
+    portable_spec.loader.exec_module(version_module)
 
     # Rebuild the exact 2026-only canonicalized history used by GPT nested_validation.
     nv_path = ROOT / "verification" / "goal3_independent" / "nested_validation.py"
@@ -462,7 +503,28 @@ def main() -> None:
     # Also exercise the version script's own CLI loader, not only test_versions.py's
     # injected canonicalized rows. Its labels are raw source names and its sort key
     # differs from nested_validation; verify that this path remains equivalent here.
-    raw_version_rows = version_module.load_rows(str(history_path))
+    with warnings.catch_warnings(record=True) as original_loader_warnings:
+        warnings.simplefilter("always", ResourceWarning)
+        original_raw_version_rows = original_version_module.load_rows(str(history_path))
+        gc.collect()
+    with warnings.catch_warnings(record=True) as portable_loader_warnings:
+        warnings.simplefilter("always", ResourceWarning)
+        raw_version_rows = version_module.load_rows(str(history_path))
+        gc.collect()
+    if original_raw_version_rows != raw_version_rows:
+        raise AssertionError("file-handle-only portability patch changed load_rows output")
+    resource_warning_review = {
+        "original_pinned_load_rows_resource_warning_count": sum(
+            issubclass(item.category, ResourceWarning) for item in original_loader_warnings
+        ),
+        "patched_portable_load_rows_resource_warning_count": sum(
+            issubclass(item.category, ResourceWarning) for item in portable_loader_warnings
+        ),
+        "original_and_patched_rows_exact_match": original_raw_version_rows == raw_version_rows,
+        "upstream_source_modified": False,
+    }
+    if resource_warning_review["patched_portable_load_rows_resource_warning_count"] != 0:
+        raise AssertionError("portable loader still emits ResourceWarning")
     raw_by_key = {}
     canonical_to_raw_names: dict[str, set[str]] = defaultdict(set)
     for r in raw_version_rows:
@@ -612,6 +674,18 @@ def main() -> None:
                 "max_abs_probability_diff": raw_loader_max_abs_diff,
             },
             "gpt_portable_harness_path": "tests/test_goal3_claude_versions_portable.py",
+            "portable_module_path": str(portable_version_path.relative_to(ROOT)),
+            "portable_module_sha256": portable_version_sha256,
+            "portable_runtime_patch": {
+                "status": "applied_to_research_copy_only",
+                "upstream_source_sha256": hashlib.sha256(original_version_bytes).hexdigest(),
+                "upstream_source_git_blob_sha1": git_blob_sha1(original_version_bytes),
+                "patched_copy_sha256": portable_version_sha256,
+                "file_handle_patches": applied_file_handle_patches,
+                "upstream_source_modified": False,
+                "model_math_or_data_filter_changed": False,
+            },
+            "resource_warning_review": resource_warning_review,
             "original_claude_test_file_remains_unmodified": True,
             "original_claude_test4_calls_run_version_v2": False,
             "test3_bypasses_goal3_versions_load_rows": test3_uses_canonical_gpt_loader,
