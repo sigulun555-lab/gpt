@@ -180,9 +180,9 @@ jobs:
           retention-days: 90
       - name: Stratified-team pair-preserving date/team bootstrap sensitivity
         run: |
-          python verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_stratified_pair_preserving_date_team_bootstrap_audit.json \\
+          python verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_stratified_pair_preserving_date_team_bootstrap_audit.json \
             --replicates 50000 --seed 20261111
       - name: Upload stratified-team pair-preserving bootstrap sensitivity
         uses: actions/upload-artifact@v4
