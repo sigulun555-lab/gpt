@@ -36,6 +36,15 @@ class LeagueK6K10AuditTests(unittest.TestCase):
         self.assertEqual(set(first["byScope"]), {"ALL", "J1", "J2", "J3"})
         self.assertEqual(len(first["calibration"]["J1"]["6.0"]), 4)
 
+    def test_brier_and_logloss_share_date_cluster_draws(self):
+        first = audit(synthetic(), replicates=1000, seed=20261107)
+        for scope, metrics in first["byScope"].items():
+            self.assertEqual(
+                metrics["brier"]["bootstrapDrawsSha256"],
+                metrics["logloss"]["bootstrapDrawsSha256"],
+                msg=f"Brier and LogLoss used different date draws for {scope}",
+            )
+
     def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
         for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):
             report = synthetic()
