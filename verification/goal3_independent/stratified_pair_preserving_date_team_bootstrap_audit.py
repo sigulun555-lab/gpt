@@ -140,6 +140,55 @@ def _summary(values: np.ndarray) -> dict:
     }
 
 
+def paired_residual_max_t_family(bootstrap: np.ndarray, point: np.ndarray, labels: list[dict]) -> dict:
+    """Simultaneous paired k6-k10 residual-dispersion intervals.
+
+    Zero-variance contrasts are retained as exact point intervals rather than
+    causing the entire audit to fail (e.g. identical synthetic k arms).
+    """
+    bootstrap = np.asarray(bootstrap, dtype=float)
+    point = np.asarray(point, dtype=float)
+    if bootstrap.ndim != 2 or bootstrap.shape[1] != len(labels):
+        raise ValueError("paired residual bootstrap shape does not match labels")
+    if point.shape != (len(labels),) or not np.isfinite(bootstrap).all() or not np.isfinite(point).all():
+        raise ValueError("paired residual inputs must be finite and aligned")
+    se = bootstrap.std(axis=0, ddof=1)
+    if np.any(~np.isfinite(se)) or np.any(se < 0.0):
+        raise ValueError("invalid standard error in paired residual family")
+    standardized = np.zeros_like(bootstrap)
+    nonzero = se > 0.0
+    standardized[:, nonzero] = (
+        bootstrap[:, nonzero] - point[None, nonzero]
+    ) / se[None, nonzero]
+    critical = float(np.quantile(
+        np.max(np.abs(standardized), axis=1), 0.95, method="linear"
+    ))
+    intervals = []
+    for i, label in enumerate(labels):
+        intervals.append({
+            **label,
+            "point": float(point[i]),
+            "bootstrapSE": float(se[i]),
+            "nominalPercentile95CI": [
+                float(np.quantile(bootstrap[:, i], 0.025, method="linear")),
+                float(np.quantile(bootstrap[:, i], 0.975, method="linear")),
+            ],
+            "simultaneous95Band": [
+                float(point[i] - critical * se[i]),
+                float(point[i] + critical * se[i]),
+            ],
+        })
+    return {
+        "comparisonCount": len(labels),
+        "studentizedMaxAbsTCriticalValue": critical,
+        "intervals": intervals,
+        "intervalsContainingZero": sum(
+            x["simultaneous95Band"][0] <= 0.0 <= x["simultaneous95Band"][1]
+            for x in intervals
+        ),
+    }
+
+
 def run_audit(data: dict, replicates: int = 50_000, seed: int = 20261111) -> dict:
     if replicates < 1_000:
         raise ValueError("at least 1000 bootstrap replicates are required")
@@ -327,6 +376,31 @@ def run_audit(data: dict, replicates: int = 50_000, seed: int = 20261111) -> dic
     residual_family = pair_audit.max_t_family(
         boot_residual, residual_point, residual_labels
     )
+    residual_column = {
+        (label["scope"], int(label["k"])): index
+        for index, label in enumerate(residual_labels)
+    }
+    paired_residual_labels = [
+        {
+            "scope": scope,
+            "contrast": "k6_minus_k10",
+            "n": int(len(scope_indices[scope])),
+        }
+        for scope in SCOPES
+    ]
+    paired_residual_point = np.asarray([
+        residual_point[residual_column[(scope, 6)]]
+        - residual_point[residual_column[(scope, 10)]]
+        for scope in SCOPES
+    ], dtype=float)
+    paired_residual_boot = np.column_stack([
+        boot_residual[:, residual_column[(scope, 6)]]
+        - boot_residual[:, residual_column[(scope, 10)]]
+        for scope in SCOPES
+    ])
+    paired_residual_family = paired_residual_max_t_family(
+        paired_residual_boot, paired_residual_point, paired_residual_labels
+    )
 
     return {
         "experiment": "GOAL3 stratified-team match-pair-preserving date/team bootstrap sensitivity",
@@ -383,6 +457,7 @@ def run_audit(data: dict, replicates: int = 50_000, seed: int = 20261111) -> dic
                 x["simultaneous95Band"][0] <= 1.0 <= x["simultaneous95Band"][1]
                 for x in residual_family["intervals"]
             ),
+            "pairedK6MinusK10": paired_residual_family,
         },
         "effectiveSampleSize": {
             "match": _summary(match_ess),
