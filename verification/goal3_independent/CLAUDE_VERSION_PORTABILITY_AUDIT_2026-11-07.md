@@ -51,3 +51,17 @@ The PR workflow runs, in order:
 2. python tests/test_goal3_claude_versions_portable.py -v
 
 The second step uses only temporary test inputs and the pinned module produced by step 1. A successful workflow is required before describing these checks as passed.
+
+
+## ResourceWarning: research-only file-handle patch
+
+The pinned Claude `goal3_versions.py` uses unclosed `open(...)` calls in `load_rows()` and in the CLI's fixture, market, and output handling. The original pinned file is preserved byte-for-byte and its Git blob SHA is still verified. The GPT verifier now creates a separate research-only portable copy with four exact context-manager substitutions; no model objective, optimizer, probability calculation, history filter, or alias logic is changed.
+
+The verifier loads both the original and patched copies, confirms their `load_rows()` outputs are exactly equal, records the original/patched ResourceWarning counts, and fails if the patched loader still emits a ResourceWarning. The portable test suite also runs the patched CLI with `PYTHONWARNINGS=always::ResourceWarning` and checks that no warning is emitted. This is a GPT-side compatibility patch only: Claude's pinned source and original `test_versions.py` remain unchanged.
+
+Reproduction is unchanged:
+
+1. `python verification/goal3_independent/verify_claude_goal3_share.py --out verification/goal3_independent/results/claude_goal3_share_audit.json`
+2. `python tests/test_goal3_claude_versions_portable.py -v`
+
+A successful Claude all-k provenance workflow is required before describing the warning as resolved in the GPT portable copy. It does not mean Claude's upstream file has been changed or that the original generation manifest has been recovered.
