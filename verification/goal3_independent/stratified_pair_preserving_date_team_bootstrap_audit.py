@@ -23,7 +23,15 @@ REFERENCE_K = pair_audit.REFERENCE_K
 PRIMARY_K = pair_audit.PRIMARY_K
 SCOPES = pair_audit.SCOPES
 LEAGUES = ("J1", "J2", "J3")
-EXPECTED_INPUT_SHA256 = "b8f495870355407fdf219f173a4b1597d07c700b538e2ad98483b55889ae8ffa"
+EXPECTED_SOURCE_PROVENANCE = {
+    "frozenCsvSha256": "5cc8960c10f3554d44ccc0d5388d0ceeb4c8a39dec4cc8b28bd713f0e3755678",
+    "history2026Sha256": "efca00ea491fcfea6a1267af403cb5ba80ae540fca97a076def25815fc318201",
+    "aliasesSha256": "92e6377068df8dd63935e0c003adfd7b355e7adac23f7aace4f947be4f5f027e",
+    "history2025CsvSha256": "6175674bc28d4311b219eed5ea2aa5e478fe0f17b8e6b8653f37718057da4288",
+    "nestedValidationPySha256": "ffca9d2b4b27564532c8964464af9ec4f4cb68b0b871266fb007afad236e670c",
+    "nestedValidationPyGitBlobSha": "2b364ae31673b1f7471958084c416ca1ad8901f8",
+    "pr19NestedValidationPyGitBlobSha": "5f73df9e6fdb43d5cf333c04036f87ae16c20d1f",
+}
 EXPECTED_TEAM_COUNTS = {"J1": 20, "J2": 20, "J3": 20}
 
 
@@ -33,6 +41,19 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_source_provenance(document: dict) -> None:
+    provenance = document.get("provenance") if isinstance(document, dict) else None
+    if not isinstance(provenance, dict):
+        raise ValueError("all-k input is missing source provenance")
+    mismatches = {
+        key: {"expected": expected, "observed": provenance.get(key)}
+        for key, expected in EXPECTED_SOURCE_PROVENANCE.items()
+        if provenance.get(key) != expected
+    }
+    if mismatches:
+        raise ValueError(f"all-k source provenance mismatch: {mismatches}")
 
 
 def build_team_strata(data: dict, expected_team_counts: dict[str, int] | None = None) -> dict:
@@ -394,9 +415,8 @@ def main() -> None:
     args = parser.parse_args()
 
     input_sha = sha256_file(args.input)
-    if input_sha != EXPECTED_INPUT_SHA256:
-        raise ValueError(f"frozen all-k input SHA-256 mismatch: {input_sha}")
     document = json.loads(args.input.read_text(encoding="utf-8"))
+    validate_source_provenance(document)
     data = pair_audit.prepare_arrays(document)
     result = run_audit(data, args.replicates, args.seed)
     result["provenance"] = {
