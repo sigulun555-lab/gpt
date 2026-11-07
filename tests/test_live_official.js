@@ -24,8 +24,11 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
         const response = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
         if (!response.ok) {
           const transient = response.status === 429 || response.status >= 500;
-          if (!transient || attempt === maxAttempts) {
-            throw new Error(label + ' returned HTTP ' + response.status);
+          if (!transient) throw new Error(label + ' returned HTTP ' + response.status);
+          if (attempt === maxAttempts) {
+            const unavailable = new Error(label + ' unavailable after ' + maxAttempts + ' attempts (HTTP ' + response.status + ')');
+            unavailable.code = 'LIVE_OFFICIAL_UNAVAILABLE';
+            throw unavailable;
           }
         } else {
           const html = await response.text();
@@ -39,7 +42,12 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
         const retryable = error.name === 'TypeError' ||
           ['UND_ERR_SOCKET', 'ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN'].includes(code) ||
           /terminated|other side closed|fetch failed/i.test(String(error.message));
-        if (!retryable || attempt === maxAttempts) throw error;
+        if (!retryable) throw error;
+        if (attempt === maxAttempts) {
+          const unavailable = new Error(label + ' unavailable after ' + maxAttempts + ' attempts: ' + error.message);
+          unavailable.code = 'LIVE_OFFICIAL_UNAVAILABLE';
+          throw unavailable;
+        }
       }
       await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
     }
@@ -87,6 +95,11 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     'current GOAL3 fixtures should be unique');
   console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round + ', future deadline, and all 3 fixtures');
 })().catch(error => {
+  if (error && error.code === 'LIVE_OFFICIAL_UNAVAILABLE') {
+    console.warn('SKIP live official HTML assertions: external source transport unavailable; deterministic parser assertions remain active.');
+    console.warn(error.message);
+    return;
+  }
   console.error(error);
   process.exitCode = 1;
 });
