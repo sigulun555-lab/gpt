@@ -46,6 +46,22 @@ def _match(date, league, home, away):
 
 
 class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
+    def test_paired_residual_max_t_family_handles_zero_variance_contrasts(self):
+        bootstrap = np.column_stack([
+            np.linspace(-1.0, 1.0, 1000),
+            np.zeros(1000),
+        ])
+        point = np.asarray([0.0, 0.0])
+        labels = [
+            {"scope": "ALL", "contrast": "k6_minus_k10"},
+            {"scope": "J2", "contrast": "k6_minus_k10"},
+        ]
+        result = audit.paired_residual_max_t_family(bootstrap, point, labels)
+        self.assertEqual(result["comparisonCount"], 2)
+        self.assertEqual(result["intervalsContainingZero"], 2)
+        self.assertEqual(result["intervals"][1]["bootstrapSE"], 0.0)
+        self.assertEqual(result["intervals"][1]["simultaneous95Band"], [0.0, 0.0])
+
     def test_source_provenance_is_pinned_without_pinning_float_serialization(self):
         document = {"provenance": dict(audit.EXPECTED_SOURCE_PROVENANCE)}
         audit.validate_source_provenance(document)
