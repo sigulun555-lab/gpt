@@ -22,6 +22,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 TOTO_REPO = "sigulun555-lab/toto-lab"
+GPT_REPO = "sigulun555-lab/gpt"
+CLAUDE_DOCUMENTED_GPT_COMMIT = "2adf65a20247dd30c5b86ae95c22bd75980cda89"
+CLAUDE_DOCUMENTED_GPT_FILES = {
+    "history.json": "data/history.json",
+    "team_aliases.json": "data/team_aliases.json",
+    "2025.csv": "verification/goal3_independent/2025.csv",
+    "nested_validation.py": "verification/goal3_independent/nested_validation.py",
+}
 ALLK_COMMIT = "17da09beedee57c571038c8204cd51112fb1d959"
 VERSIONS_COMMIT = "7401bc2f640a22f7f0cac36fca541ca127cfb91b"
 
@@ -70,6 +78,13 @@ def git_blob_sha1(data: bytes) -> str:
 
 def fetch_pinned(commit: str, path: str) -> bytes:
     url = f"https://raw.githubusercontent.com/{TOTO_REPO}/{commit}/{path}"
+    req = urllib.request.Request(url, headers={"User-Agent": "GOAL3-research-audit/1.0"})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return response.read()
+
+
+def fetch_pinned_gpt(commit: str, path: str) -> bytes:
+    url = f"https://raw.githubusercontent.com/{GPT_REPO}/{commit}/{path}"
     req = urllib.request.Request(url, headers={"User-Agent": "GOAL3-research-audit/1.0"})
     with urllib.request.urlopen(req, timeout=60) as response:
         return response.read()
@@ -146,6 +161,13 @@ def main() -> None:
     version_bytes = {
         name: fetch_version_file(name, path, blob)
         for name, (path, blob) in VERSION_FILES.items()
+    }
+    # Claude README documents this exact GPT PR #19 dependency snapshot.
+    # The original generation manifest omitted these hashes, so this verifies
+    # the documented snapshot but cannot prove which local bytes were consumed.
+    documented_gpt_bytes = {
+        name: fetch_pinned_gpt(CLAUDE_DOCUMENTED_GPT_COMMIT, path)
+        for name, path in CLAUDE_DOCUMENTED_GPT_FILES.items()
     }
 
     allk_rows = json.loads(downloaded["goal3_outer_allk.json"].decode("utf-8"))
@@ -340,6 +362,31 @@ def main() -> None:
     if len(h2026) != 429:
         raise AssertionError(f"pinned GPT PR history expected 429 valid 2026 rows, got {len(h2026)}")
 
+    current_input_paths = {
+        "history.json": history_path,
+        "team_aliases.json": aliases_path,
+        "2025.csv": csv_2025_path,
+        "nested_validation.py": nv_path,
+    }
+    independent_input_manifest = {}
+    documented_dependency_manifest = {}
+    for name, path in current_input_paths.items():
+        current_bytes = path.read_bytes()
+        documented_bytes = documented_gpt_bytes[name]
+        independent_input_manifest[name] = {
+            "path": path.relative_to(ROOT).as_posix(),
+            "bytes": len(current_bytes),
+            "sha256": hashlib.sha256(current_bytes).hexdigest(),
+            "git_blob_sha1": git_blob_sha1(current_bytes),
+        }
+        documented_dependency_manifest[name] = {
+            "path": CLAUDE_DOCUMENTED_GPT_FILES[name],
+            "bytes": len(documented_bytes),
+            "sha256": hashlib.sha256(documented_bytes).hexdigest(),
+            "git_blob_sha1": git_blob_sha1(documented_bytes),
+            "matches_pr20_current_bytes": documented_bytes == current_bytes,
+        }
+
     aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
     raw_history = json.loads(history_path.read_text(encoding="utf-8"))["history"]
     h2026_by_key = {}
@@ -468,6 +515,26 @@ def main() -> None:
             "k_candidates": [float(k) for k in k_keys],
             "probability_sum_max_abs_error": max(abs(sum(r["P"][k]) - 1.0) for r in target_rows for k in k_keys),
         },
+        "generation_provenance": {
+            "claude_original_generation_manifest": {
+                "status": "not_provided",
+                "missing_input_hashes": ["data/history.json SHA-256", "data/team_aliases.json SHA-256",
+                                         "verification/goal3_independent/nested_validation.py SHA-256"],
+                "documented_dependency_commit": CLAUDE_DOCUMENTED_GPT_COMMIT,
+                "execution_linkage_proven": False,
+                "note": "The Claude README documents this GPT PR #19 dependency commit. These hashes verify that commit and compare it with PR #20, but the original run manifest is absent, so the exact local bytes consumed at generation time are not proven.",
+            },
+            "claude_documented_dependency_snapshot": documented_dependency_manifest,
+            "gpt_independent_reproduction_manifest": {
+                "status": "verified",
+                "inputs": independent_input_manifest,
+                "allk_json_sha256": hashlib.sha256(downloaded["goal3_outer_allk.json"]).hexdigest(),
+                "compact_csv_sha256": hashlib.sha256(downloaded["goal3_outer_matches_compact.csv"]).hexdigest(),
+                "reproduction": "independent per-date 2026-only fit and probability comparison against all 472 all-k targets and compact CSV",
+                "v05_k6_max_abs_diff": max_v05_diff,
+                "raw_load_rows_k6_max_abs_diff": raw_loader_max_abs_diff,
+            },
+        },
         "all_k_metrics": metrics,
         "four_category_calibration": calibration,
         "k_stability": {
@@ -505,6 +572,15 @@ def main() -> None:
             "raw_loader_match_population_matches_nested_validation": set(raw_by_key) == set(h2026_by_key),
             "raw_loader_k6_max_abs_diff_vs_allk_json": raw_loader_max_abs_diff,
             "raw_loader_requires_fixture_labels_to_match_raw_history_names": True,
+            "cli_load_rows_reproduction": {
+                "status": "passed",
+                "rows": len(raw_version_rows),
+                "canonicalized_population_matches_nested_validation": set(raw_by_key) == set(h2026_by_key),
+                "max_abs_probability_diff": raw_loader_max_abs_diff,
+            },
+            "gpt_portable_harness_path": "tests/test_goal3_claude_versions_portable.py",
+            "original_claude_test_file_remains_unmodified": True,
+            "original_claude_test4_calls_run_version_v2": False,
             "test3_bypasses_goal3_versions_load_rows": test3_uses_canonical_gpt_loader,
             "test_versions_has_absolute_claude_paths": bool(hardcoded_paths),
             "test_versions_hardcoded_path_lines": hardcoded_paths,
