@@ -345,23 +345,23 @@ def main() -> None:
     file_handle_patches = [
         (
             "load_rows_history",
-            '    H = json.load(open(history_path, encoding="utf-8"))["history"]\\n',
-            '    with open(history_path, encoding="utf-8") as f:\\n        H = json.load(f)["history"]\\n',
+            '    H = json.load(open(history_path, encoding="utf-8"))["history"]\n',
+            '    with open(history_path, encoding="utf-8") as f:\n        H = json.load(f)["history"]\n',
         ),
         (
             "cli_fixtures",
-            '    fixtures = [tuple(x) for x in json.load(open(a.fixtures, encoding="utf-8"))]\\n',
-            '    with open(a.fixtures, encoding="utf-8") as f:\\n        fixtures = [tuple(x) for x in json.load(f)]\\n',
+            '    fixtures = [tuple(x) for x in json.load(open(a.fixtures, encoding="utf-8"))]\n',
+            '    with open(a.fixtures, encoding="utf-8") as f:\n        fixtures = [tuple(x) for x in json.load(f)]\n',
         ),
         (
             "cli_market",
-            '    market_raw = json.load(open(a.market, encoding="utf-8")) if a.market else None\\n',
-            '    if a.market:\\n        with open(a.market, encoding="utf-8") as f:\\n            market_raw = json.load(f)\\n    else:\\n        market_raw = None\\n',
+            '    market_raw = json.load(open(a.market, encoding="utf-8")) if a.market else None\n',
+            '    if a.market:\n        with open(a.market, encoding="utf-8") as f:\n            market_raw = json.load(f)\n    else:\n        market_raw = None\n',
         ),
         (
             "cli_output",
-            '    json.dump(result, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)\\n',
-            '    with open(a.out, "w", encoding="utf-8") as f:\\n        json.dump(result, f, ensure_ascii=False, indent=2)\\n',
+            '    json.dump(result, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)\n',
+            '    with open(a.out, "w", encoding="utf-8") as f:\n        json.dump(result, f, ensure_ascii=False, indent=2)\n',
         ),
     ]
     applied_file_handle_patches = []
