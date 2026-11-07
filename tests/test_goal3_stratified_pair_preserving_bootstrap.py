@@ -46,6 +46,13 @@ def _match(date, league, home, away):
 
 
 class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
+    def test_source_provenance_is_pinned_without_pinning_float_serialization(self):
+        document = {"provenance": dict(audit.EXPECTED_SOURCE_PROVENANCE)}
+        audit.validate_source_provenance(document)
+        document["provenance"]["history2026Sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "source provenance mismatch"):
+            audit.validate_source_provenance(document)
+
     def test_build_team_strata_preserves_each_league_team_partition(self):
         document = {
             "allKPredictions": [
