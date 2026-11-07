@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T05:56:11.832Z",
+  "generatedAt": "2026-11-07T12:58:14.481Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-11-07T05:56:11.832Z",
+    "lastFetchedAt": "2026-11-07T12:58:14.481Z",
     "marketType": "totoGOAL3",
     "round": 1671,
     "deadline": "2026-11-11T18:50:00+09:00",
@@ -25,7 +25,7 @@
   },
   "counts": {
     "scheduleRows": 1140,
-    "historyMatches": 430,
+    "historyMatches": 448,
     "totoFixtures": 3,
     "predictions": 3
   },
@@ -47,24 +47,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.23397980121318335,
-          "1": 0.5229211067929891,
-          "2": 0.24309909199382762
+          "0": 0.22425522676115325,
+          "1": 0.5473380632541691,
+          "2": 0.2284067099846777
         },
         "homeGoalProbabilities": [
-          0.17031389538029723,
-          0.3014746871980602,
-          0.2668219959922381,
-          0.26138942142940447
+          0.1517051584739029,
+          0.2860880741100423,
+          0.26975478939324493,
+          0.29245197802281
         ],
         "awayGoalProbabilities": [
-          0.32207491330975213,
-          0.3649015721858756,
-          0.20671146972515855,
-          0.10631204477921372
+          0.3191938594270064,
+          0.3645055507232373,
+          0.20812476898296045,
+          0.10817582086679584
         ],
-        "homeExpectedGoals": 1.770112101099511,
-        "awayExpectedGoals": 1.132971110466264,
+        "homeExpectedGoals": 1.885816388763449,
+        "awayExpectedGoals": 1.1419566509755894,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "横浜F・マリノス",
@@ -86,24 +86,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.27420393885388883,
-          "1": 0.27208090518966893,
-          "2": 0.4537151559564423
+          "0": 0.27432363259860787,
+          "1": 0.27630777448633387,
+          "2": 0.44936859291505815
         },
         "homeGoalProbabilities": [
-          0.3729017942566941,
-          0.3678453131157554,
-          0.18142869847400733,
-          0.07782419415354314
+          0.36847832733424435,
+          0.3678789539599733,
+          0.1836402777685249,
+          0.08000244093725747
         ],
         "awayGoalProbabilities": [
-          0.2567723632862625,
-          0.3490988034833807,
-          0.23731131542700598,
-          0.15681751780335082
+          0.25817986246247615,
+          0.3496010408146098,
+          0.23669717415784514,
+          0.15552192256506892
         ],
-        "homeExpectedGoals": 0.9864401801792941,
-        "awayExpectedGoals": 1.3595653325595172,
+        "homeExpectedGoals": 0.9983733822865317,
+        "awayExpectedGoals": 1.3540987956232287,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "ヴィッセル神戸",
@@ -125,24 +125,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.20086067345138636,
-          "1": 0.6066938736403839,
-          "2": 0.19244545290822973
+          "0": 0.19861119821194695,
+          "1": 0.6129813137257495,
+          "2": 0.18840748806230345
         },
         "homeGoalProbabilities": [
-          0.11415839143061837,
-          0.24774293326595465,
-          0.2688219421019167,
-          0.36927673320151033
+          0.11120038432290784,
+          0.2442429083776522,
+          0.2682301803901457,
+          0.37632652690929436
         ],
         "awayGoalProbabilities": [
-          0.317725726454306,
-          0.36429375795413127,
-          0.20884355756352163,
-          0.10913695802804102
+          0.3191938594270064,
+          0.3645055507232373,
+          0.20812476898296045,
+          0.10817582086679584
         ],
-        "homeExpectedGoals": 2.170168396394447,
-        "awayExpectedGoals": 1.1465667637918595,
+        "homeExpectedGoals": 2.19642144103037,
+        "awayExpectedGoals": 1.1419566509755894,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "浦和レッズ",
