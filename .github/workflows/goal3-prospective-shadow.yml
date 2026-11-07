@@ -146,9 +146,9 @@ jobs:
           retention-days: 90
       - name: Two-way date/team cluster bootstrap sensitivity
         run: |
-          python verification/goal3_independent/two_way_cluster_bootstrap_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_two_way_cluster_bootstrap_audit.json \\
+          python verification/goal3_independent/two_way_cluster_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_two_way_cluster_bootstrap_audit.json \
             --replicates 50000 --seed 20261109
       - name: Upload two-way date/team bootstrap sensitivity
         uses: actions/upload-artifact@v4
