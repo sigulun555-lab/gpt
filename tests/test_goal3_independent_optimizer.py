@@ -4,12 +4,11 @@ import math
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-from scipy.optimize import minimize
-
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "verification" / "goal3_independent" / "independent_optimizer_audit.py"
 spec = importlib.util.spec_from_file_location("independent_optimizer_audit", SCRIPT)
@@ -297,6 +296,52 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             numeric[j] = (f_plus - f_minus) / (2.0 * eps)
         self.assertLess(float(np.max(np.abs(grad - numeric))), 2e-5)
 
+
+    def test_independent_objective_and_gradient_match_reference_for_both_k(self):
+        prior = self.synthetic_matches()
+        teams, _, xh, xa, hg, ag = audit.build_design(prior)
+        n = len(teams)
+        rng = np.random.default_rng(20261108)
+        theta_values = [
+            np.zeros(2 + 2 * n, dtype=float),
+            rng.normal(0.0, 0.06, size=2 + 2 * n),
+        ]
+        original_minimize = nested_validation.minimize
+        captured_objectives = []
+
+        def capture_minimize(fun, x0, jac, method, options):
+            captured_objectives.append(fun)
+            return SimpleNamespace(
+                x=np.asarray(x0, dtype=float).copy(),
+                success=True,
+                status=0,
+                nit=0,
+                message="objective captured for parity test",
+            )
+
+        nested_validation.minimize = capture_minimize
+        try:
+            for k in (6.0, 10.0):
+                nested_validation.fit_shrinkage(prior, k)
+                reference_objective = captured_objectives[-1]
+                for theta in theta_values:
+                    with self.subTest(k=k, theta_norm=float(np.linalg.norm(theta))):
+                        reference_value, reference_gradient = reference_objective(theta)
+                        independent_value, independent_gradient = (
+                            audit.independent_objective_gradient(
+                                theta, xh, xa, hg, ag, k, n
+                            )
+                        )
+                        self.assertAlmostEqual(
+                            independent_value, reference_value, delta=1e-10
+                        )
+                        self.assertLess(
+                            float(np.max(np.abs(independent_gradient - reference_gradient))),
+                            1e-10,
+                        )
+        finally:
+            nested_validation.minimize = original_minimize
+
     def test_independent_fit_emits_valid_probabilities_for_both_k_values(self):
         prior = self.synthetic_matches()
         for k in (6.0, 10.0):
@@ -338,13 +383,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         self.assertEqual(len(rows), 472)
         self.assertEqual(len(dates), 17)
 
-        options = {
-            "maxiter": 2000,
-            "ftol": 1e-12,
-            "gtol": 1e-6,
-            "maxls": 50,
-            "maxcor": 20,
-        }
+        options = dict(audit.STRICT_LBFGSB_OPTIONS)
         predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
         row_indices_by_date = defaultdict(list)
         for i, row in enumerate(rows):
@@ -355,45 +394,31 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         for date in dates:
             prior = [match for match in history if match["date"] < date]
             self.assertGreater(len(prior), 0, f"empty strict prior for {date}")
-            teams, idx, x_home, x_away, hg, ag = audit.build_design(prior)
-            n_teams = len(teams)
-            theta0 = np.zeros(2 + 2 * n_teams, dtype=float)
-            theta0[0] = math.log(1.3)
-
             for k in (6.0, 10.0):
-                def fun_and_jac(theta):
-                    return audit.independent_objective_gradient(
-                        theta, x_home, x_away, hg, ag, k, n_teams
-                    )
-
-                result = minimize(
-                    fun_and_jac,
-                    theta0.copy(),
-                    jac=True,
-                    method="L-BFGS-B",
-                    options=options,
+                strict_theta, strict_idx, strict_info = audit.fit_independent(
+                    prior, k, options=options
                 )
                 self.assertTrue(
-                    result.success,
-                    f"strict fit failed date={date} k={k}: {result.message}",
+                    strict_info["success"],
+                    f"strict fit failed date={date} k={k}: {strict_info['message']}",
                 )
-                grad_norm = float(np.max(np.abs(result.jac)))
+                grad_norm = strict_info["gradientInfinityNorm"]
                 # L-BFGS-B can terminate by ftol before meeting gtol.
                 # Record gradient convergence separately; do not mislabel result.success.
                 diagnostics.append({
                     "date": date,
                     "fold": fold_by_date[date],
                     "k": int(k),
-                    "iterations": int(result.nit),
+                    "iterations": strict_info["iterations"],
                     "gradientInfinityNorm": grad_norm,
-                    "objective": float(result.fun),
+                    "objective": strict_info["objective"],
                 })
 
                 for match in matches:
                     if match["date"] != date:
                         continue
                     p_home, p_away = audit.predict_independent(
-                        result.x, idx, match["home"], match["away"]
+                        strict_theta, strict_idx, match["home"], match["away"]
                     )
                     for row_index in row_indices_by_date[date]:
                         row = rows[row_index]
