@@ -878,26 +878,28 @@ class StrictOptimizerModuleTests(unittest.TestCase):
                 self.assertTrue(np.all(np.isfinite(theta)))
                 self.assertEqual(len(index), 6)
 
-    def test_module_exact_hessian_matches_finite_difference_of_gradient(self):
+    def test_module_exact_hessian_matches_finite_difference_of_gradient_for_both_arms(self):
         prior = self._prior()
         _, _, xh, xa, hg, ag = audit.build_design(prior)
-        k = 6.0
         theta = np.linspace(-0.04, 0.05, xh.shape[1])
         team_count = (theta.size - 2) // 2
-        analytic = audit.exact_hessian(theta, xh, xa, k, team_count)
-        numeric = np.zeros_like(analytic)
         step = 1e-5
-        for j in range(theta.size):
-            delta = np.zeros_like(theta)
-            delta[j] = step
-            grad_plus = audit.independent_objective_gradient(
-                theta + delta, xh, xa, hg, ag, k, team_count
-            )[1]
-            grad_minus = audit.independent_objective_gradient(
-                theta - delta, xh, xa, hg, ag, k, team_count
-            )[1]
-            numeric[:, j] = (grad_plus - grad_minus) / (2 * step)
-        self.assertLess(float(np.max(np.abs(analytic - numeric))), 1e-6)
+
+        for k in (6.0, 10.0):
+            with self.subTest(k=k):
+                analytic = audit.exact_hessian(theta, xh, xa, k, team_count)
+                numeric = np.zeros_like(analytic)
+                for j in range(theta.size):
+                    delta = np.zeros_like(theta)
+                    delta[j] = step
+                    grad_plus = audit.independent_objective_gradient(
+                        theta + delta, xh, xa, hg, ag, k, team_count
+                    )[1]
+                    grad_minus = audit.independent_objective_gradient(
+                        theta - delta, xh, xa, hg, ag, k, team_count
+                    )[1]
+                    numeric[:, j] = (grad_plus - grad_minus) / (2 * step)
+                self.assertLess(float(np.max(np.abs(analytic - numeric))), 1e-6)
 
 
 if __name__ == "__main__":
