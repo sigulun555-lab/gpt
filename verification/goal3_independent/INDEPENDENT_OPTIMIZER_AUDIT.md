@@ -108,3 +108,17 @@ The strict Newton result is a different stopping-solution sensitivity; its
 probability drift versus default may exceed 2e-6 and is reported rather than
 misclassified as a reconstruction failure. Neither solution changes the
 frozen predictions or the prospective k=6/k=10 protocol.
+
+## 2026-11-08 machine-readable strict L-BFGS-B sensitivity and reference-objective parity
+
+The optimizer workflow artifact now records three distinct procedures per target date and k arm; they must not be conflated:
+
+1. **Default L-BFGS-B reconstruction** (`maxiter=300`, SciPy defaults): used for the frozen-CSV parity check. A SciPy success flag is not treated as a stationarity guarantee.
+2. **Stricter L-BFGS-B sensitivity** (`maxiter=2000`, `ftol=1e-12`, `gtol=1e-6`, `maxls=50`, `maxcor=20`): same initial value, objective, gradient, and inputs for k=6 and k=10. The per-date/per-k status, objective, iteration count, and gradient infinity norm are now included in `strictStationarityAudit.stricterLbfgsbSensitivity`, together with metrics, calibration, residual summaries, probability drift, and the same-seed circular date-block bootstrap. The gradient tolerance is counted separately from SciPy success.
+3. **Exact-Hessian Newton sensitivity**: the existing damped Newton run with the predeclared `1e-7` gradient tolerance. It remains a separate stationarity diagnostic and is not a replacement for either L-BFGS-B output.
+
+The strict L-BFGS-B options are defined once in `STRICT_LBFGSB_OPTIONS` and reused by the workflow audit and unit test. The current frozen run's prior test-only result was 1/34 fits within the requested `1e-6` gradient tolerance (maximum norm about `4.71082e-4`); the new machine-readable artifact reruns and records this result rather than relying on console-only test output. If the fresh run differs, the artifact is authoritative for that run and the difference must be investigated.
+
+A new test captures the reference `nested_validation.fit_shrinkage` objective closure and compares objective values and gradients against the independently written dense-matrix implementation for both k arms at multiple parameter vectors. This validates that the independent solver sensitivity uses the same clipped penalized-Poisson objective, rather than merely checking the independent implementation against itself.
+
+All three procedures remain retrospective diagnostics on the fixed 236-match / 472-target / 17-date cohort. The default fit alone is used for frozen probability reconstruction; strict refits are reported as sensitivity analyses and do not alter frozen predictions, prospective adoption thresholds, production, or market weights.
