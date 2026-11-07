@@ -198,6 +198,86 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "invalid home/away team name|canonical home/away team names collide"):
                     audit.load_history(path, aliases)
 
+    def test_history_loader_rejects_partial_negative_and_noninteger_scores(self):
+        base = {
+            "date": "2026-01-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        cases = [
+            {"home_goals": 1, "away_goals": None},
+            {"home_goals": None, "away_goals": 0},
+            {"home_goals": -1, "away_goals": 0},
+            {"home_goals": 1, "away_goals": -1},
+            {"home_goals": 1.0, "away_goals": 0},
+            {"home_goals": 1, "away_goals": "0"},
+        ]
+        for changes in cases:
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as temp_dir:
+                row = dict(base)
+                row.update(changes)
+                path = Path(temp_dir) / "history.json"
+                path.write_text(json.dumps({"history": [row]}), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "invalid scored goal counts"):
+                    audit.load_history(path, {})
+
+    def test_history_loader_skips_only_fully_unscored_rows(self):
+        scored = {
+            "date": "2026-01-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        unscored = {
+            "date": "2026-01-02",
+            "competition": "J1",
+            "home": "C",
+            "away": "D",
+            "home_goals": None,
+            "away_goals": None,
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "history.json"
+            path.write_text(
+                json.dumps({"history": [scored, unscored]}), encoding="utf-8"
+            )
+            loaded, info = audit.load_history(path, {})
+        self.assertEqual(len(loaded), 1)
+        self.assertEqual(info["rows"], 1)
+        self.assertEqual((loaded[0]["hg"], loaded[0]["ag"]), (1, 0))
+
+    def test_history_loader_rejects_noncanonical_or_invalid_dates(self):
+        base = {
+            "date": "2026-01-01",
+            "competition": "J1",
+            "home": "A",
+            "away": "B",
+            "home_goals": 1,
+            "away_goals": 0,
+        }
+        for bad_date in ("2026-02-30", "2026-2-03", "2025-12-31", "2026-W01-1"):
+            with self.subTest(date=bad_date), tempfile.TemporaryDirectory() as temp_dir:
+                row = dict(base, date=bad_date)
+                path = Path(temp_dir) / "history.json"
+                path.write_text(json.dumps({"history": [row]}), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    audit.load_history(path, {})
+
+    def test_history_loader_rejects_non_object_rows_and_invalid_document(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "history.json"
+            path.write_text(json.dumps({"history": [None]}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "must be an object"):
+                audit.load_history(path, {})
+            path.write_text(json.dumps({"history": {}}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "must contain a list"):
+                audit.load_history(path, {})
+
     def test_dense_gradient_matches_central_finite_difference(self):
         prior = self.synthetic_matches()
         teams, idx, xh, xa, hg, ag = audit.build_design(prior)
