@@ -80,3 +80,31 @@ The exact-Hessian fits are a numerical sensitivity solution to the same clipped 
 The 10,000-replicate circular date moving-block bootstrap remained inconclusive: Brier 95% interval `[-0.0025415, +0.0013501]`; LogLoss `[-0.0060867, +0.0016913]`. Both include zero. The point-estimate direction is unchanged, but this solver sensitivity does not establish k=6 superiority.
 
 The test output now reports `successCount` separately from `gradientToleranceMetCount` and `stricter1e8Count`, avoiding the previous ambiguity where a 1e-8 count was labelled as generic solver success. The exact-Hessian result is a research-only diagnostic; it changes no production model, market weight, prediction log, main branch, or existing shadow artifact.
+
+
+## 2026-11-08 machine-readable strict stationarity sensitivity
+
+The optimizer audit now writes the exact-Hessian sensitivity into the same
+goal3-independent-optimizer-k6-k10 workflow artifact under
+strictStationarityAudit. It reruns all 17 target dates for both k=6 and
+k=10 on the exact same frozen 2026 history, aliases, and 472-target cohort.
+
+The predeclared diagnostic criterion is identical for both arms:
+gradient infinity norm <= 1e-7, damped full-Newton with the exact Hessian,
+Armijo c1=1e-4, at most 100 Newton iterations and 60 backtracking halvings.
+A failed fit aborts the audit. This is a numerical convergence diagnostic,
+not a change to the prospective adoption rule or to the frozen prediction
+outputs.
+
+The default L-BFGS-B reference fits and strict Newton sensitivity fits are
+both reported per date/k with status, objective, gradient norm, and objective
+gap. The artifact also reports strict-solver probabilities, score metrics,
+a same-seed circular date-block bootstrap, and probability drift versus both
+the frozen CSV and default L-BFGS-B.
+
+Important interpretation: the <=2e-6 frozen-CSV reconstruction tolerance
+applies to the independent reproduction of the frozen default optimizer.
+The strict Newton result is a different stopping-solution sensitivity; its
+probability drift versus default may exceed 2e-6 and is reported rather than
+misclassified as a reconstruction failure. Neither solution changes the
+frozen predictions or the prospective k=6/k=10 protocol.
