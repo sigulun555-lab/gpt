@@ -6,6 +6,7 @@ k6-k10; negative values favor k=6. This is retrospective descriptive analysis.
 """
 from __future__ import annotations
 import argparse
+import hashlib
 import json
 from collections import defaultdict
 from datetime import date as Date
@@ -111,13 +112,18 @@ def audit(report, replicates=50000, seed=20261105):
         for i, date in enumerate(used_dates):
             out["dateDetails"].append({"date": date, "targets": counts[i],
                                        **{m: daily[m][i] for m in METRICS}})
+        # Use identical sampled date-cluster indices for Brier and LogLoss
+        # within each scope, preserving the predeclared paired resampling.
+        shared_picks = rng.integers(0, len(used_dates), size=(replicates, len(used_dates)))
+        shared_draws_sha256 = hashlib.sha256(
+            np.asarray(shared_picks, dtype="<i8").tobytes()
+        ).hexdigest()
         for metric in METRICS:
             vals = np.asarray(target_diffs[metric], dtype=float)
             day = np.asarray(daily[metric], dtype=float)
             weights = np.asarray(counts, dtype=float)
-            picks = rng.integers(0, len(used_dates), size=(replicates, len(used_dates)))
             boot = np.empty(replicates)
-            for j, ix in enumerate(picks):
+            for j, ix in enumerate(shared_picks):
                 boot[j] = np.average(day[ix], weights=weights[ix])
             warning = 0.05 if metric == "brier" else (0.10 if metric == "logloss" else None)
             out[metric] = {
@@ -130,6 +136,7 @@ def audit(report, replicates=50000, seed=20261105):
                 "warningThreshold": warning,
                 "datesExceedingWarning": int((day > warning).sum()) if warning is not None else None,
                 "dateClusterBootstrap95CI": [float(x) for x in np.quantile(boot, [0.025, 0.975], method="linear")],
+                "bootstrapDrawsSha256": shared_draws_sha256,
                 "dateMean": float(day.mean()), "dateMedian": float(np.median(day)),
                 "dateSd": float(np.std(day, ddof=1)), "dateMin": float(day.min()), "dateMax": float(day.max()),
             }
