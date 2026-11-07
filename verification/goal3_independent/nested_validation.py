@@ -34,15 +34,40 @@ def load_data(history_path, aliases_path, csv2025_path):
     with open(history_path, encoding="utf-8") as f:
         raw = json.load(f)["history"]
     h2026 = []
-    for m in raw:
+    for row_index, m in enumerate(raw):
+        if not isinstance(m, dict):
+            raise ValueError(f"history row {row_index} must be an object")
+        if not isinstance(m.get("date"), str) or not m["date"].startswith("2026-"):
+            raise ValueError(f"2026-only history guard: unexpected date {m.get('date')!r}")
         if m.get("competition") not in ("J1", "J2", "J3"):
             continue
-        if not isinstance(m.get("home_goals"), int) or not isinstance(m.get("away_goals"), int):
+
+        home_goals = m.get("home_goals")
+        away_goals = m.get("away_goals")
+        # Preserve the existing exclusion of fully unscored fixtures, but do
+        # not let bool (a Python int subclass), partial scores, or negatives
+        # silently enter the scored training cohort.
+        if home_goals is None and away_goals is None:
             continue
+        if (type(home_goals) is not int or type(away_goals) is not int
+                or home_goals < 0 or away_goals < 0):
+            raise ValueError(
+                f"invalid scored goal counts at history row {row_index}: "
+                f"{home_goals!r}-{away_goals!r}"
+            )
+
+        home_raw, away_raw = m.get("home"), m.get("away")
+        if (not isinstance(home_raw, str) or not home_raw.strip()
+                or not isinstance(away_raw, str) or not away_raw.strip()):
+            raise ValueError(f"missing team name at history row {row_index}")
+        home = canonical(home_raw, aliases)
+        away = canonical(away_raw, aliases)
+        if home == away:
+            raise ValueError(f"home and away resolve to the same team at history row {row_index}")
+
         h2026.append({
-            "date": m["date"], "home": canonical(m["home"], aliases),
-            "away": canonical(m["away"], aliases),
-            "hg": int(m["home_goals"]), "ag": int(m["away_goals"]), "year": 2026,
+            "date": m["date"], "home": home, "away": away,
+            "hg": home_goals, "ag": away_goals, "year": 2026,
         })
     h2026.sort(key=lambda m: (m["date"], m["home"], m["away"]))
     h2025 = []

@@ -1,0 +1,267 @@
+name: GOAL3 Prospective Shadow (k=6 vs k=10)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "verification/goal3_independent/prospective_shadow.py"
+      - "verification/goal3_independent/score_prospective_shadow.py"
+      - "verification/goal3_independent/nested_validation.py"
+      - "verification/goal3_independent/independent_optimizer_audit.py"
+      - "verification/goal3_independent/two_way_cluster_bootstrap_audit.py"
+      - "verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py"
+      - "verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py"
+      - "tests/test_goal3_stratified_pair_preserving_bootstrap.py"
+      - "tests/test_goal3_league_date_paired_difference_audit.py"
+      - "verification/goal3_independent/league_date_paired_difference_audit.py"
+      - "tests/test_goal3_prospective_shadow.py"
+      - "tests/test_goal3_prospective_shadow_scoring.py"
+      - "tests/test_goal3_independent_optimizer.py"
+      - "tests/test_goal3_poisson_residual_cluster.py"
+      - "tests/test_goal3_league_k6_k10_audit.py"
+      - "tests/test_goal3_selection_calibration_bootstrap.py"
+      - "tests/test_goal3_two_way_cluster_bootstrap.py"
+      - "tests/test_goal3_pair_preserving_bootstrap.py"
+      - "verification/goal3_independent/poisson_residual_cluster_audit.py"
+      - "verification/goal3_independent/league_k6_k10_audit.py"
+      - "verification/goal3_independent/selection_calibration_bootstrap_audit.py"
+      - "verification/goal3_independent/PROSPECTIVE_SHADOW_PROTOCOL.md"
+      - "verification/goal3_independent/SELECTION_CALIBRATION_BOOTSTRAP_AUDIT.md"
+      - "verification/goal3_independent/review_outer_matches.py"
+      - "verification/goal3_independent/reproduce_allk_outer.py"
+      - "verification/goal3_independent/2025.csv"
+      - "data/history.json"
+      - "data/team_aliases.json"
+      - "verification/goal3_independent/goal3_outer_matches.csv"
+      - "verification/goal3_independent/GOAL3_OUTER_REVIEW_2026-11-04.md"
+      - "verification/goal3_independent/INDEPENDENT_OPTIMIZER_AUDIT.md"
+      - ".github/workflows/goal3-prospective-shadow.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goal3-prospective-shadow-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  static-and-unit-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Syntax checks
+        run: |
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py
+          node --check model.js
+          node --check scripts/auto_pipeline.js
+      - name: Existing tests
+        run: npm test
+      - name: Shadow runner unit test
+        run: python tests/test_goal3_prospective_shadow.py -v
+      - name: Prospective shadow scoring unit tests
+        run: python tests/test_goal3_prospective_shadow_scoring.py -v
+      - name: Independent optimizer unit tests
+        run: python tests/test_goal3_independent_optimizer.py -v
+      - name: Poisson residual cluster audit unit tests
+        run: python tests/test_goal3_poisson_residual_cluster.py -v
+      - name: League k6 k10 audit unit tests
+        run: python tests/test_goal3_league_k6_k10_audit.py -v
+      - name: Selection and calibration bootstrap unit tests
+        run: python tests/test_goal3_selection_calibration_bootstrap.py -v
+      - name: Two-way date/team bootstrap unit tests
+        run: python tests/test_goal3_two_way_cluster_bootstrap.py -v
+      - name: Pair-preserving date/team bootstrap unit tests
+        run: python tests/test_goal3_pair_preserving_bootstrap.py -v
+      - name: Stratified pair-preserving date/team bootstrap unit tests
+        run: python tests/test_goal3_stratified_pair_preserving_bootstrap.py -v
+      - name: League/date paired-difference descriptive audit unit tests
+        run: python tests/test_goal3_league_date_paired_difference_audit.py -v
+      - name: Independent 472-target audit and paired bootstrap
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/review_outer_matches.py \
+            --csv verification/goal3_independent/goal3_outer_matches.csv \
+            --out artifacts/goal3_outer_review.json \
+            --replicates 10000 --seed 1
+      - name: Upload independent GOAL3 outer review
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-outer-review-472-targets-${{ github.run_id }}
+          path: artifacts/goal3_outer_review.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Rebuild fixed-2026-only all-k outer diagnostics
+        run: |
+          python verification/goal3_independent/reproduce_allk_outer.py \
+            --frozen-csv verification/goal3_independent/goal3_outer_matches.csv \
+            --history2026 data/history.json \
+            --aliases data/team_aliases.json \
+            --csv2025 verification/goal3_independent/2025.csv \
+            --out artifacts/goal3_outer_allk_reproduction.json \
+            --bootstrap-replicates 10000 --bootstrap-seed 20261104
+      - name: League-specific k6 vs k10 date-cluster audit
+        run: |
+          python verification/goal3_independent/league_k6_k10_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_league_k6_k10_audit.json \
+            --replicates 50000 --seed 20261105
+      - name: Upload league-specific k6 vs k10 audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-league-k6-k10-audit-${{ github.run_id }}
+          path: artifacts/goal3_league_k6_k10_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Date-cluster Poisson residual dispersion audit
+        run: |
+          python verification/goal3_independent/poisson_residual_cluster_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_poisson_residual_cluster_audit.json \
+            --replicates 50000 --seed 20261105
+      - name: Upload Poisson residual cluster audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-poisson-residual-cluster-audit-${{ github.run_id }}
+          path: artifacts/goal3_poisson_residual_cluster_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: League/date paired-difference descriptive audit
+        run: |
+          python verification/goal3_independent/league_date_paired_difference_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_league_date_paired_difference_audit.json
+      - name: Upload league/date paired-difference audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-league-date-paired-difference-audit-${{ github.run_id }}
+          path: artifacts/goal3_league_date_paired_difference_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload independent all-k reconstruction and fit diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-all-k-outer-reconstruction-${{ github.run_id }}
+          path: artifacts/goal3_outer_allk_reproduction.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: All-k selection stability and four-category calibration uncertainty
+        run: |
+          python verification/goal3_independent/selection_calibration_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_selection_calibration_bootstrap_audit.json \
+            --replicates 50000 --seed 20261105
+      - name: Upload selection and calibration bootstrap audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-selection-calibration-bootstrap-audit-${{ github.run_id }}
+          path: artifacts/goal3_selection_calibration_bootstrap_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Two-way date/team cluster bootstrap sensitivity
+        run: |
+          python verification/goal3_independent/two_way_cluster_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_two_way_cluster_bootstrap_audit.json \
+            --replicates 50000 --seed 20261109
+      - name: Upload two-way date/team bootstrap sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-two-way-date-team-bootstrap-${{ github.run_id }}
+          path: artifacts/goal3_two_way_cluster_bootstrap_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Pair-preserving date/team bootstrap sensitivity
+        run: |
+          python verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_pair_preserving_date_team_bootstrap_audit.json \
+            --replicates 50000 --seed 20261110
+      - name: Upload pair-preserving date/team bootstrap sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-pair-preserving-date-team-bootstrap-${{ github.run_id }}
+          path: artifacts/goal3_pair_preserving_date_team_bootstrap_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Stratified-team pair-preserving date/team bootstrap sensitivity
+        run: |
+          python verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_stratified_pair_preserving_date_team_bootstrap_audit.json \
+            --replicates 50000 --seed 20261111
+      - name: Upload stratified-team pair-preserving bootstrap sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-stratified-pair-preserving-date-team-bootstrap-${{ github.run_id }}
+          path: artifacts/goal3_stratified_pair_preserving_date_team_bootstrap_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Independent k=6 / k=10 optimizer reconstruction
+        run: |
+          python verification/goal3_independent/independent_optimizer_audit.py \
+            --history data/history.json \
+            --aliases data/team_aliases.json \
+            --frozen-csv verification/goal3_independent/goal3_outer_matches.csv \
+            --out artifacts/goal3_independent_optimizer_audit.json \
+            --bootstrap-replicates 50000 --seed 20261105
+      - name: Upload independent optimizer audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-independent-optimizer-k6-k10-${{ github.run_id }}
+          path: artifacts/goal3_independent_optimizer_audit.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Enforce independent probability reconstruction tolerance
+        run: |
+          python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
+
+  shadow:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Fetch one frozen official GOAL3 and history snapshot
+        run: node scripts/auto_pipeline.js
+      - name: Create paired k=6 and k=10 shadow forecast
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/prospective_shadow.py \
+            --history data/history.json \
+            --predictions data/predictions.json \
+            --aliases data/team_aliases.json \
+            --out artifacts/goal3-prospective-shadow.json
+      - name: Name artifact by round and run
+        id: meta
+        run: |
+          ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])")
+          echo "round=$ROUND" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
+          path: artifacts/goal3-prospective-shadow.json
+          if-no-files-found: error
+          retention-days: 90
