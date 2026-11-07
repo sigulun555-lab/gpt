@@ -347,8 +347,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         }
         predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
         row_indices_by_date = defaultdict(list)
-        for i, row in enumerate(rows):            row_indices_by_date[row["date"]].append(i)
-        diagnostics = []
+        for i, row in enumerate(rows):            row_indices_by_date[row["date"]].append(i)        diagnostics = []
 
         for date in dates:
             prior = [match for match in history if match["date"] < date]
@@ -607,7 +606,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                     "date": date,
                     "fold": fold_by_date[date],
                     "k": int(k),
-                    "defaultLbfsgbGradientInfinityNorm": float(default_info["gradientInfinityNorm"]),
+                    "defaultLbfgsbGradientInfinityNorm": float(default_info["gradientInfinityNorm"]),
                     "exactNewtonGradientInfinityNorm": float(info["gradientInfinityNorm"]),
                     "maxAbsParameterDifference": float(np.max(np.abs(parameter_delta))),
                     "l2ParameterDifference": float(np.linalg.norm(parameter_delta)),
@@ -674,6 +673,9 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         self.assertTrue(all(
             p is not None for k in (6, 10) for p in predictions[k]
         ))
+        self.assertTrue(all(
+            p is not None for k in (6, 10) for p in default_predictions[k]
+        ))
         p6 = np.asarray(predictions[6], dtype=float)
         p10 = np.asarray(predictions[10], dtype=float)
         default_p6 = np.asarray(default_predictions[6], dtype=float)
@@ -724,7 +726,7 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
                 "medianAbsParameterDifference": float(np.median([x["maxAbsParameterDifference"] for x in items])),
                 "p95AbsParameterDifference": float(np.quantile([x["maxAbsParameterDifference"] for x in items], 0.95, method="linear")),
                 "maxL2ParameterDifference": max(x["l2ParameterDifference"] for x in items),
-                "maxDefaultGradientInfinityNorm": max(x["defaultLbfsgbGradientInfinityNorm"] for x in items),
+                "maxDefaultGradientInfinityNorm": max(x["defaultLbfgsbGradientInfinityNorm"] for x in items),
                 "maxExactNewtonGradientInfinityNorm": max(x["exactNewtonGradientInfinityNorm"] for x in items),
                 "minimumDefaultMinusExactObjective": min(x["defaultMinusExactObjective"] for x in items),
                 "maximumDefaultMinusExactObjective": max(x["defaultMinusExactObjective"] for x in items),
@@ -748,10 +750,10 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
             "maxIterations": max(iterations),
             "minimumHessianEigenvalue": min(item["minimumHessianEigenvalue"] for item in diagnostics),
             "maxProbabilityDriftVsFrozenDefault": max_drift,
-            "maxProbabilityDriftExactNewtonVsDefaultLbfsgb": default_vs_exact_probability_drift,
-            "defaultLbfsgbVsExactNewtonParameterSummary": parameter_summary_by_k,
-            "defaultLbfsgbVsExactNewtonPerFit": parameter_diagnostics,
-            "metrics": metrics
+            "maxProbabilityDriftExactNewtonVsDefaultLbfgsb": default_vs_exact_probability_drift,
+            "defaultLbfgsbVsExactNewtonParameterSummary": parameter_summary_by_k,
+            "defaultLbfgsbVsExactNewtonPerFit": parameter_diagnostics,
+            "metrics": metrics,
             "movingBlockBootstrap10k": bootstrap,
             "fourCategoryCalibration": calibration,
             "poissonResidualRMS": residuals,
