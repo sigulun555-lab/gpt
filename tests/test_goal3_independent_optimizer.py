@@ -347,7 +347,10 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
         }
         predictions = {6: [None] * len(rows), 10: [None] * len(rows)}
         row_indices_by_date = defaultdict(list)
-        for i, row in enumerate(rows):            row_indices_by_date[row["date"]].append(i)        diagnostics = []
+        for i, row in enumerate(rows):
+            row_indices_by_date[row["date"]].append(i)
+        diagnostics = []
+        parameter_diagnostics = []
 
         for date in dates:
             prior = [match for match in history if match["date"] < date]
