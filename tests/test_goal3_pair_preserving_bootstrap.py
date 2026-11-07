@@ -41,6 +41,8 @@ class PairPreservingBootstrapTests(unittest.TestCase):
         self.assertEqual(arrays["matches"], 1)
         self.assertEqual(arrays["actual"].tolist(), [1, 2])
         self.assertEqual(arrays["probabilities"].shape, (2, 16, 4))
+        np.testing.assert_allclose(arrays["probabilities"][0, 0], [0.4, 0.3, 0.2, 0.1])
+        np.testing.assert_allclose(arrays["probabilities"][1, 0], [0.3, 0.4, 0.2, 0.1])
         self.assertEqual(arrays["homeTeamIndex"].shape, (1,))
         self.assertEqual(arrays["awayTeamIndex"].shape, (1,))
 
