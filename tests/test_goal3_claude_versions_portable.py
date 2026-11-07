@@ -7,24 +7,28 @@ home path, scratch path, production file, or prediction log is required.
 """
 from __future__ import annotations
 
+import gc
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "verification" / "goal3_independent" / "results" / "_claude_goal3_versions.py"
+MODULE_PATH = ROOT / "verification" / "goal3_independent" / "results" / "_claude_goal3_versions_portable.py"
+ORIGINAL_MODULE_PATH = ROOT / "verification" / "goal3_independent" / "results" / "_claude_goal3_versions.py"
 REPORT_PATH = ROOT / "verification" / "goal3_independent" / "results" / "claude_goal3_share_audit.json"
 
 
 def load_pinned_module():
     if not MODULE_PATH.is_file():
         raise RuntimeError(
-            "Pinned Claude module is missing; run verify_claude_goal3_share.py before this test."
+            "Patched research copy of the pinned Claude module is missing; run verify_claude_goal3_share.py before this test."
         )
     spec = importlib.util.spec_from_file_location("claude_goal3_versions_portable_test", MODULE_PATH)
     if spec is None or spec.loader is None:
@@ -82,7 +86,14 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         }), encoding="utf-8")
 
     def test_load_rows_filters_leagues_and_sorts_using_temporary_path(self):
-        rows = self.g3.load_rows(str(self.history_path))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            rows = self.g3.load_rows(str(self.history_path))
+            gc.collect()
+        self.assertFalse(
+            [item for item in caught if issubclass(item.category, ResourceWarning)],
+            "portable load_rows must close its history file",
+        )
         self.assertEqual(len(rows), 12)
         self.assertEqual([r["date"] for r in rows], sorted(r["date"] for r in rows))
         self.assertTrue(all(r["competition"] in ("J1", "J2", "J3") for r in rows))
@@ -125,7 +136,9 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         completed = subprocess.run(
             [sys.executable, str(MODULE_PATH), *argv[1:]],
             check=True, capture_output=True, text=True,
+            env={**os.environ, "PYTHONWARNINGS": "always::ResourceWarning"},
         )
+        self.assertNotIn("ResourceWarning", completed.stderr)
         no_market = json.loads(no_market_out.read_text(encoding="utf-8"))
         self.assertEqual(no_market["versions"]["v2"]["status"], "not_run")
         self.assertEqual(no_market["versions"]["v0"]["status"], "ok")
@@ -140,7 +153,9 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         completed = subprocess.run(
             [sys.executable, str(MODULE_PATH), *argv[1:]],
             check=True, capture_output=True, text=True,
+            env={**os.environ, "PYTHONWARNINGS": "always::ResourceWarning"},
         )
+        self.assertNotIn("ResourceWarning", completed.stderr)
         with_market = json.loads(with_market_out.read_text(encoding="utf-8"))
         self.assertEqual(with_market["versions"]["v2"]["status"], "ok")
         for fixture in with_market["versions"]["v2"]["fixtures"]:
@@ -154,6 +169,22 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         self.assertIn("conditional_pearson_dispersion_from_lambda_minus_log_p0", review)
         self.assertIn("unadjusted_raw_count_variance_to_mean_not_a_conditional_poisson_residual", review)
         self.assertIn("not a model-based Pearson residual", review["note"])
+
+    def test_pinned_source_is_preserved_and_portable_copy_is_file_handle_safe(self):
+        self.assertTrue(ORIGINAL_MODULE_PATH.is_file())
+        self.assertTrue(MODULE_PATH.is_file())
+        original = ORIGINAL_MODULE_PATH.read_text(encoding="utf-8")
+        portable = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn('json.load(open(history_path, encoding="utf-8"))', original)
+        self.assertNotIn('json.load(open(history_path, encoding="utf-8"))', portable)
+        report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+        review = report["version_implementation_review"]
+        patch = review["portable_runtime_patch"]
+        warning = review["resource_warning_review"]
+        self.assertFalse(patch["upstream_source_modified"])
+        self.assertEqual(len(patch["file_handle_patches"]), 4)
+        self.assertEqual(warning["patched_portable_load_rows_resource_warning_count"], 0)
+        self.assertTrue(warning["original_and_patched_rows_exact_match"])
 
     def test_audit_report_records_missing_claude_manifest_and_independent_hashes(self):
         report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
