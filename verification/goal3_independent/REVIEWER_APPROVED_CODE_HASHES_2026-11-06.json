@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": "1.2",
+  "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
+  "reviewedAt": "2026-11-05T19:12:33Z",
+  "codeHashSourceCommit": "e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d",
+  "generationSourceCommit": "d5f48314159ffff2f8980738fa02d33ddf2a188b",
+  "approvedCodeHashes": {
+    "runnerSha256": "c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a",
+    "modelSha256": "cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d",
+    "snapshotPipelineSha256": "6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe",
+    "scorerSha256": "fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5"
+  },
+  "sourceFiles": {
+    "runnerSha256": {
+      "path": "verification/goal3_independent/prospective_shadow.py",
+      "gitBlobSha1": "a82847fbe388a3c6930d8c9a4075baa71cdce35a",
+      "bytes": 13422
+    },
+    "modelSha256": {
+      "path": "verification/goal3_independent/nested_validation.py",
+      "gitBlobSha1": "7ac8f83da420fa577b45e9c5c021ce46387f584e",
+      "bytes": 16885
+    },
+    "snapshotPipelineSha256": {
+      "path": "scripts/auto_pipeline.js",
+      "gitBlobSha1": "ef557e084cab802df7830d949bd1f52ddee5db7c",
+      "bytes": 13006
+    },
+    "scorerSha256": {
+      "path": "verification/goal3_independent/score_prospective_shadow.py",
+      "gitBlobSha1": "9c1f2e575acd59619eaaabae986d958d4d0a1166",
+      "bytes": 34096
+    }
+  },
+  "verification": {
+    "retrieval": "GitHub Contents API file bytes at the exact codeHashSourceCommit",
+    "independentGitBlobSha1": "API Git blob SHA-1 and exact byte lengths independently checked for all four files",
+    "sha256": "Independent SHA-256 recomputation over exact UTF-8 bytes; scorer values asserted by prospective scoring unit tests",
+    "firstThreeHashesAlsoMatchGenerationSourceCommit": true,
+    "lockCommitBinding": "Scorer resolves the exact last-touch commit and committer time for this lock file from full Git history; manifest must pin commit SHA, commit time, and lock-file SHA-256.",
+    "resultChronology": "Every official result fixture must provide timezone-aware retrievedAt and publishedAt. Both must be strictly later than the lock commit; publishedAt must be no later than retrievedAt.",
+    "reviewedAtAfterCodeHashSourceCommit": true,
+    "sourceCommitsAreAncestorsOfLockCommit": true,
+    "scorerRawByteCheck": "Code source commit e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d: 34096 bytes; Git blob 9c1f2e575acd59619eaaabae986d958d4d0a1166; SHA-256 fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5."
+  },
+  "limitations": [
+    "This lock records code identity only; it does not verify official fixture content or publication metadata authenticity.",
+    "If the official source does not provide a verifiable publishedAt, the entire round is ineligible; retrievedAt alone is never a substitute.",
+    "Manual fixture, competition, full-time score, and official publication evidence review remains required.",
+    "This is not approval to merge, dispatch, or adopt any model change."
+  ],
+  "scope": "GOAL3 research-only k=6 vs k=10; separate from toto13"
+}

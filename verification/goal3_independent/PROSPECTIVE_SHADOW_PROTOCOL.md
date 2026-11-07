@@ -2,7 +2,9 @@
 
 ## Protocol version and purpose
 
-Protocol v1.1 (frozen before any prospective result scoring; 2026-11-05).
+Scoring-manifest protocol v1.2 (2026-11-05). Forecast artifacts retain their
+existing embedded evaluation protocolVersion 1.1; v1.2 versions the scorer's
+manifest, code-lock, and result-source validation contract.
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
@@ -40,6 +42,7 @@ For target i and category c in {0,1,2,3}, let p(i,c) be the forecast probability
 - **Primary resampling unit:** the official GOAL3 round. Resample complete rounds with replacement; retain all three matches and all six team-side targets in each sampled round. Calculate paired k=6 minus k=10 differences inside each replicate.
 - **Primary bootstrap:** 10,000 replicates, NumPy PCG64, seed 20261105, two-sided 95% percentile interval, NumPy linear quantile definition. Use the same sampled round indices for Brier and Log Loss.
 - **Sensitivity analysis:** if fixtures in the included sample span multiple calendar dates, also report a date-cluster bootstrap that retains all matches and both team-sides on each sampled date. Keep this sensitivity result separate from the primary round-cluster result.
+- **Retrospective-only diagnostics:** The fixed 236-match / 472 team-side / 17-date all-k cohort and any IID target-date, calendar-window, or crossed date/team bootstrap derived from it are exploratory sensitivity analyses only. They do not count toward the prospective 10-round / 30-match or 20-round / 60-match floors, do not replace the primary complete-round bootstrap, and cannot satisfy an adoption gate. IID date resampling does not preserve temporal dependence.
 - Repeated teams across different rounds are not separately clustered. This limitation must be stated; the bootstrap is not proof of independence across rounds.
 
 ## League non-inferiority guard
@@ -76,8 +79,47 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
-The manifest is JSON with schemaVersion: 1, protocolVersion: "1.1", and a
-rounds array. Each entry supplies the round number, a relative forecastPath
+A pre-result independent reviewer lock is committed at
+`verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json`.
+It records the four raw-byte SHA-256 values, the exact source commits, and the
+Git blob SHA-1 cross-checks. The lock was independently computed from the
+contents at codeHashSourceCommit
+`e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d`; the three generation files are
+byte-identical at generationSourceCommit
+`d5f48314159ffff2f8980738fa02d33ddf2a188b`. The scorer resolves the lock
+file's exact last-touch commit SHA and committer timestamp from Git history
+(`git log -1 --format=%H%x00%cI -- <lock-path>`) and fails closed unless the
+manifest pins that exact `codeLockCommitSha`, `codeLockCommitAt`, and
+`codeLockFileSha256`. It also verifies that `reviewedAt` is later than the
+code-hash source commit and no later than the lock commit, that both source
+commits are ancestors of the lock commit, and that the lock commit is in the
+checked-out history. Locked source bytes/blob IDs must match the recorded
+source commits. Every official result
+fixture must have a timezone-aware `retrievedAt` strictly later than the lock
+commit time; equal, earlier, or missing timestamps exclude the entire round.
+The GOAL3 research CI checkout fetches full Git history so this check is
+reproducible. If any of the four source files changes, this lock is stale and a
+new independent review/lock is required.
+This lock is a code-identity record only; it does not replace manual fixture
+and official-result verification, and it does not authorize merge, dispatch,
+or production adoption.
+
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2",
+an approvedCodeHashes object, codeLockCommitSha, codeLockCommitAt,
+codeLockFileSha256, and a rounds array. Before scoring, the reviewer must
+independently pin the exact lock commit SHA, its Git committer timestamp, and
+the lock file SHA-256, as well as the expected SHA-256 values for runnerSha256,
+modelSha256, snapshotPipelineSha256, and scorerSha256 from the exact approved
+research commit. scorerSha256 is the SHA-256 of score_prospective_shadow.py
+itself; it prevents a modified scoring implementation from running under an
+unchanged runner/model/pipeline lock. The scorer first compares the complete
+manifest lock with the actual checked-out runner/model/pipeline/scorer files,
+then rejects any forecast whose self-reported runner/model/pipeline hashes do
+not match that same lock. The forecast artifact does not self-report the scorer
+hash; it belongs only in the reviewer-controlled manifest lock. Merely copying
+hashes from the forecast into the manifest is not an independent approval.
+The output records both the approved lock and the checked-out hashes for audit. Each entry supplies the
+round number, a relative forecastPath
 and its exact forecastSha256, plus a relative resultsPath and its exact
 resultsSha256. Paths that are absolute or escape the manifest directory are
 rejected. Hash mismatches fail closed.
@@ -86,14 +128,29 @@ Each result JSON contains the matching round number,
 resultBasis: "full_time_90_plus_stoppage", and exactly three fixture records.
 Every fixture record must match the forecast number/date/home/away and provide:
 competition (J1/J2/J3), status: "final", integer fullTimeHomeGoals /
-fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl, and a
-timezone-aware retrievedAt; publishedAt is retained and checked when supplied.
-The official source designation and URL must be independently checked by the
-reviewer. Extra time and shoot-outs are not valid inputs.
+fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl whose hostname
+is exactly www.jleague.jp (no userinfo, nonstandard port, or fragment), and a
+timezone-aware retrievedAt strictly later than codeLockCommitAt and a
+timezone-aware publishedAt strictly later than codeLockCommitAt and no later
+than retrievedAt. publishedAt is mandatory: a later retrieval cannot make an
+already-published result eligible, and a missing/unverifiable publication time
+excludes the entire round rather than falling back to retrievedAt. The exact host allowlist is intentionally narrow; a new official host requires
+a reviewed code change and tests, not a manifest override. The official result
+page and publication/retrieval evidence must still be manually checked for
+each fixture. This includes confirming the competition assignment (J1/J2/J3),
+fixture identity, final score, and full-time basis against that exact official
+page; do not infer league assignment from team names. A domain allowlist alone
+does not prove the page content is official. Extra time and shoot-outs are not
+valid inputs.
 
-The scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
-k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
-fixture identity, and result provenance. If any one fixture in a round is
+The v1.2 manifest scorer verifies the reviewer lock commit/file/time against
+Git history, the lock's source commits and raw bytes, every result retrievedAt,
+and mandatory publishedAt against the lock commit time and retrieval time. If
+the official source does not provide a verifiable publication timestamp, the
+round remains ineligible; retrievedAt alone is never a substitute. It also
+verifies the v1.1 forecast
+timing bounds, input/code hashes, exact k=6/k=10 arms, all six successful fit
+diagnostics, probability simplexes, fixture identity, and result provenance. If any one fixture in a round is
 not final or any paired target/provenance field is invalid, the entire round
 is excluded and the reason is recorded. It never scores only the available
 matches or one team-side.
@@ -111,7 +168,10 @@ The output records the manifest, forecast, results, and scorer SHA-256 values,
 per-round exclusions and official result provenance, fit/missing-target counts,
 overall paired scores, league bounds, and adoption gates. The scorer can only
 return a research status or eligibility for human review; automatic production
-adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
+adoption is hard-disabled. The v1.2 manifest code-hash lock is a separate
+reviewer-controlled approval step; its exact Git commit and file hash must be
+pinned in the manifest, and all official result retrievals must occur strictly
+after that commit. The lock cannot be inferred from the forecast artifact. CLI runs are fixed to the pre-registered 10,000
 replicates and seed 20261105; smaller settings are available only to unit tests.
 
 Forecast artifacts created before protocol v1.1 that lack its explicit

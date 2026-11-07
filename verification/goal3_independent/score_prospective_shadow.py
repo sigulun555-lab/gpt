@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Research-only scorer for immutable GOAL3 k=6/k=10 shadow artifacts."""
 from __future__ import annotations
-import argparse, hashlib, json, math, platform, re
+import argparse, hashlib, json, math, platform, re, subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -15,6 +15,20 @@ FLOOR = 1e-12
 REPS = 10_000
 SEED = 20261105
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+OFFICIAL_RESULT_HOSTS = frozenset({"www.jleague.jp"})
+APPROVED_CODE_PATHS = {
+    "runnerSha256": Path(__file__).resolve().with_name("prospective_shadow.py"),
+    "modelSha256": Path(__file__).resolve().with_name("nested_validation.py"),
+    "snapshotPipelineSha256": Path(__file__).resolve().parents[2] / "scripts" / "auto_pipeline.js",
+    # The scoring implementation itself must be pinned too; otherwise a changed
+    # scorer could run under an unchanged runner/model/pipeline lock.
+    "scorerSha256": Path(__file__).resolve(),
+}
+FORECAST_CODE_HASH_KEYS = ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
+APPROVED_CODE_HASH_KEYS = tuple(APPROVED_CODE_PATHS)
+LOCK_PATH = Path(__file__).resolve().with_name("REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json")
+LOCK_RELATIVE_PATH = "verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
+COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def sha(path):
@@ -43,6 +57,131 @@ def ts(value, name):
     if d.tzinfo is None:
         raise ValueError(f"{name} must include timezone")
     return d.astimezone(timezone.utc)
+
+
+def git_blob_sha1(raw):
+    header = f"blob {len(raw)}\0".encode("ascii")
+    return hashlib.sha1(header + raw).hexdigest()
+
+
+def git_bytes(repo_root, *args):
+    proc = subprocess.run(
+        ["git", *args], cwd=repo_root, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if proc.returncode:
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+        raise ValueError(f"Git provenance lookup failed: {detail}")
+    return proc.stdout
+
+
+def reviewer_lock_metadata():
+    repo_root = Path(__file__).resolve().parents[2]
+    raw = git_bytes(
+        repo_root, "log", "-1", "--format=%H%x00%cI", "--", LOCK_RELATIVE_PATH
+    ).decode("utf-8").strip()
+    fields = raw.split("\0")
+    if len(fields) != 2 or not COMMIT_RE.fullmatch(fields[0]):
+        raise ValueError("cannot resolve exact reviewer lock commit; full Git history is required")
+    committed_at = ts(fields[1], "reviewer lock commit time")
+    lock_doc = read_json(LOCK_PATH)
+    reviewed_at = ts(lock_doc.get("reviewedAt"), "reviewer lock reviewedAt")
+    if reviewed_at > committed_at:
+        raise ValueError("reviewer lock reviewedAt is later than its commit time")
+    return {
+        "commitSha": fields[0],
+        "committedAt": committed_at.isoformat().replace("+00:00", "Z"),
+        "fileSha256": sha(LOCK_PATH),
+        "reviewedAt": reviewed_at.isoformat().replace("+00:00", "Z"),
+        "codeHashSourceCommit": lock_doc.get("codeHashSourceCommit"),
+        "generationSourceCommit": lock_doc.get("generationSourceCommit"),
+    }
+
+
+def validate_reviewer_lock(manifest, approved_code_hashes):
+    repo_root = Path(__file__).resolve().parents[2]
+    lock_doc = read_json(LOCK_PATH)
+    if (lock_doc.get("schemaVersion") != 1
+        or lock_doc.get("protocolVersion") != "1.2"
+        or lock_doc.get("experiment") != EXPERIMENT):
+        raise ValueError("reviewer code lock schema/protocol/experiment mismatch")
+    if lock_doc.get("approvedCodeHashes") != approved_code_hashes:
+        raise ValueError("manifest approvedCodeHashes do not match the committed reviewer lock")
+
+    meta = reviewer_lock_metadata()
+    manifest_sha = manifest.get("codeLockCommitSha")
+    if not isinstance(manifest_sha, str) or not COMMIT_RE.fullmatch(manifest_sha):
+        raise ValueError("manifest must pin codeLockCommitSha")
+    if manifest_sha != meta["commitSha"]:
+        raise ValueError("manifest codeLockCommitSha does not match Git history")
+    try:
+        manifest_at = ts(manifest.get("codeLockCommitAt"), "codeLockCommitAt")
+    except ValueError as exc:
+        raise ValueError("manifest must pin a timezone-aware codeLockCommitAt") from exc
+    if manifest_at != ts(meta["committedAt"], "reviewer lock commit time"):
+        raise ValueError("manifest codeLockCommitAt does not match Git commit time")
+    manifest_file_sha = manifest.get("codeLockFileSha256")
+    if not isinstance(manifest_file_sha, str) or not SHA_RE.fullmatch(manifest_file_sha):
+        raise ValueError("manifest must pin codeLockFileSha256")
+    if manifest_file_sha != meta["fileSha256"]:
+        raise ValueError("manifest codeLockFileSha256 does not match committed lock file")
+
+    source_commit = lock_doc.get("codeHashSourceCommit")
+    generation_commit = lock_doc.get("generationSourceCommit")
+    if not isinstance(source_commit, str) or not COMMIT_RE.fullmatch(source_commit):
+        raise ValueError("reviewer lock codeHashSourceCommit is invalid")
+    if not isinstance(generation_commit, str) or not COMMIT_RE.fullmatch(generation_commit):
+        raise ValueError("reviewer lock generationSourceCommit is invalid")
+
+    source_files = lock_doc.get("sourceFiles")
+    if not isinstance(source_files, dict):
+        raise ValueError("reviewer lock sourceFiles missing")
+    for key, path in APPROVED_CODE_PATHS.items():
+        relative = path.resolve().relative_to(repo_root).as_posix()
+        entry = source_files.get(key)
+        if not isinstance(entry, dict) or entry.get("path") != relative:
+            raise ValueError(f"reviewer lock source path mismatch: {key}")
+        raw = path.read_bytes()
+        if (entry.get("bytes") != len(raw)
+            or entry.get("gitBlobSha1") != git_blob_sha1(raw)
+            or hashlib.sha256(raw).hexdigest() != approved_code_hashes[key]):
+            raise ValueError(f"reviewer lock source byte/hash mismatch: {key}")
+        source_raw = git_bytes(repo_root, "show", f"{source_commit}:{relative}")
+        if hashlib.sha256(source_raw).hexdigest() != approved_code_hashes[key]:
+            raise ValueError(f"reviewer lock source commit does not contain approved bytes: {key}")
+        if key in FORECAST_CODE_HASH_KEYS:
+            generation_raw = git_bytes(repo_root, "show", f"{generation_commit}:{relative}")
+            if hashlib.sha256(generation_raw).hexdigest() != approved_code_hashes[key]:
+                raise ValueError(f"generation source commit does not contain approved bytes: {key}")
+
+    lock_at_commit = git_bytes(
+        repo_root, "show", f"{meta['commitSha']}:{LOCK_RELATIVE_PATH}"
+    )
+    if hashlib.sha256(lock_at_commit).hexdigest() != meta["fileSha256"]:
+        raise ValueError("reviewer lock file bytes do not match the pinned lock commit")
+
+    reviewed_at = ts(meta["reviewedAt"], "reviewer lock reviewedAt")
+    source_commit_at = ts(
+        git_bytes(repo_root, "show", "-s", "--format=%cI", source_commit).decode("utf-8").strip(),
+        "code hash source commit time",
+    )
+    if reviewed_at < source_commit_at:
+        raise ValueError("reviewer lock reviewedAt predates the code hash source commit")
+
+    for ancestor in (generation_commit, source_commit):
+        proc = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor, meta["commitSha"]],
+            cwd=repo_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+        )
+        if proc.returncode:
+            raise ValueError(f"reviewer source commit is not an ancestor of lock commit: {ancestor}")
+    proc = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", meta["commitSha"], "HEAD"],
+        cwd=repo_root, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    if proc.returncode:
+        raise ValueError("reviewer lock commit is not an ancestor of the checked-out HEAD")
+    return meta
 
 
 def pvec(value, label):
@@ -198,7 +337,22 @@ def forecast_errors(f, round_no):
     return sorted(set(e))
 
 
-def result_errors(res, round_no, forecast):
+def official_result_url_allowed(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        u = urlparse(value)
+        return (
+            u.scheme == "https" and u.hostname is not None
+            and u.hostname.lower() in OFFICIAL_RESULT_HOSTS
+            and u.username is None and u.password is None
+            and u.port in (None, 443) and not u.fragment
+        )
+    except ValueError:
+        return False
+
+
+def result_errors(res, round_no, forecast, code_lock_at):
     e = []
     if (not isinstance(res.get("round"), int) or isinstance(res.get("round"), bool)
         or res.get("round") != round_no): e.append("result_round_mismatch")
@@ -228,16 +382,26 @@ def result_errors(res, round_no, forecast):
         if x.get("competition") not in LEAGUES: e.append(f"fixture_{n}_competition_invalid")
         if x.get("sourceType") != "official": e.append(f"fixture_{n}_source_not_official")
         source_url = x.get("sourceUrl")
-        u = urlparse(source_url) if isinstance(source_url, str) else None
-        if u is None or u.scheme != "https" or not u.netloc:
-            e.append(f"fixture_{n}_source_url_invalid")
-        try: ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
-        except ValueError: e.append(f"fixture_{n}_retrievedAt_invalid")
-        if x.get("publishedAt") is not None:
+        if not official_result_url_allowed(source_url):
+            e.append(f"fixture_{n}_source_url_not_allowlisted_official_host")
+        retrieved_at = None
+        try:
+            retrieved_at = ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
+            if retrieved_at <= code_lock_at:
+                e.append(f"fixture_{n}_retrieved_not_after_code_lock")
+        except ValueError:
+            e.append(f"fixture_{n}_retrievedAt_invalid")
+        if x.get("publishedAt") is None:
+            e.append(f"fixture_{n}_publishedAt_missing")
+        else:
             try:
-                if ts(x["publishedAt"], f"fixture_{n}_publishedAt") > ts(x["retrievedAt"], f"fixture_{n}_retrievedAt"):
+                published_at = ts(x["publishedAt"], f"fixture_{n}_publishedAt")
+                if published_at <= code_lock_at:
+                    e.append(f"fixture_{n}_published_not_after_code_lock")
+                if retrieved_at is not None and published_at > retrieved_at:
                     e.append(f"fixture_{n}_published_after_retrieval")
-            except ValueError: e.append(f"fixture_{n}_publishedAt_invalid")
+            except ValueError:
+                e.append(f"fixture_{n}_publishedAt_invalid")
     if seen != set(expected): e.append("result_fixture_coverage_incomplete")
     return sorted(set(e))
 
@@ -274,7 +438,7 @@ def failure_counts(f):
     return failures, missing
 
 
-def score_one(entry, base):
+def score_one(entry, base, approved_code_hashes, code_lock_at):
     n = entry.get("round")
     if not isinstance(n, int) or isinstance(n, bool): raise ValueError("manifest round must be integer")
     paths = []
@@ -292,9 +456,14 @@ def score_one(entry, base):
     if rsha != entry.get("resultsSha256"): raise ValueError(f"round {n}: results SHA-256 mismatch")
     f, res = read_json(fp), read_json(rp)
     failures, missing = failure_counts(f)
-    errors = forecast_errors(f, n) + result_errors(res, n, f)
+    errors = forecast_errors(f, n) + result_errors(res, n, f, code_lock_at)
+    forecast_code = f.get("code") if isinstance(f.get("code"), dict) else {}
+    for key in FORECAST_CODE_HASH_KEYS:
+        if forecast_code.get(key) != approved_code_hashes[key]:
+            errors.append(f"approved_code_hash_mismatch:{key}")
     audit = {
         "round": n, "forecastSha256": fsha, "resultsSha256": rsha,
+        "codeLockCommitAt": code_lock_at.isoformat().replace("+00:00", "Z"),
         "forecastTiming": {k: f.get(k) for k in ("snapshotAvailableBy", "forecastAsOf", "deadline")},
         "inputHashes": f.get("inputs", {}), "codeHashes": f.get("code", {}),
         "resultBasis": res.get("resultBasis"),
@@ -358,8 +527,20 @@ def boot_mean(records, metric, sampled):
 def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     mp = Path(manifest_path).resolve()
     manifest = read_json(mp)
-    if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != PROTOCOL:
-        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.1")
+    if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != "1.2":
+        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.2")
+    approved_code_hashes = manifest.get("approvedCodeHashes")
+    if not isinstance(approved_code_hashes, dict) or any(
+        not isinstance(approved_code_hashes.get(key), str)
+        or not SHA_RE.fullmatch(approved_code_hashes[key])
+        for key in APPROVED_CODE_HASH_KEYS
+    ):
+        raise ValueError("manifest must pin all approvedCodeHashes before scoring")
+    actual_code_hashes = {key: sha(path) for key, path in APPROVED_CODE_PATHS.items()}
+    if approved_code_hashes != actual_code_hashes:
+        raise ValueError("approvedCodeHashes do not match checked-out research code")
+    code_lock = validate_reviewer_lock(manifest, approved_code_hashes)
+    code_lock_at = ts(code_lock["committedAt"], "reviewer lock commit time")
     entries = manifest.get("rounds")
     if not isinstance(entries, list) or not entries: raise ValueError("manifest rounds missing")
     if any(not isinstance(x, dict) for x in entries): raise ValueError("manifest round entries must be objects")
@@ -367,7 +548,7 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     if replicates < 1000 or seed < 0: raise ValueError("invalid bootstrap settings")
     included, audits = [], []
     for entry in entries:
-        record, audit = score_one(entry, mp.parent)
+        record, audit = score_one(entry, mp.parent, approved_code_hashes, code_lock_at)
         audits.append(audit)
         if record is not None: included.append(record)
     included.sort(key=lambda x: x["round"])
@@ -375,9 +556,13 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     fit = {k: sum(a["fitFailures"][k] for a in audits) for k in KS}
     missing = {k: sum(a["missingForecastTargets"][k] for a in audits) for k in KS}
     out = {
-        "schemaVersion": 1, "protocolVersion": PROTOCOL, "experiment": EXPERIMENT,
+        "schemaVersion": 1, "protocolVersion": "1.2", "experiment": EXPERIMENT,
         "createdAt": datetime.now(timezone.utc).isoformat(),
-        "manifestSha256": sha(mp), "scoringScriptSha256": sha(Path(__file__)),
+        "manifestSha256": sha(mp),
+        "approvedCodeHashes": approved_code_hashes,
+        "checkedOutCodeHashes": actual_code_hashes,
+        "codeLock": code_lock,
+        "scoringScriptSha256": sha(Path(__file__)),
         "environment": {"python": platform.python_version(), "numpy": np.__version__},
         "bootstrap": {
             "primaryCluster": "official GOAL3 round",
