@@ -19,7 +19,7 @@ from scipy.optimize import minimize
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HERE = os.path.dirname(__file__)
-LAMBDAS = [1.0, 3.0, 10.0, 30.0, 100.0]
+LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
 WINDOWS = ["2026_only", "2025_plus_2026"]
 OUTER_START_FRACTIONS = [0.55, 0.70, 0.85]
 INNER_START_FRACTION = 0.40
@@ -210,19 +210,26 @@ def date_blocks(dates, start, end, parts):
 
 def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagnostics=False):
     records = []
+    date_metrics = []
     fit_count = 0
     for date in dates_to_score:
         prior = select_training(h2025, h2026, date, window)
         params, idx, info = fit_shrinkage(prior, lam_pen)
         fit_count += 1
         targets = [m for m in h2026 if m["date"] == date]
+        date_records = []
         for m in targets:
             ph, pa = predict_shrinkage(params, idx, m["home"], m["away"])
-            records.extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
+            date_records.extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
+        records.extend(date_records)
+        if collect_diagnostics:
+            date_metrics.append({"date": date, **score(date_records)})
     result = score(records)
     # A failed fit raises immediately, so every recorded fit is successful.
     result["fitCount"] = fit_count
     result["fitFailureCount"] = 0
+    if collect_diagnostics:
+        result["dateMetrics"] = date_metrics
     return result
 
 def choose_configuration(h2025, h2026, all_dates, outer_start_idx):
@@ -285,6 +292,19 @@ def main():
                 for model, (ph, pa) in predictions.items():
                     baseline_records[model].extend([(ph, bin_goals(m["hg"])), (pa, bin_goals(m["ag"]))])
         baselines = {name: score(records) for name, records in baseline_records.items()}
+        # Diagnostic only: score every fixed penalty/window on the untouched
+        # outer block. These metrics must not be used to retune this same block.
+        outer_candidate_diagnostics = []
+        for candidate_window in WINDOWS:
+            for candidate_penalty in LAMBDAS:
+                candidate_metrics = evaluate_dates(
+                    test_dates, h2025, h2026, candidate_window, candidate_penalty, True
+                )
+                outer_candidate_diagnostics.append({
+                    "window": candidate_window,
+                    "lambda": candidate_penalty,
+                    "metrics": candidate_metrics,
+                })
         outer.append({
             "fold": fold_no, "trainCutoffExclusive": test_dates[0],
             "testStart": test_dates[0], "testEnd": test_dates[-1],
@@ -292,6 +312,7 @@ def main():
             "selected": {"window": window, "lambda": lam_pen,
                          "innerSelectionMetrics": selected["inner"]},
             "innerCandidates": candidates,
+            "outerCandidateDiagnosticsNotForSelection": outer_candidate_diagnostics,
             "outerMetrics": {"shrinkageMLE": selected_metrics, **baselines},
             "leakageCheck": "passed: each target date trained on strictly earlier dates",
         })

@@ -20,8 +20,6 @@ jobs:
           node-version: '22'
       - run: node --check model.js
       - run: npm test
-      - name: Test against live official toto HTML
-        run: node tests/test_live_official.js
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -47,3 +45,6 @@ jobs:
           path: verification/goal3_independent/nested_results.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Test against live official toto HTML
+        run: node tests/test_live_official.js
