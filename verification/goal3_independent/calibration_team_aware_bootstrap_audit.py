@@ -186,3 +186,103 @@ def ess(w):
 
 def qsummary(x):
     return {"p05": float(np.quantile(x, .05)), "median": float(np.median(x)),
+            "p95": float(np.quantile(x, .95))}
+
+
+def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_size=5000):
+    if replicates < 1000 or batch_size < 50:
+        raise ValueError("replicates >=1000 and batch_size >=50 required")
+    matches, rows, dates, teams = prepare(report)
+    target_match = np.repeat(np.arange(len(matches)), 2)
+    ycat = np.asarray([r["actual"] for r in rows], float)
+    pcat = {(int(k), c): np.asarray([r["probabilities"][k][c] for r in rows], float)
+            for k in KS for c in CATEGORIES}
+    xcat = {key: np.log(np.clip(p, EPS, 1-EPS) / (1-np.clip(p, EPS, 1-EPS)))
+            for key, p in pcat.items()}
+    ybin = {c: (ycat == c).astype(float) for c in CATEGORIES}
+
+    point = {}
+    for key in sorted(xcat):
+        t, v, _ = fit_weighted_logistic_batch(xcat[key], ybin[key[1]], np.ones((1, len(rows))))
+        if not v[0]:
+            raise ValueError(f"unstable unweighted point fit: {key}")
+        point[key] = t[0]
+
+    # Fixed probability-bin sufficient statistics aggregated to match level.
+    bin_meta, bin_n, bin_p, bin_y = [], [], [], []
+    for k in KS:
+        for c in CATEGORIES:
+            p, y = pcat[(int(k), c)], ybin[c]
+            for lo, hi in zip(BINS[:-1], BINS[1:]):
+                mask = (p >= lo) & (p < hi)
+                n = int(mask.sum())
+                item = {"k": int(k), "category": c, "bin": [lo, min(hi, 1.0)], "n": n}
+                if n < MIN_BIN_N:
+                    item["ciStatus"] = "empty_bin" if n == 0 else "not_computed_sparse_bin"
+                else:
+                    item.update({
+                        "meanPredictedProbability": float(p[mask].mean()),
+                        "observedFrequency": float(y[mask].mean()),
+                        "gapPercentagePoints": float((p[mask].mean()-y[mask].mean())*100),
+                        "ciStatus": "pending",
+                    })
+                    bin_n.append(np.bincount(target_match[mask], minlength=len(matches)).astype(float))
+                    bin_p.append(np.bincount(target_match[mask], weights=p[mask], minlength=len(matches)))
+                    bin_y.append(np.bincount(target_match[mask], weights=y[mask], minlength=len(matches)))
+                bin_meta.append(item)
+    nmat = np.column_stack(bin_n) if bin_n else np.empty((len(matches), 0))
+    pmat = np.column_stack(bin_p) if bin_p else np.empty((len(matches), 0))
+    ymat = np.column_stack(bin_y) if bin_y else np.empty((len(matches), 0))
+    eligible = [x for x in bin_meta if x["ciStatus"] == "pending"]
+
+    params = {key: np.full((replicates, 2), np.nan) for key in sorted(xcat)}
+    fit_valid = {key: np.zeros(replicates, bool) for key in sorted(xcat)}
+    diag_arrays = {key: {name: np.full(replicates, np.nan) for name in
+                         ("gradient", "eigen", "maxcoef")} for key in sorted(xcat)}
+    reason_arrays = {key: {name: np.zeros(replicates, bool) for name in
+                           ("positive", "nearStep", "lineFail", "finite")} for key in sorted(xcat)}
+    bin_gap = np.full((replicates, len(eligible)), np.nan)
+    bin_ok = np.zeros((replicates, len(eligible)), bool)
+    date_ess, match_ess, zero_frac = np.empty(replicates), np.empty(replicates), np.empty(replicates)
+    team_ess = {lg: np.empty(replicates) for lg in LEAGUES}
+
+    rng = np.random.Generator(np.random.PCG64(seed))
+    start = 0
+    while start < replicates:
+        n = min(batch_size, replicates-start)
+        dm, tm, mw = draw_cluster_weights(matches, dates, teams, n, rng)
+        sl = slice(start, start+n)
+        date_ess[sl], match_ess[sl] = ess(dm), ess(mw)
+        zero_frac[sl] = (mw == 0).mean(axis=1)
+        for lg in LEAGUES:
+            team_ess[lg][sl] = ess(tm[lg])
+        tw = mw[:, target_match]
+        for key in sorted(xcat):
+            t, v, d = fit_weighted_logistic_batch(xcat[key], ybin[key[1]], tw, initial=point[key])
+            params[key][sl], fit_valid[key][sl] = t, v
+            for dest, src in (("gradient", "gradient"), ("eigen", "eigen"), ("maxcoef", "maxcoef")):
+                diag_arrays[key][dest][sl] = d[src]
+            for name in reason_arrays[key]:
+                reason_arrays[key][name][sl] = d[name]
+        if eligible:
+            den = mw @ nmat
+            pred, obs = mw @ pmat, mw @ ymat
+            ok = den > 0
+            gaps = np.full_like(den, np.nan)
+            gaps[ok] = (pred[ok]/den[ok] - obs[ok]/den[ok])*100
+            bin_gap[sl], bin_ok[sl] = gaps, ok
+        start += n
+
+    keys = sorted(fit_valid)
+    common_fit = np.column_stack([fit_valid[k] for k in keys]).all(axis=1)
+    if common_fit.mean() < MIN_VALID:
+        raise ValueError(f"common valid fit fraction {common_fit.mean():.6f} < {MIN_VALID}")
+    fit_z, fit_meta = [], []
+    for key in keys:
+        vals = params[key][common_fit]
+        for j, name in enumerate(("intercept", "slope")):
+            se = float(vals[:, j].std(ddof=1))
+            if not np.isfinite(se) or se <= 0:
+                raise ValueError(f"invalid SE for {key}/{name}")
+            fit_z.append((vals[:, j]-point[key][j])/se)
+            fit_meta.append((key, j, name, se, vals[:, j]))
