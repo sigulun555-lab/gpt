@@ -3,7 +3,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { sha256, toLedger } = require('../scripts/prediction_ledger_v1.js');
+const os = require('node:os');
+const { sha256, toLedger, appendLedgerRecords } = require('../scripts/prediction_ledger_v1.js');
 
 const hashes = {
   history: sha256('history'),
@@ -119,6 +120,18 @@ assert.ok(realLedger.records.every(record => record.product === 'totoGOAL3'));
 assert.ok(realLedger.records.every(record => record.inputHashCompleteness === 'complete'));
 assert.ok(realLedger.records.every(record => record.confirmedAt === null));
 assert.ok(realLedger.records.every(record => record.marketSnapshotId === null));
+
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ledger-v1-'));
+const appendPath = path.join(tempDir, 'ledger.jsonl');
+const firstAppend = appendLedgerRecords(appendPath, [row]);
+assert.deepEqual(firstAppend, { appended: 1, skipped: 0, total: 1 });
+const secondAppend = appendLedgerRecords(appendPath, [row]);
+assert.deepEqual(secondAppend, { appended: 0, skipped: 1, total: 1 }, 're-running an identical export must be idempotent');
+assert.equal(fs.readFileSync(appendPath, 'utf8').trim().split('\\n').length, 1);
+assert.throws(() => appendLedgerRecords(appendPath, [{ ...row, notes: 'conflicting edit' }]), /Append-only conflict/);
+fs.rmSync(tempDir, { recursive: true, force: true });
+console.log('PASS append-only JSONL: idempotent duplicate skip and conflicting-row refusal');
+
 console.log('PASS real main prediction payload export: ' + realLedger.records.length + ' matches, complete input hashes, no fabricated confirmation or market snapshot');
 
 console.log('PASS prediction ledger v1: toto13 nominal probabilities, GOAL3 ordinal distributions, one-match-per-row, provenance hashes, and unknown-time preservation');
