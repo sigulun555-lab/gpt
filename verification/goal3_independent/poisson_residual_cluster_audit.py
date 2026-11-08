@@ -7,7 +7,9 @@ This is a retrospective descriptive diagnostic, not a formal goodness-of-fit tes
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import platform
 from pathlib import Path
 from datetime import date as Date
 
@@ -81,7 +83,13 @@ def flatten_targets(report: dict) -> list[dict]:
         raise AssertionError("target expansion count mismatch")
     return rows
 
-def audit(report: dict, replicates: int = 50_000, seed: int = 20261105) -> dict:
+def audit(
+    report: dict,
+    replicates: int = 50_000,
+    seed: int = 20261105,
+    input_sha256: str | None = None,
+    code_sha256: str | None = None,
+) -> dict:
     if replicates < 1_000:
         raise ValueError("at least 1000 bootstrap replicates are required")
     rows = flatten_targets(report)
@@ -159,6 +167,12 @@ def audit(report: dict, replicates: int = 50_000, seed: int = 20261105) -> dict:
 
     return {
         "experiment": "GOAL3 date-cluster bootstrap of Poisson Pearson residual dispersion",
+        "provenance": {
+            "inputSha256": input_sha256,
+            "codeSha256": code_sha256,
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+        },
         "cohort": {"matches": 236, "teamSideTargets": 472, "dates": 17},
         "method": {
             "lambda": "-log(P(goal=0)) from the four-category forecast",
@@ -191,8 +205,17 @@ def main() -> None:
     parser.add_argument("--replicates", type=int, default=50_000)
     parser.add_argument("--seed", type=int, default=20261105)
     args = parser.parse_args()
-    report = json.loads(Path(args.input).read_text(encoding="utf-8"))
-    result = audit(report, args.replicates, args.seed)
+    input_path = Path(args.input)
+    input_bytes = input_path.read_bytes()
+    report = json.loads(input_bytes)
+    code_bytes = Path(__file__).read_bytes()
+    result = audit(
+        report,
+        args.replicates,
+        args.seed,
+        input_sha256=hashlib.sha256(input_bytes).hexdigest(),
+        code_sha256=hashlib.sha256(code_bytes).hexdigest(),
+    )
     output = Path(args.out)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
