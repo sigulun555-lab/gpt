@@ -32,6 +32,8 @@ The synthetic v2 test is a code-path test only. It does not validate the 0.7 mar
 
 The pinned-source verifier independently calls Claude's load_rows(history_path), canonicalizes the returned team names only for population-key comparison, and checks all 429 eligible 2026 rows against the strict GPT nested-validation population. It then re-fits k=6 by each target date and compares the 472 team-side probabilities to Claude's all-k JSON and compact CSV. The report records raw SHA-256 and Git blob SHA-1 for the independent reproduction inputs.
 
+The verifier additionally runs the research-only portable module as a subprocess CLI against the full pinned 429-row history and one actual outer-set fixture. It checks the CLI-reported history SHA-256, strict prior-row count, fixture identity, absence of ResourceWarning, and home/away probabilities against an in-process fit (maximum allowed difference 1e-12). The separate unittest CLI smoke test continues to use temporary synthetic files. This closes the prior gap where the real-data verifier called load_rows() directly but did not execute the command-line entry point on the real history.
+
 The original Claude loader itself is not the strict fail-closed loader: its int(...) conversions and isinstance(..., int) filters should not be treated as a substitute for the GPT strict input validation. The fixed 429-row PR #20 input passes the GPT loader's checks; this does not upgrade Claude's original generation provenance.
 
 ## Raw VMR versus conditional Pearson residual
