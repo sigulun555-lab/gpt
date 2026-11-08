@@ -135,9 +135,9 @@ jobs:
           retention-days: 90
       - name: Team-aware match-pair-preserving calibration bootstrap
         run: |
-          python verification/goal3_independent/calibration_team_aware_bootstrap_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_calibration_team_aware_bootstrap.json \\
+          python verification/goal3_independent/calibration_team_aware_bootstrap_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_calibration_team_aware_bootstrap.json \
             --replicates 5000 --seed 20261113 --batch-size 5000
       - name: Upload team-aware calibration bootstrap audit
         uses: actions/upload-artifact@v4
