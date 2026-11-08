@@ -67,7 +67,7 @@ class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
         nested_script = SCRIPT_DIR / "nested_validation.py"
         nested_bytes = nested_script.read_bytes()
         expected_blob = hashlib.sha1(
-            b"blob " + str(len(nested_bytes)).encode("ascii") + b"\\0" + nested_bytes
+            b"blob " + str(len(nested_bytes)).encode("ascii") + bytes([0]) + nested_bytes
         ).hexdigest()
         self.assertEqual(
             audit.EXPECTED_SOURCE_PROVENANCE["nestedValidationPySha256"],
