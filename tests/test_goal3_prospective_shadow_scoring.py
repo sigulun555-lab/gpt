@@ -264,6 +264,27 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["decision"]["allLeagueNonInferiorityGuardsPass"])
             self.assertFalse(report["decision"]["eligibleForHumanAdoptionReview"])
 
+    def test_result_source_url_must_use_official_jleague_domain(self):
+        forecast = make_forecast(1)
+        for valid in (
+            "https://www.jleague.jp/match/1/1/",
+            "https://data.j-league.or.jp/SFMS01/",
+        ):
+            self.assertTrue(scorer.is_official_result_url(valid), valid)
+
+        for invalid in (
+            "https://example.com/match/1/1/",
+            "https://www.jleague.jp.attacker.example/match/1/1/",
+            "http://www.jleague.jp/match/1/1/",
+            "https://user@www.jleague.jp/match/1/1/",
+            "https://www.jleague.jp:8443/match/1/1/",
+        ):
+            self.assertFalse(scorer.is_official_result_url(invalid), invalid)
+            results = make_results(1)
+            results["fixtures"][0]["sourceUrl"] = invalid
+            reasons = scorer.result_errors(results, 1, forecast)
+            self.assertIn("fixture_1_source_url_not_official_domain", reasons)
+
     def test_manifest_hash_mismatch_and_path_traversal_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
