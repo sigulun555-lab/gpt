@@ -186,6 +186,17 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         self.assertEqual(warning["patched_portable_load_rows_resource_warning_count"], 0)
         self.assertTrue(warning["original_and_patched_rows_exact_match"])
 
+    def test_audit_report_records_real_history_cli_reproduction(self):
+        report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+        cli = report["version_implementation_review"]["real_history_cli_reproduction"]
+        self.assertEqual(cli["status"], "passed")
+        self.assertEqual(cli["historyRowsLoaded"], 429)
+        self.assertEqual(cli["resourceWarningCount"], 0)
+        self.assertLessEqual(cli["maxAbsProbabilityDiffVsInProcessReference"], 1e-12)
+        self.assertEqual(len(cli["historySha256"]), 64)
+        self.assertEqual(len(cli["portableModuleSha256"]), 64)
+        self.assertLess(cli["historyRowsUsedStrictlyBeforeTargetDate"], 429)
+
     def test_audit_report_records_missing_claude_manifest_and_independent_hashes(self):
         report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
         provenance = report["generation_provenance"]
