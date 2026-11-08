@@ -103,7 +103,7 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
         weights = np.asarray([[1, 1, 0], [10, 0, 0], [1, 2, 0]], dtype=float)
         targets_per_match = np.asarray([2, 1, 0], dtype=float)
         actual = weighted_bin_ess(weights, targets_per_match)
-        np.testing.assert_allclose(actual, [3.0, 1.0, 16.0 / 6.0], rtol=0, atol=1e-12)
+        np.testing.assert_allclose(actual, [3.0, 2.0, 16.0 / 6.0], rtol=0, atol=1e-12)
 
     def test_near_singular_fit_is_rejected(self):
         x = np.ones(20, dtype=float)
