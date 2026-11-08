@@ -15,8 +15,12 @@ import importlib.util
 import io
 import json
 import math
+import os
 import random
 import re
+import subprocess
+import sys
+import tempfile
 import urllib.request
 import warnings
 from collections import defaultdict
@@ -553,7 +557,82 @@ def main() -> None:
                 raw_loader_max_abs_diff = max(raw_loader_max_abs_diff,
                                               max(abs(float(a) - float(b)) for a, b in zip(probs, ref)))
     if raw_loader_max_abs_diff > 1e-8:
-        raise AssertionError(f"goal3_versions.load_rows CLI-path parity exceeded 1e-8: {raw_loader_max_abs_diff}")
+        raise AssertionError(f"goal3_versions.load_rows function parity exceeded 1e-8: {raw_loader_max_abs_diff}")
+
+    # Exercise the actual portable module CLI on the full pinned 429-row history
+    # and one real outer fixture. The separate unittest CLI smoke test uses
+    # synthetic temporary inputs; this closes the real-data end-to-end gap.
+    cli_key = target_keys[0]
+    cli_raw_match = raw_by_key[cli_key]
+    cli_prior_count = sum(r["date"] < cli_key[0] for r in raw_version_rows)
+    with tempfile.TemporaryDirectory(prefix="goal3-real-cli-") as tmp:
+        tmp_root = Path(tmp)
+        cli_fixtures_path = tmp_root / "fixtures.json"
+        cli_output_path = tmp_root / "cli_output.json"
+        cli_fixtures_path.write_text(
+            json.dumps([[cli_raw_match["home"], cli_raw_match["away"]]], ensure_ascii=False),
+            encoding="utf-8",
+        )
+        cli_command = [
+            sys.executable, str(portable_version_path),
+            "--history", str(history_path),
+            "--target-date", cli_key[0],
+            "--fixtures", str(cli_fixtures_path),
+            "--versions", "v0.5",
+            "--out", str(cli_output_path),
+        ]
+        cli_env = os.environ.copy()
+        cli_env["PYTHONWARNINGS"] = "always::ResourceWarning"
+        cli_process = subprocess.run(
+            cli_command, capture_output=True, text=True, env=cli_env, check=False
+        )
+        if cli_process.returncode != 0:
+            raise AssertionError(
+                "real-history portable CLI failed: "
+                f"returncode={cli_process.returncode}; stderr={cli_process.stderr[-4000:]}"
+            )
+        if "ResourceWarning" in cli_process.stderr:
+            raise AssertionError(f"real-history portable CLI emitted ResourceWarning: {cli_process.stderr}")
+        if not cli_output_path.is_file():
+            raise AssertionError("real-history portable CLI did not create its output")
+        cli_payload = json.loads(cli_output_path.read_text(encoding="utf-8"))
+        cli_version = cli_payload.get("versions", {}).get("v0.5", {})
+        cli_fixtures = cli_version.get("fixtures", [])
+        if cli_version.get("status") != "ok" or len(cli_fixtures) != 1:
+            raise AssertionError(f"unexpected real-history CLI payload: {cli_version}")
+        cli_fixture = cli_fixtures[0]
+        if (cli_fixture.get("home"), cli_fixture.get("away")) != (
+            cli_raw_match["home"], cli_raw_match["away"]
+        ):
+            raise AssertionError("real-history CLI fixture identity changed")
+        cli_expected_params = version_module.fit(
+            [r for r in raw_version_rows if r["date"] < cli_key[0]], 6.0
+        )
+        cli_expected_home, cli_expected_away = version_module.predict_side(
+            cli_expected_params, cli_raw_match["home"], cli_raw_match["away"]
+        )
+        cli_max_abs_diff = max(
+            max(abs(float(a) - float(b)) for a, b in zip(cli_fixture["home_probs"], cli_expected_home)),
+            max(abs(float(a) - float(b)) for a, b in zip(cli_fixture["away_probs"], cli_expected_away)),
+        )
+        if cli_max_abs_diff > 1e-12:
+            raise AssertionError(f"real-history CLI/function probability mismatch: {cli_max_abs_diff}")
+        if cli_payload.get("history_sha256") != hashlib.sha256(history_path.read_bytes()).hexdigest():
+            raise AssertionError("real-history CLI input SHA-256 mismatch")
+        if int(cli_payload.get("history_rows_used", -1)) != cli_prior_count:
+            raise AssertionError("real-history CLI strict prior-row count mismatch")
+        cli_real_history_reproduction = {
+            "status": "passed",
+            "targetDate": cli_key[0],
+            "fixture": {"home": cli_raw_match["home"], "away": cli_raw_match["away"]},
+            "historyRowsLoaded": len(raw_version_rows),
+            "historyRowsUsedStrictlyBeforeTargetDate": cli_prior_count,
+            "historySha256": cli_payload["history_sha256"],
+            "portableModuleSha256": portable_version_sha256,
+            "maxAbsProbabilityDiffVsInProcessReference": cli_max_abs_diff,
+            "resourceWarningCount": 0,
+            "execution": "subprocess CLI on the pinned full history and one actual outer fixture",
+        }
 
     # Review test portability and what the existing v0/v1 assertion actually tests.
     version_test_text = version_bytes["test_versions.py"].decode("utf-8")
@@ -667,12 +746,13 @@ def main() -> None:
             "raw_loader_match_population_matches_nested_validation": set(raw_by_key) == set(h2026_by_key),
             "raw_loader_k6_max_abs_diff_vs_allk_json": raw_loader_max_abs_diff,
             "raw_loader_requires_fixture_labels_to_match_raw_history_names": True,
-            "cli_load_rows_reproduction": {
+            "load_rows_function_reproduction": {
                 "status": "passed",
                 "rows": len(raw_version_rows),
                 "canonicalized_population_matches_nested_validation": set(raw_by_key) == set(h2026_by_key),
                 "max_abs_probability_diff": raw_loader_max_abs_diff,
             },
+            "real_history_cli_reproduction": cli_real_history_reproduction,
             "gpt_portable_harness_path": "tests/test_goal3_claude_versions_portable.py",
             "portable_module_path": str(portable_version_path.relative_to(ROOT)),
             "portable_module_sha256": portable_version_sha256,
