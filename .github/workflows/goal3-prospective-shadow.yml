@@ -172,6 +172,12 @@ jobs:
       - name: Leave-one-date/team/match k stability influence audit
         run: python verification/goal3_independent/k_stability_influence_audit.py --input artifacts/goal3_outer_allk_reproduction.json --out artifacts/goal3_k_stability_influence_audit.json
       - name: Upload k stability influence audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-k-stability-influence-audit-${{ github.run_id }}
+          path: artifacts/goal3_k_stability_influence_audit.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Calendar-week cluster and two-week block bootstrap sensitivity
         run: |
           python verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py \
@@ -183,12 +189,6 @@ jobs:
         with:
           name: goal3-calendar-week-cluster-bootstrap-${{ github.run_id }}
           path: artifacts/goal3_calendar_week_cluster_bootstrap_audit.json
-          if-no-files-found: error
-          retention-days: 90
-        uses: actions/upload-artifact@v4
-        with:
-          name: goal3-k-stability-influence-audit-${{ github.run_id }}
-          path: artifacts/goal3_k_stability_influence_audit.json
           if-no-files-found: error
           retention-days: 90
       - name: Date-cluster Poisson residual dispersion audit
