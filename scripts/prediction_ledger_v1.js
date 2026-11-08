@@ -98,13 +98,24 @@ function toLedger(payload, options = {}) {
       isFiniteNumber(prediction.awayExpectedGoals)
       ? { home: prediction.homeExpectedGoals, away: prediction.awayExpectedGoals }
       : null;
-    const predictionId = [
+    const revisionOf = item.revisionOf ?? null;
+    if (revisionOf !== null && (typeof revisionOf !== 'string' || !revisionOf.trim())) {
+      throw new Error('revisionOf must be a non-empty string or null');
+    }
+    if (item.confirmedAt != null && !iso(item.confirmedAt)) {
+      throw new Error('confirmedAt must be a valid timestamp when present');
+    }
+    const predictionIdBase = [
       'gpt', product, payload.round, 'm' + matchNumber,
       payload.generatedAt.replace(/[^0-9A-Za-z]/g, '')
     ].join('-');
+    const predictionId = revisionOf
+      ? predictionIdBase + '-revision-' + sha256(revisionOf).slice(0, 12)
+      : predictionIdBase;
 
     return {
       predictionId,
+      revisionOf,
       round: payload.round,
       product,
       matchNumber,
@@ -207,7 +218,7 @@ function main() {
     inputHashes,
     predictionPayloadSha256: sha256(sourceBytes)
   });
-  const outputPath = path.join(ROOT, 'data', 'exports', 'prediction_ledger_v1.jsonl');
+  const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : path.join(ROOT, 'data', 'exports', 'prediction_ledger_v1.jsonl');
   const appendResult = appendLedgerRecords(outputPath, ledger.records);
   console.log(JSON.stringify({
     output: path.relative(ROOT, outputPath),
