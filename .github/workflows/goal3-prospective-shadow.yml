@@ -26,6 +26,9 @@ on:
       - "verification/goal3_independent/poisson_residual_cluster_audit.py"
       - "verification/goal3_independent/league_k6_k10_audit.py"
       - "verification/goal3_independent/selection_calibration_bootstrap_audit.py"
+      - "verification/goal3_independent/calibration_reliability_audit.py"
+      - "verification/goal3_independent/CALIBRATION_RELIABILITY_AUDIT.md"
+      - "tests/test_goal3_calibration_reliability_audit.py"
       - "verification/goal3_independent/PROSPECTIVE_SHADOW_PROTOCOL.md"
       - "verification/goal3_independent/SELECTION_CALIBRATION_BOOTSTRAP_AUDIT.md"
       - "verification/goal3_independent/review_outer_matches.py"
@@ -62,7 +65,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
@@ -79,6 +82,8 @@ jobs:
         run: python tests/test_goal3_league_k6_k10_audit.py -v
       - name: Selection and calibration bootstrap unit tests
         run: python tests/test_goal3_selection_calibration_bootstrap.py -v
+      - name: Probability-bin reliability and one-vs-rest calibration unit tests
+        run: python tests/test_goal3_calibration_reliability_audit.py -v
       - name: Two-way date/team bootstrap unit tests
         run: python tests/test_goal3_two_way_cluster_bootstrap.py -v
       - name: Pair-preserving date/team bootstrap unit tests
@@ -110,6 +115,19 @@ jobs:
             --csv2025 verification/goal3_independent/2025.csv \
             --out artifacts/goal3_outer_allk_reproduction.json \
             --bootstrap-replicates 10000 --bootstrap-seed 20261104
+      - name: Probability-bin reliability and one-vs-rest calibration audit
+        run: |
+          python verification/goal3_independent/calibration_reliability_audit.py \
+            --input artifacts/goal3_outer_allk_reproduction.json \
+            --out artifacts/goal3_calibration_reliability_audit.json \
+            --replicates 5000 --seed 20261112
+      - name: Upload probability-bin calibration reliability audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-calibration-reliability-audit-${{ github.run_id }}
+          path: artifacts/goal3_calibration_reliability_audit.json
+          if-no-files-found: error
+          retention-days: 90
       - name: League-specific k6 vs k10 date-cluster audit
         run: |
           python verification/goal3_independent/league_k6_k10_audit.py \
