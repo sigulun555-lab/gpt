@@ -158,6 +158,39 @@ function loadHash(relativePath) {
   return sha256(fs.readFileSync(absolutePath));
 }
 
+function appendLedgerRecords(outputPath, records) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  const existing = new Map();
+  if (fs.existsSync(outputPath)) {
+    const lines = fs.readFileSync(outputPath, 'utf8').split(/\\r?\\n/).filter(Boolean);
+    for (const line of lines) {
+      const record = JSON.parse(line);
+      if (!record.predictionId || existing.has(record.predictionId)) {
+        throw new Error('Existing ledger contains a missing or duplicate predictionId');
+      }
+      existing.set(record.predictionId, record);
+    }
+  }
+
+  const append = [];
+  let skipped = 0;
+  for (const record of records) {
+    const prior = existing.get(record.predictionId);
+    if (prior) {
+      if (JSON.stringify(prior) !== JSON.stringify(record)) {
+        throw new Error('Append-only conflict for predictionId ' + record.predictionId +
+          '; create an explicit revision instead of overwriting an existing row');
+      }
+      skipped++;
+      continue;
+    }
+    existing.set(record.predictionId, record);
+    append.push(JSON.stringify(record));
+  }
+  if (append.length) fs.appendFileSync(outputPath, append.join('\\n') + '\\n', 'utf8');
+  return { appended: append.length, skipped, total: existing.size };
+}
+
 function main() {
   const sourcePath = path.join(ROOT, 'data', 'predictions.json');
   const sourceBytes = fs.readFileSync(sourcePath);
@@ -190,4 +223,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { sha256, toLedger };
+module.exports = { sha256, toLedger, appendLedgerRecords };
