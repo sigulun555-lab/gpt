@@ -143,7 +143,7 @@ jobs:
           aliases = json.loads(aliases_path.read_text(encoding="utf-8"))
           p = report["provenance"]
           assert p["reproduceAllkOuterPySha256"] == hashlib.sha256(runner.read_bytes()).hexdigest()
-          blob_header = ("blob " + str(runner.stat().st_size)).encode() + b"\\0"
+          blob_header = ("blob " + str(runner.stat().st_size)).encode() + bytes([0])
           assert p["reproduceAllkOuterPyGitBlobSha"] == hashlib.sha1(blob_header + runner.read_bytes()).hexdigest()
           a = report["teamAliasAsOfAudit"]
           assert a["fileSha256"] == hashlib.sha256(aliases_path.read_bytes()).hexdigest()
