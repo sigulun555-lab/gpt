@@ -214,13 +214,19 @@ def weighted_bin_ess(match_weights, targets_per_match):
 
 
 def weighted_bin_match_cluster_ess(match_weights, targets_per_match):
-    """Kish ESS over independent match contributions to a target-weighted bin."""
+    """Kish ESS over independent match contributions to one or more bins."""
     weights = np.asarray(match_weights, dtype=float)
     counts = np.asarray(targets_per_match, dtype=float)
-    cluster_contributions = weights * counts
+    was_vector = counts.ndim == 1
+    if was_vector:
+        counts = counts[:, None]
+    if weights.ndim != 2 or counts.ndim != 2 or weights.shape[1] != counts.shape[0]:
+        raise ValueError("match weights and per-match target counts have incompatible shapes")
+    cluster_contributions = weights[:, :, None] * counts[None, :, :]
     total = cluster_contributions.sum(axis=1)
     squared_total = (cluster_contributions * cluster_contributions).sum(axis=1)
-    return total * total / np.maximum(squared_total, 1.0)
+    result = total * total / np.maximum(squared_total, 1.0)
+    return result[:, 0] if was_vector else result
 
 
 def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_size=5000):
