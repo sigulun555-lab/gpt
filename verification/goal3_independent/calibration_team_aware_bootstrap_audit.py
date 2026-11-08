@@ -381,3 +381,55 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
                          "bins": "all eligible non-empty fixed probability bins"},
             "probabilityBins": list(BINS), "minimumBinTargetsForCI": MIN_BIN_N,
         },
+        "bootstrapValidity": {
+            "commonValidCalibrationReplicates": int(common_fit.sum()),
+            "commonValidCalibrationFraction": float(common_fit.mean()),
+            "commonValidBinReplicates": n_common,
+            "commonValidBinFraction": float(common_bin.mean()),
+            "fitDiagnostics": fit_diag,
+        },
+        "effectiveSampleSize": {
+            "date": qsummary(date_ess), "teamByLeague": {lg: qsummary(team_ess[lg]) for lg in LEAGUES},
+            "match": qsummary(match_ess), "zeroWeightMatchFraction": qsummary(zero_frac),
+        },
+        "criticalValues": {"perArm16ParameterMaxT": fit_crit,
+                           "paired8ContrastMaxT": paired_crit,
+                           "probabilityBinMaxT": float(bin_crit) if bin_crit is not None else None},
+        "calibration": {"perArm": per_arm, "pairedK6MinusK10": paired},
+        "probabilityBinReliability": bin_meta,
+        "limitations": [
+            "17 dates and 60 teams are small; sensitivity analysis only, not prospective evidence.",
+            "Product multiplicity is a multiway pigeonhole weighting scheme, not an exact randomization distribution.",
+            "Pair preservation does not remove all schedule/network dependence.",
+            "Near-singular, separated, non-finite, or non-converged fits are invalid and excluded from common simultaneous families.",
+            "One-vs-rest logistic fits are not joint multinomial calibration.",
+            "Bins below 20 targets receive no confidence interval.",
+            "Historical fetchedAt does not prove first-known availability for each target date.",
+            "No prospective official-round outcomes are included.",
+        ],
+        "inputSha256": input_sha, "codeSha256": code_sha,
+        "environment": {"python": platform.python_version(), "numpy": np.__version__},
+    }
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--input", required=True, type=Path)
+    p.add_argument("--out", required=True, type=Path)
+    p.add_argument("--replicates", type=int, default=5000)
+    p.add_argument("--seed", type=int, default=20261113)
+    p.add_argument("--batch-size", type=int, default=5000)
+    a = p.parse_args()
+    raw = a.input.read_bytes()
+    result = audit(json.loads(raw), sha256(raw), sha256(Path(__file__).read_bytes()),
+                   a.replicates, a.seed, a.batch_size)
+    a.out.parent.mkdir(parents=True, exist_ok=True)
+    a.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"out": str(a.out), "inputSha256": result["inputSha256"],
+                      "codeSha256": result["codeSha256"], "cohort": result["cohort"],
+                      "commonValidCalibrationReplicates": result["bootstrapValidity"]["commonValidCalibrationReplicates"],
+                      "commonValidBinReplicates": result["bootstrapValidity"]["commonValidBinReplicates"]}))
+
+
+if __name__ == "__main__":
+    main()
