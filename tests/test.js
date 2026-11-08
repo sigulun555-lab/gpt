@@ -31,9 +31,10 @@ assert.equal(goal3Built.payload.totoTargetsConfirmed,true);
 assert.equal(goal3Built.payload.marketType,'totoGOAL3');
 assert.equal(goal3Built.payload.predictionsGenerated,false);
 assert.equal(goal3Built.payload.predictions.length,0,'GOAL3 must not be passed to the existing 1X2 predictor');
-assert.equal(goal3Built.fixtureData.length,3);
-assert.deepEqual(Object.keys(goal3Built.fixtureData[0]),['marketType','matchNumber','home','away','round','deadline']);
-assert.equal(goal3Built.fixtureData[0].deadline,'2026-10-28T18:50:00+09:00');
+assert.equal(goal3Built.fixtureData.schemaVersion,1);
+assert.equal(goal3Built.fixtureData.fixtures.length,3);
+assert.deepEqual(Object.keys(goal3Built.fixtureData.fixtures[0]),['marketType','matchNumber','home','away','round','deadline']);
+assert.equal(goal3Built.fixtureData.fixtures[0].deadline,'2026-10-28T18:50:00+09:00');
 console.log('PASS totoGOAL3 team-row pairing, fixture-only output, and preservation of the 13-fixture toto parser');
 
 console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, and safe no-target behavior');
