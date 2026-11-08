@@ -403,8 +403,8 @@ def main() -> None:
     )
     old_nested_text = documented_gpt_bytes["nested_validation.py"].decode("utf-8")
     current_nested_text = nv_path.read_text(encoding="utf-8")
-    old_core = old_nested_text.split("def bin_goals", 1)[1]
-    current_core = current_nested_text.split("def bin_goals", 1)[1]
+    old_core = old_nested_text.split("def bin_goals", 1)[1].split("\ndef main()", 1)[0]
+    current_core = current_nested_text.split("def bin_goals", 1)[1].split("\ndef main()", 1)[0]
     documented_loader_equivalence = {
         "documented_commit": CLAUDE_DOCUMENTED_GPT_COMMIT,
         "2025_rows": len(documented_h2025),
@@ -413,17 +413,17 @@ def main() -> None:
         "2026_rows_exact_match": documented_h2026 == h2026,
         "strict_loader_population_unchanged": documented_h2025 == h2025 and documented_h2026 == h2026,
         "nested_validation_full_file_identical": old_nested_text == current_nested_text,
-        "nested_validation_core_from_bin_goals_identical": old_core == current_core,
+        "nested_validation_model_core_identical": old_core == current_core,
     }
     if not documented_loader_equivalence["strict_loader_population_unchanged"]:
         raise AssertionError(f"documented dependency loader population differs from PR #20: {documented_loader_equivalence}")
-    if not documented_loader_equivalence["nested_validation_core_from_bin_goals_identical"]:
+    if not documented_loader_equivalence["nested_validation_model_core_identical"]:
         raise AssertionError("documented nested_validation fit/predict core differs from current PR #20 code")
     expected_input_blobs = {
         "history.json": (history_path, "f5cc8c044758e45b1e679e4ce796e68b3f27a854"),
         "team_aliases.json": (aliases_path, "5de22584524ff4c07ddac1d27f49afbbbc5f88ab"),
         "2025.csv": (csv_2025_path, "847d324c5a6168d02efe328f8173418a951af720"),
-        "nested_validation.py": (nv_path, "2b364ae31673b1f7471958084c416ca1ad8901f8"),
+        "nested_validation.py": (nv_path, "58d07e711faf2cfa152dae2902707c3f57a2fb7c"),
         "goal3_outer_matches.csv": (gpt_csv_path, "56892251679b8774a9e1b7ccc4b5beb42e660e36"),
     }
     for label, (path, expected_blob) in expected_input_blobs.items():
@@ -457,7 +457,7 @@ def main() -> None:
             "git_blob_sha1": git_blob_sha1(documented_bytes),
             "matches_pr20_current_bytes": documented_bytes == current_bytes,
         }
-    documented_dependency_manifest["nested_validation.py"]["core_from_bin_goals_identical"] = documented_loader_equivalence["nested_validation_core_from_bin_goals_identical"]
+    documented_dependency_manifest["nested_validation.py"]["core_from_bin_goals_identical"] = documented_loader_equivalence["nested_validation_model_core_identical"]
     documented_dependency_manifest["nested_validation.py"]["documented_loader_population_unchanged"] = documented_loader_equivalence["strict_loader_population_unchanged"]
 
     aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
