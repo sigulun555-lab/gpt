@@ -24,6 +24,7 @@ KS = (6.0, 10.0)
 CATEGORIES = (0, 1, 2, 3)
 BINS = (0.0, .1, .2, .3, .4, .5, .6, 1.0000000001)
 MIN_BIN_N = 20
+MIN_BIN_BOOTSTRAP_ESS = 20.0
 EPS = 1e-6
 GRAD_TOL = 1e-6
 MIN_EIGEN = 1e-8
@@ -203,6 +204,15 @@ def qsummary(x):
             "p95": float(np.quantile(x, .95))}
 
 
+def weighted_bin_ess(match_weights, targets_per_match):
+    """Kish ESS over target rows when both sides of a match share one weight."""
+    weights = np.asarray(match_weights, dtype=float)
+    counts = np.asarray(targets_per_match, dtype=float)
+    total = weights @ counts
+    squared_total = (weights * weights) @ counts
+    return total * total / np.maximum(squared_total, 1.0)
+
+
 def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_size=5000):
     if replicates < 1000 or batch_size < 50:
         raise ValueError("replicates >=1000 and batch_size >=50 required")
@@ -256,6 +266,7 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
     reason_arrays = {key: {name: np.zeros(replicates, bool) for name in
                            ("positive", "nearStep", "lineFail", "finite")} for key in sorted(xcat)}
     bin_gap = np.full((replicates, len(eligible)), np.nan)
+    bin_ess_values = np.zeros((replicates, len(eligible)), dtype=float)
     bin_ok = np.zeros((replicates, len(eligible)), bool)
     date_ess, match_ess, zero_frac = np.empty(replicates), np.empty(replicates), np.empty(replicates)
     team_ess = {lg: np.empty(replicates) for lg in LEAGUES}
@@ -281,10 +292,11 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
         if eligible:
             den = mw @ nmat
             pred, obs = mw @ pmat, mw @ ymat
-            ok = den > 0
+            ess_values = weighted_bin_ess(mw, nmat)
+            ok = (den > 0) & (ess_values >= MIN_BIN_BOOTSTRAP_ESS)
             gaps = np.full_like(den, np.nan)
             gaps[ok] = (pred[ok]/den[ok] - obs[ok]/den[ok])*100
-            bin_gap[sl], bin_ok[sl] = gaps, ok
+            bin_gap[sl], bin_ess_values[sl], bin_ok[sl] = gaps, ess_values, ok
         start += n
 
     keys = sorted(fit_valid)
@@ -334,6 +346,10 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
     if eligible:
         common_bin = bin_ok.all(axis=1)
         n_common = int(common_bin.sum())
+        for j, item in enumerate(eligible):
+            item["bootstrapReplicatesMeetingEss"] = int(bin_ok[:, j].sum())
+            item["bootstrapValidFraction"] = float(bin_ok[:, j].mean())
+            item["bootstrapEffectiveSampleSize"] = qsummary(bin_ess_values[:, j])
         if common_bin.mean() >= MIN_VALID:
             vals = bin_gap[common_bin]
             points = np.asarray([x["gapPercentagePoints"] for x in eligible])
@@ -350,8 +366,7 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
         else:
             bin_crit = None
             for j, item in enumerate(eligible):
-                item["bootstrapReplicatesValid"] = int(bin_ok[:, j].sum())
-                item["ciStatus"] = "insufficient_common_nonempty_replicates"
+                item["ciStatus"] = "insufficient_common_bootstrap_effective_sample_size"
     else:
         common_bin, n_common, bin_crit = np.ones(replicates, bool), replicates, None
 
@@ -394,6 +409,7 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
                          "paired": "4 categories x intercept/slope differences (8 contrasts)",
                          "bins": "all eligible non-empty fixed probability bins"},
             "probabilityBins": list(BINS), "minimumBinTargetsForCI": MIN_BIN_N,
+            "minimumBootstrapBinKishEffectiveSampleSize": MIN_BIN_BOOTSTRAP_ESS,
         },
         "bootstrapValidity": {
             "commonValidCalibrationReplicates": int(common_fit.sum()),
@@ -417,7 +433,8 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
             "Pair preservation does not remove all schedule/network dependence.",
             "Near-singular, separated, non-finite, or non-converged fits are invalid and excluded from common simultaneous families.",
             "One-vs-rest logistic fits are not joint multinomial calibration.",
-            "Bins below 20 targets receive no confidence interval.",
+            "Bins below 20 raw targets receive no confidence interval.",
+            "Team-aware bin intervals additionally require Kish effective sample size >=20 in every replicate across the simultaneous family; otherwise no simultaneous bin intervals are emitted.",
             "Historical fetchedAt does not prove first-known availability for each target date.",
             "No prospective official-round outcomes are included.",
         ],

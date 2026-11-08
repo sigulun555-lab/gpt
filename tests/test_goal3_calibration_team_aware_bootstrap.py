@@ -14,6 +14,7 @@ from calibration_team_aware_bootstrap_audit import (
     draw_cluster_weights,
     fit_weighted_logistic_batch,
     flatten_matches,
+    weighted_bin_ess,
     prepare,
 )
 
@@ -98,6 +99,12 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
                 target_weights[:, 2 * match_index + 1],
             )
 
+    def test_weighted_bin_ess_uses_target_row_multiplicity(self):
+        weights = np.asarray([[1, 1, 0], [10, 0, 0], [1, 2, 0]], dtype=float)
+        targets_per_match = np.asarray([2, 1, 0], dtype=float)
+        actual = weighted_bin_ess(weights, targets_per_match)
+        np.testing.assert_allclose(actual, [3.0, 1.0, 16.0 / 6.0], rtol=0, atol=1e-12)
+
     def test_near_singular_fit_is_rejected(self):
         x = np.ones(20, dtype=float)
         y = np.asarray([0, 1] * 10, dtype=float)
@@ -116,7 +123,12 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
         self.assertEqual(len(first["calibration"]["perArm"]), 16)
         self.assertEqual(len(first["calibration"]["pairedK6MinusK10"]), 8)
         self.assertGreaterEqual(first["bootstrapValidity"]["commonValidCalibrationFraction"], 0.95)
-        self.assertGreaterEqual(first["bootstrapValidity"]["commonValidBinFraction"], 0.95)
+        self.assertEqual(first["method"]["minimumBootstrapBinKishEffectiveSampleSize"], 20.0)
+        for item in first["probabilityBinReliability"]:
+            if item["ciStatus"] == "computed":
+                self.assertGreaterEqual(item["bootstrapEffectiveSampleSize"]["p05"], 20.0)
+            elif item["ciStatus"] == "insufficient_common_bootstrap_effective_sample_size":
+                self.assertIsNone(first["criticalValues"]["probabilityBinMaxT"])
         self.assertEqual(first["method"]["pairPreservation"],
                          "one match weight is assigned to both home and away targets")
 

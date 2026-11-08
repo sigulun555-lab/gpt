@@ -62,10 +62,10 @@ A local run against run #205's all-k JSON used:
 
 Results:
 - common valid calibration replicates: 5,000 / 5,000;
-- common non-empty probability-bin replicates: 4,982 / 5,000;
-- eligible probability bins: 23; all 23 simultaneous bands include zero;
-- all 16 per-arm simultaneous bands include their ideal values;
-- all 8 paired k=6 minus k=10 simultaneous bands include zero.
+- the original bin implementation required only a non-empty weighted denominator. An independent re-audit found that this was insufficient: the raw-eligible bins did not retain adequate Kish effective sample size under the team/date weights;
+- the previous "23/23 simultaneous bands include zero" statement is withdrawn as inferential evidence for the team-aware bin family; the underlying point gaps remain descriptive only;
+- all 16 per-arm logistic simultaneous bands include their ideal values;
+- all 8 paired k=6 minus k=10 logistic simultaneous bands include zero.
 
 Paired k=6 minus k=10 simultaneous 95% bands:
 
@@ -84,6 +84,38 @@ The median effective sample sizes were 8.76 dates, 10.53 teams per league,
 and 34.75 matches. Median zero-weight match fraction was 74.15%. This confirms
 that the team-aware product weights create sparse effective samples and wide
 uncertainty; the nominal cohort size must not be confused with bootstrap ESS.
+
+### Independent bin-ESS re-audit and reporting gate (2026-11-08)
+
+The previous bin-CI code counted a replicate as valid whenever every eligible
+bin had a positive weighted denominator. That did not protect against a bin
+being represented by only a handful of effective target rows. Using the exact
+PCG64 seed 20261113 and 5,000 date/team draws from the pinned all-k JSON, an
+independent implementation computed each bin's Kish ESS as:
+
+    (sum_i w_i)^2 / sum_i w_i^2
+
+over target rows, where both target rows from one match share the same match
+weight. Results:
+
+- 23 bins had at least 20 raw targets, but zero of 5,000 replicates had
+  Kish ESS >=20 simultaneously in all 23 bins.
+- Only 6/23 bins individually met ESS >=20 in at least 95% of replicates.
+- The intersection across those six bins was 4,744/5,000 = 94.88%, below the
+  predeclared 95% common-validity gate.
+- The sparsest eligible bins had median ESS between 4.30 and 10.91; several
+  had ESS <5 in more than half of replicates.
+
+Therefore the old 4,982/5,000 "all bins non-empty" count was not a valid
+effective-sample-size gate. The updated script requires per-bin Kish ESS >=20
+in every replicate used for the simultaneous family. If the common family
+does not reach 95% validity, it emits no simultaneous probability-bin bands
+and records per-bin ESS summaries instead of presenting underpowered CIs.
+
+This is a conservative reporting correction, not a change to the adoption
+rule or a claim that calibration improved. The one-vs-rest logistic model
+families use the full weighted target set and retain their own independent
+fit-validity gates; they are not the same as the sparse fixed-bin family.
 
 A prior uncommitted 50,000-replicate exploration reported one near-singular
 k=10/category-3+ fit (minimum Hessian eigenvalue about 5.86e-10 and a very
@@ -117,7 +149,10 @@ simultaneous intervals. GitHub Actions uploads it as a run-specific artifact.
   exact randomization distribution.
 - Pair preservation does not remove all fixture-network dependence.
 - One-vs-rest calibration is not joint multinomial calibration.
-- Sparse probability bins receive no confidence interval.
+- Bins below 20 raw targets receive no confidence interval.
+- Team-aware probability-bin intervals additionally require Kish ESS >=20 in
+  every replicate across the simultaneous family; otherwise no simultaneous
+  bin intervals are emitted.
 - The historical `fetchedAt` timestamp does not prove first-known availability
   for each target date.
 - No prospective GOAL3 shadow outcomes are included.
