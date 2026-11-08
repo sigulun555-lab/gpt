@@ -74,7 +74,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py tests/test_goal3_reproduce_allk_provenance.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
@@ -93,6 +93,8 @@ jobs:
         run: python tests/test_goal3_k_stability_influence_audit.py -v
       - name: Calendar-week cluster bootstrap sensitivity unit tests
         run: python tests/test_goal3_calendar_week_cluster_bootstrap.py -v
+      - name: All-k runner and team-alias provenance unit tests
+        run: python tests/test_goal3_reproduce_allk_provenance.py -v
       - name: Selection and calibration bootstrap unit tests
         run: python tests/test_goal3_selection_calibration_bootstrap.py -v
       - name: Probability-bin reliability and one-vs-rest calibration unit tests
@@ -130,6 +132,29 @@ jobs:
             --csv2025 verification/goal3_independent/2025.csv \
             --out artifacts/goal3_outer_allk_reproduction.json \
             --bootstrap-replicates 10000 --bootstrap-seed 20261104
+      - name: Verify all-k runner self-hash and team-alias provenance
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/goal3_outer_allk_reproduction.json").read_text(encoding="utf-8"))
+          runner = Path("verification/goal3_independent/reproduce_allk_outer.py")
+          aliases_path = Path("data/team_aliases.json")
+          aliases = json.loads(aliases_path.read_text(encoding="utf-8"))
+          p = report["provenance"]
+          assert p["reproduceAllkOuterPySha256"] == hashlib.sha256(runner.read_bytes()).hexdigest()
+          blob_header = ("blob " + str(runner.stat().st_size)).encode() + b"\\0"
+          assert p["reproduceAllkOuterPyGitBlobSha"] == hashlib.sha1(blob_header + runner.read_bytes()).hexdigest()
+          a = report["teamAliasAsOfAudit"]
+          assert a["fileSha256"] == hashlib.sha256(aliases_path.read_bytes()).hexdigest()
+          assert a["updatedAt"] == aliases.get("updatedAt")
+          assert a["historyTeamNameOccurrences"] > 0
+          assert a["aliasMappedHistoryTeamNameOccurrences"] > 0
+          assert len(a["targetDatesBeforeAliasUpdatedAt"]) == 12
+          print({"runnerSha256": p["reproduceAllkOuterPySha256"], "aliasUpdatedAt": a["updatedAt"],
+                 "aliasMappedOccurrences": a["aliasMappedHistoryTeamNameOccurrences"],
+                 "preUpdateTargetDates": len(a["targetDatesBeforeAliasUpdatedAt"])})
+          PY
       - name: Probability-bin reliability and one-vs-rest calibration audit
         run: |
           python verification/goal3_independent/calibration_reliability_audit.py \
