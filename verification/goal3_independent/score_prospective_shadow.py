@@ -198,6 +198,22 @@ def forecast_errors(f, round_no):
     return sorted(set(e))
 
 
+def is_official_result_url(value):
+    """Accept HTTPS URLs on official J.League result domains only."""
+    try:
+        parsed = urlparse(value)
+        host = (parsed.hostname or "").lower().rstrip(".")
+        if (parsed.scheme.lower() != "https" or not host
+                or parsed.username is not None or parsed.password is not None):
+            return False
+        if parsed.port not in (None, 443):
+            return False
+        return any(host == domain or host.endswith("." + domain)
+                   for domain in ("jleague.jp", "j-league.or.jp"))
+    except (TypeError, ValueError):
+        return False
+
+
 def result_errors(res, round_no, forecast):
     e = []
     if (not isinstance(res.get("round"), int) or isinstance(res.get("round"), bool)
@@ -228,9 +244,10 @@ def result_errors(res, round_no, forecast):
         if x.get("competition") not in LEAGUES: e.append(f"fixture_{n}_competition_invalid")
         if x.get("sourceType") != "official": e.append(f"fixture_{n}_source_not_official")
         source_url = x.get("sourceUrl")
-        u = urlparse(source_url) if isinstance(source_url, str) else None
-        if u is None or u.scheme != "https" or not u.netloc:
+        if not isinstance(source_url, str) or not source_url:
             e.append(f"fixture_{n}_source_url_invalid")
+        elif not is_official_result_url(source_url):
+            e.append(f"fixture_{n}_source_url_not_official_domain")
         try: ts(x.get("retrievedAt"), f"fixture_{n}_retrievedAt")
         except ValueError: e.append(f"fixture_{n}_retrievedAt_invalid")
         if x.get("publishedAt") is not None:
