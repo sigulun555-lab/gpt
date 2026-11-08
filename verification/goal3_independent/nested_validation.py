@@ -11,10 +11,13 @@ import csv
 import json
 import math
 import os
+import sys
+import hashlib
 import unicodedata
 from collections import defaultdict
 
 import numpy as np
+import scipy
 from scipy.optimize import minimize
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -23,6 +26,44 @@ LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0
 WINDOWS = ["2026_only", "2025_plus_2026"]
 OUTER_START_FRACTIONS = [0.55, 0.70, 0.85]
 INNER_START_FRACTION = 0.40
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_provenance(path):
+    absolute = os.path.abspath(path)
+    return {
+        "path": os.path.relpath(absolute, ROOT),
+        "sizeBytes": os.path.getsize(absolute),
+        "sha256": sha256_file(absolute),
+    }
+
+
+def build_input_provenance(history_path, aliases_path, csv2025_path):
+    """Return self-contained input/code hashes and the CI execution identity."""
+    return {
+        "inputs": {
+            "history2026": _file_provenance(history_path),
+            "teamAliases": _file_provenance(aliases_path),
+            "history2025Csv": _file_provenance(csv2025_path),
+        },
+        "script": _file_provenance(__file__),
+        "execution": {
+            "githubSha": os.environ.get("GITHUB_SHA"),
+            "githubRef": os.environ.get("GITHUB_REF"),
+            "workflowRunId": os.environ.get("GITHUB_RUN_ID"),
+            "workflowRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+            "python": sys.version.split()[0],
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+        },
+    }
 
 def canonical(name, aliases):
     name = unicodedata.normalize("NFKC", str(name)).strip()
@@ -343,6 +384,7 @@ def main():
         })
     if len(outer) < 2:
         raise ValueError("Nested validation produced fewer than two outer folds")
+    input_provenance = build_input_provenance(args.history2026, args.aliases, args.csv2025)
     result = {
         "method": "nested expanding-window time-series validation",
         "selectionRule": "lowest pooled inner Brier; tie-break Log Loss, Accuracy, lower lambda",
@@ -367,12 +409,14 @@ def main():
             "failureCount": 0,
             "failureHandling": "any failed optimizer fit aborts the run; no failed fit is silently scored",
         },
+        "inputProvenance": input_provenance,
         "warning": "Outer-fold results are rolling-origin estimates, not a guarantee of future performance. GOAL3 lambda=10 was inherited from 1X2 and was not independently tuned for GOAL3 before this analysis.",
     }
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(json.dumps({
         "output": args.out,
+        "inputProvenance": input_provenance,
         "outerFolds": [{
             "fold": x["fold"], "testStart": x["testStart"], "testEnd": x["testEnd"],
             "selected": x["selected"],
