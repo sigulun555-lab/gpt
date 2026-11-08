@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { spawnSync } = require('node:child_process');
 const { sha256, toLedger, appendLedgerRecords } = require('../scripts/prediction_ledger_v1.js');
 
 const hashes = {
@@ -54,6 +55,7 @@ assert.equal(ledger.schemaVersion, 1);
 assert.equal(ledger.records.length, 1, 'canonical ledger must be one row per match');
 const row = ledger.records[0];
 assert.equal(row.product, 'totoGOAL3');
+assert.equal(row.revisionOf, null);
 assert.equal(row.matchNumber, 1);
 assert.equal(row.probabilities, null, 'GOAL3 must not be represented as nominal 1X2');
 assert.deepEqual(row.goalDistributions.home, [0.1, 0.2, 0.3, 0.4]);
@@ -128,7 +130,32 @@ assert.deepEqual(firstAppend, { appended: 1, skipped: 0, total: 1 });
 const secondAppend = appendLedgerRecords(appendPath, [row]);
 assert.deepEqual(secondAppend, { appended: 0, skipped: 1, total: 1 }, 're-running an identical export must be idempotent');
 assert.equal(fs.readFileSync(appendPath, 'utf8').trim().split(/\r?\n/).length, 1);
-assert.throws(() => appendLedgerRecords(appendPath, [{ ...row, notes: 'conflicting edit' }]), /Append-only conflict/);
+assert.throws(() => appendLedgerRecords(appendPath, [{ ...row, availabilityNote: 'conflicting edit' }]), /Append-only conflict/);
+
+const cliPath = path.join(tempDir, 'cli-ledger.jsonl');
+const cliRun1 = spawnSync(process.execPath, [
+  path.join(repoRoot, 'scripts', 'prediction_ledger_v1.js'), cliPath
+], { cwd: repoRoot, encoding: 'utf8' });
+assert.equal(cliRun1.status, 0, cliRun1.stderr);
+const cliSummary1 = JSON.parse(cliRun1.stdout);
+assert.equal(cliSummary1.appended, realPayload.predictions.length);
+assert.equal(cliSummary1.ledgerTotalRows, realPayload.predictions.length);
+const cliRun2 = spawnSync(process.execPath, [
+  path.join(repoRoot, 'scripts', 'prediction_ledger_v1.js'), cliPath
+], { cwd: repoRoot, encoding: 'utf8' });
+assert.equal(cliRun2.status, 0, cliRun2.stderr);
+const cliSummary2 = JSON.parse(cliRun2.stdout);
+assert.equal(cliSummary2.appended, 0);
+assert.equal(cliSummary2.identicalRowsSkipped, realPayload.predictions.length);
+assert.equal(fs.readFileSync(cliPath, 'utf8').trim().split(/\r?\n/).length, realPayload.predictions.length);
+
+const revisedPayload = {
+  ...goal3Payload,
+  predictions: [{ ...goal3Payload.predictions[0], revisionOf: row.predictionId }]
+};
+const revisedRow = toLedger(revisedPayload, { inputHashes: hashes }).records[0];
+assert.notEqual(revisedRow.predictionId, row.predictionId);
+assert.equal(revisedRow.revisionOf, row.predictionId);
 fs.rmSync(tempDir, { recursive: true, force: true });
 console.log('PASS append-only JSONL: idempotent duplicate skip and conflicting-row refusal');
 
