@@ -15,6 +15,7 @@ from calibration_team_aware_bootstrap_audit import (
     fit_weighted_logistic_batch,
     flatten_matches,
     weighted_bin_ess,
+    weighted_bin_match_cluster_ess,
     prepare,
 )
 
@@ -105,6 +106,14 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
         actual = weighted_bin_ess(weights, targets_per_match)
         np.testing.assert_allclose(actual, [3.0, 2.0, 16.0 / 6.0], rtol=0, atol=1e-12)
 
+    def test_match_cluster_ess_aggregates_paired_targets_before_squaring(self):
+        weights = np.asarray([[1, 1, 0], [10, 0, 0], [1, 2, 0]], dtype=float)
+        targets_per_match = np.asarray([2, 1, 0], dtype=float)
+        actual = weighted_bin_match_cluster_ess(weights, targets_per_match)
+        np.testing.assert_allclose(actual, [9.0 / 5.0, 1.0, 2.0], rtol=0, atol=1e-12)
+        row_ess = weighted_bin_ess(weights, targets_per_match)
+        self.assertTrue(np.all(actual <= row_ess + 1e-12))
+
     def test_near_singular_fit_is_rejected(self):
         x = np.ones(20, dtype=float)
         y = np.asarray([0, 1] * 10, dtype=float)
@@ -124,7 +133,15 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
         self.assertEqual(len(first["calibration"]["pairedK6MinusK10"]), 8)
         self.assertGreaterEqual(first["bootstrapValidity"]["commonValidCalibrationFraction"], 0.95)
         self.assertEqual(first["method"]["minimumBootstrapBinKishEffectiveSampleSize"], 20.0)
+        self.assertEqual(first["method"]["minimumBootstrapBinMatchClusterKishEffectiveSampleSize"], 20.0)
         for item in first["probabilityBinReliability"]:
+            if item["n"] >= 20:
+                self.assertIn("bootstrapTargetRowEffectiveSampleSize", item)
+                self.assertIn("bootstrapMatchClusterEffectiveSampleSize", item)
+                self.assertLessEqual(
+                    item["bootstrapMatchClusterEffectiveSampleSize"]["median"],
+                    item["bootstrapTargetRowEffectiveSampleSize"]["median"] + 1e-12,
+                )
             if item["ciStatus"] == "computed":
                 self.assertGreaterEqual(item["bootstrapValidFraction"], 0.95)
                 self.assertIn("simultaneous95Band", item)
