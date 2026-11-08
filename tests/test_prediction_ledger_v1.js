@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { sha256, toLedger } = require('../scripts/prediction_ledger_v1.js');
 
 const hashes = {
@@ -58,7 +60,7 @@ assert.deepEqual(row.goalDistributions.away, [0.4, 0.3, 0.2, 0.1]);
 assert.equal(row.confirmedAt, null, 'generatedAt must not be silently copied into confirmedAt');
 assert.equal(row.confirmedAtStatus, 'not_recorded_in_source');
 assert.equal(row.marketSnapshotId, null, 'fixture source is not a market-share snapshot');
-assert.equal(row.sourceRetrievedAt, '2026-11-08T05:58:08.594Z');
+assert.equal(row.fixtureSourceRetrievedAt, '2026-11-08T05:58:08.594Z');
 assert.equal(row.inputHashCompleteness, 'complete');
 assert.match(row.inputsHash, /^[a-f0-9]{64}$/);
 assert.match(row.predictionPayloadSha256, /^[a-f0-9]{64}$/);
@@ -93,5 +95,30 @@ assert.throws(() => toLedger({
   ...toto13Payload,
   predictions: [toto13Payload.predictions[0], toto13Payload.predictions[0]]
 }), /Duplicate prediction row/);
+
+
+const repoRoot = path.resolve(__dirname, '..');
+const realPayloadBytes = fs.readFileSync(path.join(repoRoot, 'data', 'predictions.json'));
+const realPayload = JSON.parse(realPayloadBytes.toString('utf8'));
+const realHashes = {
+  history: sha256(fs.readFileSync(path.join(repoRoot, 'data', 'history.json'))),
+  teamAliases: sha256(fs.readFileSync(path.join(repoRoot, 'data', 'team_aliases.json'))),
+  fixtures: sha256(fs.readFileSync(path.join(repoRoot, 'data', 'fixtures.json'))),
+  modelCode: sha256(fs.readFileSync(path.join(repoRoot, 'model.js'))),
+  pipelineCode: sha256(fs.readFileSync(path.join(repoRoot, 'scripts', 'auto_pipeline.js'))),
+  adapterCode: sha256(fs.readFileSync(path.join(repoRoot, 'scripts', 'prediction_ledger_v1.js')))
+};
+const realLedger = toLedger(realPayload, {
+  inputHashes: realHashes,
+  predictionPayloadSha256: sha256(realPayloadBytes),
+  exportedAt: '2026-11-08T06:00:00.000Z'
+});
+assert.equal(realLedger.records.length, realPayload.predictions.length);
+assert.deepEqual(realLedger.records.map(record => record.matchNumber), realPayload.predictions.map(item => item.number));
+assert.ok(realLedger.records.every(record => record.product === 'totoGOAL3'));
+assert.ok(realLedger.records.every(record => record.inputHashCompleteness === 'complete'));
+assert.ok(realLedger.records.every(record => record.confirmedAt === null));
+assert.ok(realLedger.records.every(record => record.marketSnapshotId === null));
+console.log('PASS real main prediction payload export: ' + realLedger.records.length + ' matches, complete input hashes, no fabricated confirmation or market snapshot');
 
 console.log('PASS prediction ledger v1: toto13 nominal probabilities, GOAL3 ordinal distributions, one-match-per-row, provenance hashes, and unknown-time preservation');
