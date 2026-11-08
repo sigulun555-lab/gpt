@@ -55,7 +55,7 @@ For adoption review, the one-sided 90% round-cluster bootstrap upper bound for e
 
 - Score the official full-time result after 90 minutes plus stoppage time; exclude extra time and penalty shoot-outs.
 - If any of the three fixtures in a round is postponed, abandoned, cancelled, or lacks a final official result at the scoring lock, exclude the **entire round** from the primary paired analysis. List every excluded round and reason; never silently drop only the missing team-side or match.
-- Preserve the official result source URL and the observed publication/retrieval timestamp where available. If the history source is community-maintained rather than independently reconciled to official J.League results, label it as community-source data and state that limitation; do not describe internal consistency as official-source validation.
+- Preserve the official result source URL and the observed publication/retrieval timestamp where available. For J.League result evidence, accept HTTPS URLs only on `jleague.jp` / its subdomains or `j-league.or.jp` / its subdomains; reject credentials, nonstandard ports, and lookalike hosts. A `sourceType: official` label alone is not sufficient. If the history source is community-maintained rather than independently reconciled to official J.League results, label it as community-source data and state that limitation; do not describe internal consistency as official-source validation.
 - Report fit failures and missing forecasts for both arms. No adoption if k=6 has more fit failures or missing targets than k=10; every included scored round must have complete paired forecasts.
 
 ## Adoption rule
