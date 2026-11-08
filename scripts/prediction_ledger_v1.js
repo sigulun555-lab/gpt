@@ -162,7 +162,7 @@ function appendLedgerRecords(outputPath, records) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   const existing = new Map();
   if (fs.existsSync(outputPath)) {
-    const lines = fs.readFileSync(outputPath, 'utf8').split(/\\r?\\n/).filter(Boolean);
+    const lines = fs.readFileSync(outputPath, 'utf8').split(/\r?\n/).filter(Boolean);
     for (const line of lines) {
       const record = JSON.parse(line);
       if (!record.predictionId || existing.has(record.predictionId)) {
@@ -187,7 +187,7 @@ function appendLedgerRecords(outputPath, records) {
     existing.set(record.predictionId, record);
     append.push(JSON.stringify(record));
   }
-  if (append.length) fs.appendFileSync(outputPath, append.join('\\n') + '\\n', 'utf8');
+  if (append.length) fs.appendFileSync(outputPath, append.join('\n') + '\n', 'utf8');
   return { appended: append.length, skipped, total: existing.size };
 }
 
@@ -207,14 +207,16 @@ function main() {
     inputHashes,
     predictionPayloadSha256: sha256(sourceBytes)
   });
-  const outputPath = path.join(ROOT, 'data', 'exports', 'prediction_ledger_v1.json');
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, JSON.stringify(ledger, null, 2) + '\n');
+  const outputPath = path.join(ROOT, 'data', 'exports', 'prediction_ledger_v1.jsonl');
+  const appendResult = appendLedgerRecords(outputPath, ledger.records);
   console.log(JSON.stringify({
     output: path.relative(ROOT, outputPath),
     round: payload.round,
     product: ledger.records[0].product,
-    records: ledger.records.length,
+    currentExportRecords: ledger.records.length,
+    appended: appendResult.appended,
+    identicalRowsSkipped: appendResult.skipped,
+    ledgerTotalRows: appendResult.total,
     inputHashCompleteness: ledger.records[0].inputHashCompleteness,
     confirmedAtRecorded: ledger.records.every(record => record.confirmedAtStatus === 'recorded'),
     marketSnapshotsLinked: ledger.records.filter(record => record.marketSnapshotId).length
