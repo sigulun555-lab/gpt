@@ -132,7 +132,7 @@ function toLedger(payload, options = {}) {
       confirmedAt: item.confirmedAt ?? null,
       confirmedAtStatus: item.confirmedAt ? 'recorded' : 'not_recorded_in_source',
       deadlineAt: payload.deadline,
-      sourceRetrievedAt: payload.totoSource?.lastFetchedAt ?? null,
+      fixtureSourceRetrievedAt: payload.totoSource?.lastFetchedAt ?? null,
       sourceUrl: item.sourceUrl ?? payload.totoSource?.url ?? null,
       marketSnapshotId: item.marketSnapshotId ?? null,
       marketSnapshotStatus: item.marketSnapshotId ? 'linked' : 'not_included_in_source_payload',
