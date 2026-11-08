@@ -86,7 +86,21 @@ def flatten_matches(report):
     if len(rows) != 472:
         raise ValueError("expected 472 team-side targets")
     return matches, rows, dates, teams
+
+
+def prepare(report):
+    matches, rows, dates, teams = flatten_matches(report)
+    if len(matches) != 236 or len(rows) != 472 or len(dates) != 17:
+        raise ValueError("expected 236 matches / 472 targets / 17 dates")
+    match_rows = []
+    seen = set()
+    for m in matches:
+        day, league = m["date"], m["comp"]
+        home, away = m["home"].strip(), m["away"].strip()
+        key = (day, league, home, away)
+        if key in seen or league not in LEAGUES or home == away:
             raise ValueError("duplicate or invalid match identity")
+
         seen.add(key)
         match_rows.append({"date": day, "league": league, "home": home, "away": away})
     return match_rows, rows, dates, teams
