@@ -89,7 +89,12 @@ competition (J1/J2/J3), status: "final", integer fullTimeHomeGoals /
 fullTimeAwayGoals, sourceType: "official", an HTTPS sourceUrl, and a
 timezone-aware retrievedAt; publishedAt is retained and checked when supplied.
 The official source designation and URL must be independently checked by the
-reviewer. Extra time and shoot-outs are not valid inputs.
+reviewer. The URL validator requires a non-root path on an allowed official
+host; a bare official homepage is not a result locator. This is only a
+syntactic host/path gate, not proof of page content. The reviewer must verify
+that the page identifies the same round, fixture, full-time score and
+90-minute-plus-stoppage basis, and record the publication/retrieval evidence.
+Extra time and shoot-outs are not valid inputs.
 
 The scorer verifies the v1.1 forecast timing bounds, input/code hashes, exact
 k=6/k=10 arms, all six successful fit diagnostics, probability simplexes,
