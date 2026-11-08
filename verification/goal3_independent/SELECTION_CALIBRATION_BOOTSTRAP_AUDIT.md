@@ -32,7 +32,14 @@ with a fixed probability floor of `1e-12`.
 ## Four-category calibration uncertainty
 
 For each k in {6, 10}, report the predicted-minus-observed category rate gap
-for 0 / 1 / 2 / 3+ goals, overall and by J1/J2/J3.
+for 0 / 1 / 2 / 3+ goals, overall and by J1/J2/J3. This is **marginal
+calibration-in-the-large**: mean predicted category probability minus the
+empirical category frequency, in percentage points. It measures aggregate
+category-prevalence agreement only. It does **not** assess reliability
+conditional on forecast probability (for example, probability-bin reliability
+diagrams), calibration slope/intercept, sharpness/resolution, or calibration
+conditional on match context/covariates. Therefore the 32 marginal-gap bands
+must not be described as a complete multiclass reliability assessment.
 
 - Resampling unit: target date, with all matches and home/away team-sides on a
   sampled date retained together.

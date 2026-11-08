@@ -63,6 +63,10 @@ class SelectionCalibrationBootstrapAuditTests(unittest.TestCase):
                          {"k6_by_league", "k10_by_league", "k6_all", "k10_all", "global_32"})
         self.assertEqual(first["fourCategoryCalibration"]["families"]["k6_by_league"]["comparisonCount"], 12)
         self.assertEqual(first["fourCategoryCalibration"]["families"]["global_32"]["comparisonCount"], 32)
+        estimand = first["fourCategoryCalibration"]["method"]["estimand"]
+        self.assertEqual(estimand["name"], "marginal calibration-in-the-large (category-wise)")
+        self.assertIn("empirical observed frequency", estimand["gapDefinition"])
+        self.assertEqual(len(estimand["notAssessed"]), 4)
 
     def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
         for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):

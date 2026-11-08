@@ -347,6 +347,17 @@ def calibration_audit(rows: list[dict], dates: list[str], replicates: int,
 
     return {
         "method": {
+            "estimand": {
+                "name": "marginal calibration-in-the-large (category-wise)",
+                "gapDefinition": "mean predicted probability minus empirical observed frequency for each goal category, in percentage points, within each scope",
+                "interpretation": "aggregate category-prevalence agreement only",
+                "notAssessed": [
+                    "reliability conditional on forecast probability (for example, probability-bin reliability diagrams)",
+                    "calibration slope or intercept",
+                    "sharpness or resolution",
+                    "calibration conditional on match context or covariates"
+                ]
+            },
             "resamplingUnit": "target date; all matches and home/away team-sides retained together",
             "rng": "NumPy PCG64",
             "seed": seed,
