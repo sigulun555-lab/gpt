@@ -107,10 +107,29 @@ weight. Results:
   had ESS <5 in more than half of replicates.
 
 Therefore the old 4,982/5,000 "all bins non-empty" count was not a valid
-effective-sample-size gate. The updated script requires per-bin Kish ESS >=20
-in every replicate used for the simultaneous family. If the common family
-does not reach 95% validity, it emits no simultaneous probability-bin bands
-and records per-bin ESS summaries instead of presenting underpowered CIs.
+effective-sample-size gate. The updated script requires per-bin target-row Kish ESS >=20 in every
+replicate used for the simultaneous family. A further independent review
+found that target-row Kish ESS alone can still overstate independent
+information when both home and away targets from one match fall in the same
+bin: those two rows share one match bootstrap weight and are dependent.
+The audit now also requires match-cluster contribution Kish ESS >=20, where
+each match contributes its match weight multiplied by the number of its
+targets in the bin, and that aggregated contribution is squared only after
+pairing the two target rows. Both ESS gates must pass in every replicate.
+If the common family does not reach 95% validity, it emits no simultaneous
+probability-bin bands and records both ESS distributions instead of
+presenting underpowered CIs.
+
+Using the exact same 5,000 PCG64 draws (seed 20261113) as the existing
+run #228 artifact, an independent reconstruction found:
+- target-row ESS gate: common valid replicates 0/5,000;
+- match-cluster contribution ESS gate: common valid replicates 0/5,000;
+- no eligible bin individually met match-cluster ESS >=20 in 95% of draws
+  (best bin: 4,700/5,000 = 94.0%);
+- median match-cluster ESS across eligible bins ranged from 4.28 to 33.18.
+The stricter gate therefore does not change the current conclusion (no
+simultaneous bin CI), but prevents future bin inference from treating two
+paired targets as two independent clusters.
 
 This is a conservative reporting correction, not a change to the adoption
 rule or a claim that calibration improved. The one-vs-rest logistic model
@@ -150,7 +169,8 @@ simultaneous intervals. GitHub Actions uploads it as a run-specific artifact.
 - Pair preservation does not remove all fixture-network dependence.
 - One-vs-rest calibration is not joint multinomial calibration.
 - Bins below 20 raw targets receive no confidence interval.
-- Team-aware probability-bin intervals additionally require Kish ESS >=20 in
+- Team-aware probability-bin intervals additionally require both
+  target-row Kish ESS >=20 and match-cluster contribution Kish ESS >=20 in
   every replicate across the simultaneous family; otherwise no simultaneous
   bin intervals are emitted.
 - The historical `fetchedAt` timestamp does not prove first-known availability
