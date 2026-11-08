@@ -208,6 +208,10 @@ def is_official_result_url(value):
             return False
         if parsed.port not in (None, 443):
             return False
+        # A bare official homepage is not a result locator. Require at least
+        # one non-empty path segment; reviewers must still verify page content.
+        if not any(segment for segment in parsed.path.split("/")):
+            return False
         return any(host == domain or host.endswith("." + domain)
                    for domain in ("jleague.jp", "j-league.or.jp"))
     except (TypeError, ValueError):
