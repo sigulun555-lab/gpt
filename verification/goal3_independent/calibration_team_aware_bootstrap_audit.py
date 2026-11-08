@@ -286,3 +286,98 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
                 raise ValueError(f"invalid SE for {key}/{name}")
             fit_z.append((vals[:, j]-point[key][j])/se)
             fit_meta.append((key, j, name, se, vals[:, j]))
+    fit_crit = float(np.quantile(np.max(np.abs(np.column_stack(fit_z)), axis=1), .95, method="linear"))
+    per_arm = {}
+    for key, j, name, se, vals in fit_meta:
+        k, c = key
+        estimate = float(point[key][j])
+        per_arm[f"k{k}_category{c}_{name}"] = {
+            "k": k, "category": c, "parameter": name, "pointEstimate": estimate,
+            "idealValue": 0.0 if j == 0 else 1.0, "bootstrapSE": se,
+            "percentile95CI": np.quantile(vals, [.025, .975], method="linear").tolist(),
+            "simultaneous95Band": [estimate-fit_crit*se, estimate+fit_crit*se],
+        }
+
+    paired_z, paired_meta = [], []
+    for c in CATEGORIES:
+        for j, name in ((0, "intercept"), (1, "slope")):
+            vals = params[(6, c)][common_fit, j] - params[(10, c)][common_fit, j]
+            estimate = float(point[(6, c)][j] - point[(10, c)][j])
+            se = float(vals.std(ddof=1))
+            if not np.isfinite(se) or se <= 0:
+                raise ValueError(f"invalid paired SE for category {c}/{name}")
+            paired_z.append((vals-estimate)/se)
+            paired_meta.append((c, name, estimate, se, vals))
+    paired_crit = float(np.quantile(np.max(np.abs(np.column_stack(paired_z)), axis=1), .95, method="linear"))
+    paired = {}
+    for c, name, estimate, se, vals in paired_meta:
+        paired[f"category{c}_{name}"] = {
+            "differenceK6MinusK10": estimate, "bootstrapSE": se,
+            "percentile95CI": np.quantile(vals, [.025, .975], method="linear").tolist(),
+            "simultaneous95Band": [estimate-paired_crit*se, estimate+paired_crit*se],
+        }
+
+    if eligible:
+        common_bin = bin_ok.all(axis=1)
+        n_common = int(common_bin.sum())
+        if common_bin.mean() >= MIN_VALID:
+            vals = bin_gap[common_bin]
+            points = np.asarray([x["gapPercentagePoints"] for x in eligible])
+            ses = vals.std(axis=0, ddof=1)
+            if np.any(~np.isfinite(ses)) or np.any(ses <= 0):
+                raise ValueError("invalid probability-bin bootstrap SE")
+            bin_crit = float(np.quantile(np.max(np.abs((vals-points)/ses), axis=1), .95, method="linear"))
+            for j, item in enumerate(eligible):
+                item["bootstrapReplicatesValid"] = n_common
+                item["bootstrapSE"] = float(ses[j])
+                item["percentile95CI"] = np.quantile(vals[:, j], [.025, .975], method="linear").tolist()
+                item["simultaneous95Band"] = [float(points[j]-bin_crit*ses[j]), float(points[j]+bin_crit*ses[j])]
+                item["ciStatus"] = "computed"
+        else:
+            bin_crit = None
+            for j, item in enumerate(eligible):
+                item["bootstrapReplicatesValid"] = int(bin_ok[:, j].sum())
+                item["ciStatus"] = "insufficient_common_nonempty_replicates"
+    else:
+        common_bin, n_common, bin_crit = np.ones(replicates, bool), replicates, None
+
+    fit_diag = {}
+    for key in keys:
+        d, v = diag_arrays[key], fit_valid[key]
+        fit_diag[f"k{key[0]}_category{key[1]}"] = {
+            "validReplicates": int(v.sum()), "invalidReplicates": int((~v).sum()),
+            "minimumHessianEigenvalueAmongValid": float(np.min(d["eigen"][v])) if v.any() else None,
+            "maximumAbsoluteCoefficientAmongValid": float(np.max(d["maxcoef"][v])) if v.any() else None,
+            "maximumGradientInfinityNormAmongValid": float(np.max(d["gradient"][v])) if v.any() else None,
+            "invalidReasons": {
+                "noPositiveWeight": int((~reason_arrays[key]["positive"]).sum()),
+                "nearSingularDuringFit": int(reason_arrays[key]["nearStep"].sum()),
+                "lineSearchFailed": int(reason_arrays[key]["lineFail"].sum()),
+                "nonFinite": int((~reason_arrays[key]["finite"]).sum()),
+                "finalNearSingularHessian": int((d["eigen"] < MIN_EIGEN).sum()),
+                "gradientNotConverged": int((d["gradient"] > GRAD_TOL).sum()),
+                "coefficientMagnitudeOverLimit": int((d["maxcoef"] > MAX_COEF).sum()),
+            },
+        }
+
+    return {
+        "experiment": "GOAL3 team-aware match-pair-preserving calibration bootstrap sensitivity",
+        "cohort": {"matches": 236, "teamSideTargets": 472, "dates": 17,
+                   "dateRange": [dates[0], dates[-1]],
+                   "teamsByLeague": {lg: len(teams[lg]) for lg in LEAGUES}},
+        "method": {
+            "resampling": "independent pigeonhole draws of target dates and teams sampled within each league",
+            "matchWeight": "date multiplicity * home-team multiplicity * away-team multiplicity",
+            "pairPreservation": "one match weight is assigned to both home and away targets",
+            "rng": "NumPy PCG64", "seed": seed, "replicates": replicates, "batchSize": batch_size,
+            "fitMethod": "unpenalized vectorized Newton logistic with backtracking line search",
+            "fitValidity": {"gradientInfinityNormAtMost": GRAD_TOL,
+                            "minimumWeightedHessianEigenvalueAtLeast": MIN_EIGEN,
+                            "maximumAbsoluteCoefficientAtMost": MAX_COEF,
+                            "commonValidReplicateFractionAtLeast": MIN_VALID,
+                            "invalidFitsExcludedFromCommonFamilies": True},
+            "families": {"perArm": "8 one-vs-rest fits x intercept/slope (16 parameters)",
+                         "paired": "4 categories x intercept/slope differences (8 contrasts)",
+                         "bins": "all eligible non-empty fixed probability bins"},
+            "probabilityBins": list(BINS), "minimumBinTargetsForCI": MIN_BIN_N,
+        },
