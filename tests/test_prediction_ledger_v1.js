@@ -127,7 +127,7 @@ const firstAppend = appendLedgerRecords(appendPath, [row]);
 assert.deepEqual(firstAppend, { appended: 1, skipped: 0, total: 1 });
 const secondAppend = appendLedgerRecords(appendPath, [row]);
 assert.deepEqual(secondAppend, { appended: 0, skipped: 1, total: 1 }, 're-running an identical export must be idempotent');
-assert.equal(fs.readFileSync(appendPath, 'utf8').trim().split('\\n').length, 1);
+assert.equal(fs.readFileSync(appendPath, 'utf8').trim().split(/\r?\n/).length, 1);
 assert.throws(() => appendLedgerRecords(appendPath, [{ ...row, notes: 'conflicting edit' }]), /Append-only conflict/);
 fs.rmSync(tempDir, { recursive: true, force: true });
 console.log('PASS append-only JSONL: idempotent duplicate skip and conflicting-row refusal');
