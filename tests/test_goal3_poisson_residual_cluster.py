@@ -43,6 +43,19 @@ class PoissonResidualClusterAuditTests(unittest.TestCase):
         self.assertEqual(len(first["results"]), 8)
         self.assertEqual(len(first["pairedK6MinusK10"]), 4)
 
+    def test_audit_records_supplied_input_and_code_hashes(self):
+        result = audit(
+            synthetic_report(),
+            replicates=1000,
+            seed=12345,
+            input_sha256="a" * 64,
+            code_sha256="b" * 64,
+        )
+        self.assertEqual(result["provenance"]["inputSha256"], "a" * 64)
+        self.assertEqual(result["provenance"]["codeSha256"], "b" * 64)
+        self.assertTrue(result["provenance"]["python"])
+        self.assertTrue(result["provenance"]["numpy"])
+
     def test_rejects_noncanonical_invalid_or_non_2026_dates(self):
         for value in ("2026-02-30", "2026-2-03", "2025-09-01", "2026-W01-1"):
             report = synthetic_report()
