@@ -38,7 +38,7 @@
         "home", "away", "canonicalHome", "canonicalAway", "modelName", "modelVersion",
         "modelVersionStatus", "modelMethod", "probabilities", "goalDistributions",
         "expectedGoals", "generatedAt", "confirmedAt", "confirmedAtStatus",
-        "deadlineAt", "sourceRetrievedAt", "sourceUrl", "marketSnapshotId",
+        "deadlineAt", "fixtureSourceRetrievedAt", "sourceUrl", "marketSnapshotId",
         "marketSnapshotStatus", "inputHashes", "inputsHash", "inputHashCompleteness",
         "predictionPayloadSha256", "availabilityNote"
       ],
@@ -104,7 +104,7 @@
         "confirmedAt": { "type": ["string", "null"], "format": "date-time" },
         "confirmedAtStatus": { "enum": ["recorded", "not_recorded_in_source"] },
         "deadlineAt": { "type": "string", "format": "date-time" },
-        "sourceRetrievedAt": { "type": ["string", "null"], "format": "date-time" },
+        "fixtureSourceRetrievedAt": { "type": ["string", "null"], "format": "date-time" },
         "sourceUrl": { "type": ["string", "null"], "format": "uri" },
         "marketSnapshotId": { "type": ["string", "null"] },
         "marketSnapshotStatus": { "enum": ["linked", "not_included_in_source_payload"] },
