@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import sys
 import unittest
@@ -63,6 +64,19 @@ class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
         self.assertEqual(result["intervals"][1]["simultaneous95Band"], [0.0, 0.0])
 
     def test_source_provenance_is_pinned_without_pinning_float_serialization(self):
+        nested_script = SCRIPT_DIR / "nested_validation.py"
+        nested_bytes = nested_script.read_bytes()
+        expected_blob = hashlib.sha1(
+            b"blob " + str(len(nested_bytes)).encode("ascii") + b"\\0" + nested_bytes
+        ).hexdigest()
+        self.assertEqual(
+            audit.EXPECTED_SOURCE_PROVENANCE["nestedValidationPySha256"],
+            hashlib.sha256(nested_bytes).hexdigest(),
+        )
+        self.assertEqual(
+            audit.EXPECTED_SOURCE_PROVENANCE["nestedValidationPyGitBlobSha"],
+            expected_blob,
+        )
         document = {"provenance": dict(audit.EXPECTED_SOURCE_PROVENANCE)}
         audit.validate_source_provenance(document)
         document["provenance"]["history2026Sha256"] = "0" * 64
