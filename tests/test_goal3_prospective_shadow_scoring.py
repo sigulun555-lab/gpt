@@ -278,6 +278,10 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             "http://www.jleague.jp/match/1/1/",
             "https://user@www.jleague.jp/match/1/1/",
             "https://www.jleague.jp:8443/match/1/1/",
+            "https://www.jleague.jp/",
+            "https://jleague.jp",
+            "https://data.j-league.or.jp/",
+            "https://data.j-league.or.jp/?round=1",
         ):
             self.assertFalse(scorer.is_official_result_url(invalid), invalid)
             results = make_results(1)
