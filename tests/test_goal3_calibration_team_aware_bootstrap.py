@@ -126,7 +126,8 @@ class TeamAwareCalibrationBootstrapTests(unittest.TestCase):
         self.assertEqual(first["method"]["minimumBootstrapBinKishEffectiveSampleSize"], 20.0)
         for item in first["probabilityBinReliability"]:
             if item["ciStatus"] == "computed":
-                self.assertGreaterEqual(item["bootstrapEffectiveSampleSize"]["p05"], 20.0)
+                self.assertGreaterEqual(item["bootstrapValidFraction"], 0.95)
+                self.assertIn("simultaneous95Band", item)
             elif item["ciStatus"] == "insufficient_common_bootstrap_effective_sample_size":
                 self.assertIsNone(first["criticalValues"]["probabilityBinMaxT"])
         self.assertEqual(first["method"]["pairPreservation"],
