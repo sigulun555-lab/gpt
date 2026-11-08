@@ -165,10 +165,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Leave-one-date/team/match k stability influence audit
-        run: |
-          python verification/goal3_independent/k_stability_influence_audit.py \\
-            --input artifacts/goal3_outer_allk_reproduction.json \\
-            --out artifacts/goal3_k_stability_influence_audit.json
+        run: python verification/goal3_independent/k_stability_influence_audit.py --input artifacts/goal3_outer_allk_reproduction.json --out artifacts/goal3_k_stability_influence_audit.json
       - name: Upload k stability influence audit
         uses: actions/upload-artifact@v4
         with:
