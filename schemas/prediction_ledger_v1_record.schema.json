@@ -61,7 +61,8 @@
         "inputsHash",
         "inputHashCompleteness",
         "predictionPayloadSha256",
-        "availabilityNote"
+        "availabilityNote",
+        "revisionOf"
       ],
       "properties": {
         "predictionId": {
@@ -307,6 +308,12 @@
             "string",
             "null"
           ]
+        },
+        "revisionOf": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "allOf": [
@@ -352,4 +359,4 @@
     }
   },
   "$ref": "#/$defs/record"
-}\n
+}
