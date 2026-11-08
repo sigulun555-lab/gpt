@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigulun555-lab.github.io/gpt/schemas/prediction_ledger_v1.schema.json",
+  "title": "Prediction Ledger v1",
+  "description": "Append-only canonical one-match-per-row export. Legacy prediction files remain unchanged.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "exportedAt", "sourceRepo", "sourcePath", "records"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "sourceRepo": { "const": "sigulun555-lab/gpt" },
+    "sourcePath": { "const": "data/predictions.json" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "probability": { "type": "number", "minimum": 0, "maximum": 1 },
+    "distribution4": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/probability" },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "hash": {
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "predictionId", "round", "product", "matchNumber", "date", "competition",
+        "home", "away", "canonicalHome", "canonicalAway", "modelName", "modelVersion",
+        "modelVersionStatus", "modelMethod", "probabilities", "goalDistributions",
+        "expectedGoals", "generatedAt", "confirmedAt", "confirmedAtStatus",
+        "deadlineAt", "sourceRetrievedAt", "sourceUrl", "marketSnapshotId",
+        "marketSnapshotStatus", "inputHashes", "inputsHash", "inputHashCompleteness",
+        "predictionPayloadSha256", "availabilityNote"
+      ],
+      "properties": {
+        "predictionId": { "type": "string", "minLength": 1 },
+        "round": { "type": "integer", "minimum": 1 },
+        "product": { "enum": ["toto13", "totoGOAL3", "miniToto-A", "miniToto-B"] },
+        "matchNumber": { "type": "integer", "minimum": 1, "maximum": 13 },
+        "date": { "type": "string", "format": "date" },
+        "competition": { "type": ["string", "null"] },
+        "home": { "type": "string", "minLength": 1 },
+        "away": { "type": "string", "minLength": 1 },
+        "canonicalHome": { "type": ["string", "null"] },
+        "canonicalAway": { "type": ["string", "null"] },
+        "modelName": { "const": "GPT" },
+        "modelVersion": { "type": ["string", "null"] },
+        "modelVersionStatus": { "enum": ["recorded", "not_recorded_in_source"] },
+        "modelMethod": { "type": ["string", "null"] },
+        "probabilities": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["home", "draw", "away"],
+              "properties": {
+                "home": { "$ref": "#/$defs/probability" },
+                "draw": { "$ref": "#/$defs/probability" },
+                "away": { "$ref": "#/$defs/probability" }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "goalDistributions": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["home", "away"],
+              "properties": {
+                "home": { "$ref": "#/$defs/distribution4" },
+                "away": { "$ref": "#/$defs/distribution4" }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "expectedGoals": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["home", "away"],
+              "properties": {
+                "home": { "type": "number", "minimum": 0 },
+                "away": { "type": "number", "minimum": 0 }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "confirmedAt": { "type": ["string", "null"], "format": "date-time" },
+        "confirmedAtStatus": { "enum": ["recorded", "not_recorded_in_source"] },
+        "deadlineAt": { "type": "string", "format": "date-time" },
+        "sourceRetrievedAt": { "type": ["string", "null"], "format": "date-time" },
+        "sourceUrl": { "type": ["string", "null"], "format": "uri" },
+        "marketSnapshotId": { "type": ["string", "null"] },
+        "marketSnapshotStatus": { "enum": ["linked", "not_included_in_source_payload"] },
+        "inputHashes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["history", "teamAliases", "fixtures", "modelCode", "pipelineCode", "adapterCode"],
+          "properties": {
+            "history": { "$ref": "#/$defs/hash" },
+            "teamAliases": { "$ref": "#/$defs/hash" },
+            "fixtures": { "$ref": "#/$defs/hash" },
+            "modelCode": { "$ref": "#/$defs/hash" },
+            "pipelineCode": { "$ref": "#/$defs/hash" },
+            "adapterCode": { "$ref": "#/$defs/hash" }
+          }
+        },
+        "inputsHash": { "$ref": "#/$defs/hash" },
+        "inputHashCompleteness": { "enum": ["complete", "partial"] },
+        "predictionPayloadSha256": { "$ref": "#/$defs/hash" },
+        "availabilityNote": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "product": { "const": "toto13" } } },
+          "then": { "properties": { "probabilities": { "type": "object" }, "goalDistributions": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "product": { "const": "totoGOAL3" } } },
+          "then": { "properties": { "probabilities": { "type": "null" }, "goalDistributions": { "type": "object" } } }
+        }
+      ]
+    }
+  }
+}
