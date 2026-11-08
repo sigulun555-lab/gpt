@@ -86,3 +86,103 @@ def flatten_matches(report):
     if len(rows) != 472:
         raise ValueError("expected 472 team-side targets")
     return matches, rows, dates, teams
+            raise ValueError("duplicate or invalid match identity")
+        seen.add(key)
+        match_rows.append({"date": day, "league": league, "home": home, "away": away})
+    return match_rows, rows, dates, teams
+
+
+def draw_cluster_weights(matches, dates, teams, n, rng):
+    di = {d: i for i, d in enumerate(dates)}
+    ti = {lg: {t: i for i, t in enumerate(ts)} for lg, ts in teams.items()}
+    dd = rng.integers(0, len(dates), size=(n, len(dates)))
+    dm = np.column_stack([(dd == j).sum(axis=1) for j in range(len(dates))]).astype(np.int16)
+    tm = {}
+    for lg, ts in teams.items():
+        draws = rng.integers(0, len(ts), size=(n, len(ts)))
+        tm[lg] = np.column_stack([(draws == j).sum(axis=1) for j in range(len(ts))]).astype(np.int16)
+    mw = np.empty((n, len(matches)), dtype=float)
+    for j, m in enumerate(matches):
+        lg = m["league"]
+        mw[:, j] = dm[:, di[m["date"]]] * tm[lg][:, ti[lg][m["home"]]] * tm[lg][:, ti[lg][m["away"]]]
+    return dm, tm, mw
+
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-np.clip(z, -40.0, 40.0)))
+
+
+def fit_weighted_logistic_batch(x, y, w, initial=None, max_iter=100, tol=1e-7):
+    b = w.shape[0]
+    theta = np.tile(np.asarray(initial if initial is not None else [0.0, 1.0]), (b, 1)).astype(float)
+    positive = np.isfinite(w).all(axis=1) & (w.sum(axis=1) > 0)
+    failed = np.zeros(b, bool)
+    near_step = np.zeros(b, bool)
+    line_fail = np.zeros(b, bool)
+    iterations = np.zeros(b, np.int16)
+
+    def loss(t):
+        z = t[:, 0, None] + t[:, 1, None] * x[None, :]
+        return np.sum(w * (np.logaddexp(0.0, z) - y[None, :] * z), axis=1)
+
+    for _ in range(max_iter):
+        z = theta[:, 0, None] + theta[:, 1, None] * x[None, :]
+        p = sigmoid(z)
+        r = w * (p - y[None, :])
+        g0, g1 = r.sum(axis=1), (r * x[None, :]).sum(axis=1)
+        gn = np.maximum(np.abs(g0), np.abs(g1))
+        need = positive & ~failed & (gn >= tol)
+        if not need.any():
+            break
+        q = w * p * (1.0 - p)
+        h00, h01, h11 = q.sum(axis=1), (q * x[None, :]).sum(axis=1), (q * (x*x)[None, :]).sum(axis=1)
+        disc = np.sqrt(np.maximum((h00-h11)**2 + 4*h01*h01, 0.0))
+        eig = (h00 + h11 - disc) / 2.0
+        det = h00*h11 - h01*h01
+        ok = need & np.isfinite(eig) & (eig > 1e-12) & np.isfinite(det) & (det > 1e-18)
+        near_step |= need & ~ok
+        failed |= need & ~ok
+        d0, d1 = np.zeros(b), np.zeros(b)
+        d0[ok] = (h11[ok]*g0[ok] - h01[ok]*g1[ok]) / det[ok]
+        d1[ok] = (-h01[ok]*g0[ok] + h00[ok]*g1[ok]) / det[ok]
+        old = loss(theta)
+        scale, accepted = np.ones(b), ~ok
+        for _ in range(30):
+            cand = theta.copy()
+            cand[:, 0] -= scale*d0
+            cand[:, 1] -= scale*d1
+            new = loss(cand)
+            accept = ok & np.isfinite(new) & (new <= old + 1e-12)
+            theta[accept] = cand[accept]
+            accepted |= accept
+            pending = ok & ~accepted
+            if not pending.any():
+                break
+            scale[pending] *= .5
+        line_fail |= ok & ~accepted
+        failed |= ok & ~accepted
+        iterations[need] += 1
+
+    z = theta[:, 0, None] + theta[:, 1, None] * x[None, :]
+    p = sigmoid(z)
+    r = w * (p - y[None, :])
+    gn = np.maximum(np.abs(r.sum(axis=1)), np.abs((r*x[None, :]).sum(axis=1)))
+    q = w*p*(1-p)
+    h00, h01, h11 = q.sum(axis=1), (q*x[None, :]).sum(axis=1), (q*(x*x)[None, :]).sum(axis=1)
+    disc = np.sqrt(np.maximum((h00-h11)**2 + 4*h01*h01, 0.0))
+    eig = (h00+h11-disc)/2.0
+    maxcoef = np.max(np.abs(theta), axis=1)
+    finite = np.isfinite(theta).all(axis=1) & np.isfinite(gn) & np.isfinite(eig)
+    valid = positive & ~failed & finite & (gn <= GRAD_TOL) & (eig >= MIN_EIGEN) & (maxcoef <= MAX_COEF)
+    diag = {"gradient": gn, "eigen": eig, "maxcoef": maxcoef, "iterations": iterations,
+            "positive": positive, "nearStep": near_step, "lineFail": line_fail, "finite": finite}
+    return theta, valid, diag
+
+
+def ess(w):
+    s = w.sum(axis=1)
+    return s*s / np.maximum((w*w).sum(axis=1), 1.0)
+
+
+def qsummary(x):
+    return {"p05": float(np.quantile(x, .05)), "median": float(np.median(x)),
