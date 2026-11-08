@@ -213,6 +213,16 @@ def weighted_bin_ess(match_weights, targets_per_match):
     return total * total / np.maximum(squared_total, 1.0)
 
 
+def weighted_bin_match_cluster_ess(match_weights, targets_per_match):
+    """Kish ESS over independent match contributions to a target-weighted bin."""
+    weights = np.asarray(match_weights, dtype=float)
+    counts = np.asarray(targets_per_match, dtype=float)
+    cluster_contributions = weights * counts
+    total = cluster_contributions.sum(axis=1)
+    squared_total = (cluster_contributions * cluster_contributions).sum(axis=1)
+    return total * total / np.maximum(squared_total, 1.0)
+
+
 def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_size=5000):
     if replicates < 1000 or batch_size < 50:
         raise ValueError("replicates >=1000 and batch_size >=50 required")
@@ -267,6 +277,7 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
                            ("positive", "nearStep", "lineFail", "finite")} for key in sorted(xcat)}
     bin_gap = np.full((replicates, len(eligible)), np.nan)
     bin_ess_values = np.zeros((replicates, len(eligible)), dtype=float)
+    bin_match_cluster_ess_values = np.zeros((replicates, len(eligible)), dtype=float)
     bin_ok = np.zeros((replicates, len(eligible)), bool)
     date_ess, match_ess, zero_frac = np.empty(replicates), np.empty(replicates), np.empty(replicates)
     team_ess = {lg: np.empty(replicates) for lg in LEAGUES}
@@ -293,10 +304,13 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
             den = mw @ nmat
             pred, obs = mw @ pmat, mw @ ymat
             ess_values = weighted_bin_ess(mw, nmat)
-            ok = (den > 0) & (ess_values >= MIN_BIN_BOOTSTRAP_ESS)
+            match_cluster_ess_values = weighted_bin_match_cluster_ess(mw, nmat)
+            ok = ((den > 0) & (ess_values >= MIN_BIN_BOOTSTRAP_ESS)
+                  & (match_cluster_ess_values >= MIN_BIN_BOOTSTRAP_ESS))
             gaps = np.full_like(den, np.nan)
             gaps[ok] = (pred[ok]/den[ok] - obs[ok]/den[ok])*100
-            bin_gap[sl], bin_ess_values[sl], bin_ok[sl] = gaps, ess_values, ok
+            bin_gap[sl], bin_ess_values[sl] = gaps, ess_values
+            bin_match_cluster_ess_values[sl], bin_ok[sl] = match_cluster_ess_values, ok
         start += n
 
     keys = sorted(fit_valid)
@@ -347,9 +361,14 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
         common_bin = bin_ok.all(axis=1)
         n_common = int(common_bin.sum())
         for j, item in enumerate(eligible):
-            item["bootstrapReplicatesMeetingEss"] = int(bin_ok[:, j].sum())
+            item["bootstrapReplicatesMeetingEss"] = int((bin_ess_values[:, j] >= MIN_BIN_BOOTSTRAP_ESS).sum())
+            item["bootstrapReplicatesMeetingMatchClusterEss"] = int(
+                (bin_match_cluster_ess_values[:, j] >= MIN_BIN_BOOTSTRAP_ESS).sum()
+            )
             item["bootstrapValidFraction"] = float(bin_ok[:, j].mean())
             item["bootstrapEffectiveSampleSize"] = qsummary(bin_ess_values[:, j])
+            item["bootstrapTargetRowEffectiveSampleSize"] = qsummary(bin_ess_values[:, j])
+            item["bootstrapMatchClusterEffectiveSampleSize"] = qsummary(bin_match_cluster_ess_values[:, j])
         if common_bin.mean() >= MIN_VALID:
             vals = bin_gap[common_bin]
             points = np.asarray([x["gapPercentagePoints"] for x in eligible])
@@ -410,6 +429,9 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
                          "bins": "all eligible non-empty fixed probability bins"},
             "probabilityBins": list(BINS), "minimumBinTargetsForCI": MIN_BIN_N,
             "minimumBootstrapBinKishEffectiveSampleSize": MIN_BIN_BOOTSTRAP_ESS,
+            "minimumBootstrapBinTargetRowKishEffectiveSampleSize": MIN_BIN_BOOTSTRAP_ESS,
+            "minimumBootstrapBinMatchClusterKishEffectiveSampleSize": MIN_BIN_BOOTSTRAP_ESS,
+            "binESSGate": "both target-row Kish ESS and match-cluster contribution Kish ESS must meet the threshold in every replicate across the simultaneous family",
         },
         "bootstrapValidity": {
             "commonValidCalibrationReplicates": int(common_fit.sum()),
@@ -434,7 +456,8 @@ def audit(report, input_sha, code_sha, replicates=5000, seed=20261113, batch_siz
             "Near-singular, separated, non-finite, or non-converged fits are invalid and excluded from common simultaneous families.",
             "One-vs-rest logistic fits are not joint multinomial calibration.",
             "Bins below 20 raw targets receive no confidence interval.",
-            "Team-aware bin intervals additionally require Kish effective sample size >=20 in every replicate across the simultaneous family; otherwise no simultaneous bin intervals are emitted.",
+            "Team-aware bin intervals require both target-row Kish ESS >=20 and match-cluster contribution Kish ESS >=20 in every replicate across the simultaneous family; otherwise no simultaneous bin intervals are emitted.",
+            "The match-cluster contribution for one match is its match bootstrap weight multiplied by the number of its targets in the bin; home/away targets from the same match are not counted as independent clusters.",
             "Historical fetchedAt does not prove first-known availability for each target date.",
             "No prospective official-round outcomes are included.",
         ],
