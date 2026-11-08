@@ -19,6 +19,64 @@ def git_blob_sha(path):
     header=f"blob {len(raw)}\0".encode("utf-8")
     return hashlib.sha1(header+raw).hexdigest()
 
+def build_team_alias_provenance(raw_history_rows, aliases_doc, target_dates, aliases_path):
+    """Describe how the current alias map changes historical team identities."""
+    alias_map = aliases_doc.get("aliases", {})
+    if not isinstance(alias_map, dict):
+        raise ValueError("team alias map must be an object")
+    eligible = [
+        row for row in raw_history_rows
+        if isinstance(row, dict) and row.get("competition") in ("J1", "J2", "J3")
+    ]
+    alias_counts = Counter()
+    team_name_occurrences = 0
+    for row in eligible:
+        for side in ("home", "away"):
+            name = row.get(side)
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(f"missing historical {side} team name")
+            team_name_occurrences += 1
+            if alias_map.get(name, name) != name:
+                alias_counts[name] += 1
+
+    updated_at = aliases_doc.get("updatedAt")
+    prior_by_target = []
+    for target_date in target_dates:
+        prior = [row for row in eligible if isinstance(row.get("date"), str) and row["date"] < target_date]
+        prior_alias_occurrences = sum(
+            1
+            for row in prior
+            for side in ("home", "away")
+            if alias_map.get(row[side], row[side]) != row[side]
+        )
+        prior_by_target.append({
+            "targetDate": target_date,
+            "priorHistoryMatches": len(prior),
+            "priorTeamNameOccurrences": 2 * len(prior),
+            "priorAliasMappedOccurrences": prior_alias_occurrences,
+        })
+
+    dates_before_update = [
+        target_date for target_date in target_dates
+        if isinstance(updated_at, str) and target_date < updated_at
+    ]
+    return {
+        "source": aliases_doc.get("source"),
+        "updatedAt": updated_at,
+        "fileSha256": sha(aliases_path),
+        "gitBlobSha": git_blob_sha(aliases_path),
+        "historyTeamNameOccurrences": team_name_occurrences,
+        "aliasMappedHistoryTeamNameOccurrences": sum(alias_counts.values()),
+        "uniqueAliasKeysUsed": len(alias_counts),
+        "targetDatesBeforeAliasUpdatedAt": dates_before_update,
+        "priorHistoryByTargetDate": prior_by_target,
+        "interpretation": (
+            "This records the current retrospective normalization map and its material use. "
+            "It does not prove the mappings were unknowable earlier, but no contemporaneous "
+            "as-of alias-map snapshot or forecast execution record is established here."
+        ),
+    }
+
 def load_frozen(path):
     with Path(path).open(encoding="utf-8-sig",newline="") as f:
         rows=list(csv.DictReader(f))
@@ -115,6 +173,10 @@ def main():
     raw_history_rows=raw_history_doc.get("history",[])
     fetched_at_values=sorted({str(r.get("fetchedAt")) for r in raw_history_rows if r.get("fetchedAt")})
     missing_fetched_at=sum(not r.get("fetchedAt") for r in raw_history_rows)
+    aliases_doc=json.loads(Path(args.aliases).read_text(encoding="utf-8"))
+    team_alias_audit=build_team_alias_provenance(
+        raw_history_rows, aliases_doc, sorted(fold_by_date), Path(args.aliases)
+    )
     h2025,h2026=nv.load_data(args.history2026,args.aliases,args.csv2025)
     source_dates=sorted({m["date"] for m in h2026})
     target_dates=sorted(fold_by_date)
@@ -231,6 +293,8 @@ def main():
         "experiment":"GPT reconstruction of fixed-2026-only all-k outer diagnostics using nested_validation.py fit/predict functions",
         "provenance":{
             "frozenCsvSha256":sha(args.frozen_csv),
+            "reproduceAllkOuterPySha256":sha(Path(__file__)),
+            "reproduceAllkOuterPyGitBlobSha":git_blob_sha(Path(__file__)),
             "history2026Sha256":sha(args.history2026),
             "aliasesSha256":sha(args.aliases),
             "history2025CsvSha256":sha(args.csv2025),
@@ -251,6 +315,7 @@ def main():
             "historyFetchedAtMissingCount":int(missing_fetched_at)
         },
         "historicalAvailabilityCaveat":"Strict earlier-match-date cutoffs exclude later-dated results and same-day matches, but this retrospective snapshot does not preserve each match's original first-known timestamp. If all rows share the snapshot fetchedAt, exact historical ingestion-time availability cannot be audited.",
+        "teamAliasAsOfAudit":team_alias_audit,
         "kCandidates":[float(k) for k in K_VALUES],
         "metricsByK":metric_by_k,
         "reconstructionCheck":{
