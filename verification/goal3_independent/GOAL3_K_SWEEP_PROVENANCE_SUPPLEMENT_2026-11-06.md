@@ -288,8 +288,8 @@ only on the current toto-lab/data/teams.json normalization map.
   the earliest retrospective source snapshot commit
   803c3a059a0d330ddee308f1aaa96b26bdb9ed07 and the latest
   f6f289e49fa3c54ff702f17395f281138d5282bb.
-- The pinned file contains 66 team records and 124 distinct teamName /
-  shortName keys.
+- The pinned file contains 64 non-empty team records and 124 distinct
+  combined teamName / shortName keys (64 unique values in each column).
 
 ### Independent ID-based row reconciliation
 
@@ -329,3 +329,21 @@ process used the same input bytes. The 17 snapshots are still community-mirror
 evidence; official result publication timestamps and the original forecast
 execution/input linkage remain unproven. No forecast, score, bootstrap, or
 adoption result is changed by this identity audit.
+
+
+## Correction to the historical team-ID row count (2026-11-09)
+
+A fresh parse of the exact pinned `team_ids.csv` blob
+`b4fc4ac8143bfbbb4fec59d8a242f0e333785a2e` found **64 non-empty data rows**,
+not 66. The earlier count in this supplement and PR comment #6740002359 was
+incorrect and is corrected here. The count of 124 distinct combined
+`teamName` / `shortName` keys remains correct: the file has 64 unique
+`teamName` values, 64 unique `shortName` values, and 124 values in their
+combined union.
+
+The 60 raw team names in the frozen GOAL3 cohort were independently matched
+against the exact `teamName` column: 60/60 have exactly one record, with no
+missing names, ambiguous matches, or duplicate IDs among the matched cohort.
+This correction changes only the descriptive count of historical rows; it does
+not change the 60-team crosswalk, the 17/17 prior-history reconciliation, or
+any forecast, score, bootstrap, calibration, or residual result.
