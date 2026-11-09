@@ -266,3 +266,66 @@ required.
   or production model was changed.
 - These are implementation/provenance checks, not prospective performance
   evidence and not production-adoption approval.
+
+## Independent historical team-ID crosswalk check (2026-11-09)
+
+This addendum narrows the remaining historical alias-provenance limitation. It
+uses the community mirror's own stable team-ID crosswalk, rather than relying
+only on the current toto-lab/data/teams.json normalization map.
+
+### Pinned source identity
+
+- Source repository: k-addtimes/jleague_open_data.
+- Its README describes team_ids.csv as the J.League team-data table and
+  identifies https://data.j-league.or.jp/SFMS01/ as the source used to
+  collect competition, schedule, and team data. The mirror remains a
+  community-maintained repository, not a direct official archive.
+- The path history for team_ids.csv has no 2026 update. Its latest
+  modification is commit 5d4f6bec719e71e700f7fd90ba371475e55eaac8,
+  committer timestamp 2025-12-31T16:13:44Z; that commit is GitHub-verified.
+- The file fetched at that historical commit has blob
+  b4fc4ac8143bfbbb4fec59d8a242f0e333785a2e. The same blob is present at
+  the earliest retrospective source snapshot commit
+  803c3a059a0d330ddee308f1aaa96b26bdb9ed07 and the latest
+  f6f289e49fa3c54ff702f17395f281138d5282bb.
+- The pinned file contains 66 team records and 124 distinct teamName /
+  shortName keys.
+
+### Independent ID-based row reconciliation
+
+The 429-row frozen history input is pinned at GPT Git blob
+f5cc8c044758e45b1e679e4ce796e68b3f27a854. Its 60 distinct raw team labels
+all map through the pinned team_ids.csv to exactly one stable team ID:
+unmapped labels = 0; ambiguous labels = 0.
+
+For each of the 17 target dates, the corresponding pre-target-date
+current_schedule_file.csv snapshot was fetched by the commit and raw CSV
+blob SHA already listed in comment #6736797318. The raw CSV has no header;
+the reconciliation parsed every row and compared prior history using:
+
+date + competition + home team ID + away team ID + full-time score.
+
+Results: all prior scored rows matched in all 17 snapshots; missing rows = 0
+for every target date. This is an independent identity-level check in
+addition to the earlier name/score comparison.
+
+The derived processed/current_schedule_with_ids.csv file was deliberately
+not used as evidence: at several historical commits it lagged the raw
+current_schedule_file.csv snapshot. The check instead applies the
+historically available team_ids.csv mapping directly to the raw snapshot.
+
+### Interpretation and remaining limits
+
+This establishes that a stable source-repository team-ID crosswalk, last
+modified before 2026, can unambiguously identify every raw team label used by
+the frozen 2026 cohort, and that all 17 prior-history slices reconcile by
+those IDs. It materially reduces the concern that the 2026-10-22
+toto-lab/data/teams.json map silently merged distinct teams in this cohort.
+
+It does NOT prove that the forecast runner itself consumed this
+team_ids.csv file, that the exact canonical-name alias map used at each
+historical fit was byte-identical, or that the original Claude generation
+process used the same input bytes. The 17 snapshots are still community-mirror
+evidence; official result publication timestamps and the original forecast
+execution/input linkage remain unproven. No forecast, score, bootstrap, or
+adoption result is changed by this identity audit.
