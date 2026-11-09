@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import platform
 from collections import defaultdict
 from datetime import date as Date
 from pathlib import Path
@@ -74,7 +76,7 @@ def build_targets(report):
     return rows
 
 
-def audit(report, replicates=50000, seed=20261105):
+def audit(report, replicates=50000, seed=20261105, input_sha256=None, code_sha256=None, code_git_blob_sha=None):
     if replicates < 1000:
         raise ValueError("at least 1000 bootstrap replicates are required")
     rows = build_targets(report)
@@ -94,6 +96,17 @@ def audit(report, replicates=50000, seed=20261105):
                       "replicates": replicates, "rng": "NumPy PCG64", "seed": seed,
                       "quantile": "linear", "loglossClip": 1e-12},
         "byScope": {}, "calibration": {},
+        "provenance": {
+            "inputSha256": input_sha256,
+            "codeSha256": code_sha256,
+            "codeGitBlobSha": code_git_blob_sha,
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "githubSha": os.environ.get("GITHUB_SHA"),
+            "githubRef": os.environ.get("GITHUB_REF"),
+            "workflowRunId": os.environ.get("GITHUB_RUN_ID"),
+            "workflowRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+        },
     }
     for scope in SCOPES:
         used_dates, daily, counts, target_diffs = [], {m: [] for m in METRICS}, [], {m: [] for m in METRICS}
@@ -162,8 +175,16 @@ def main():
     ap.add_argument("--replicates", type=int, default=50000)
     ap.add_argument("--seed", type=int, default=20261105)
     a = ap.parse_args()
-    report = json.loads(Path(a.input).read_text(encoding="utf-8"))
-    result = audit(report, a.replicates, a.seed)
+    input_path = Path(a.input)
+    input_bytes = input_path.read_bytes()
+    code_bytes = Path(__file__).read_bytes()
+    code_blob_header = b"blob " + str(len(code_bytes)).encode("ascii") + b"\\0"
+    result = audit(
+        json.loads(input_bytes), a.replicates, a.seed,
+        input_sha256=hashlib.sha256(input_bytes).hexdigest(),
+        code_sha256=hashlib.sha256(code_bytes).hexdigest(),
+        code_git_blob_sha=hashlib.sha1(code_blob_header + code_bytes).hexdigest(),
+    )
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     Path(a.out).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"cohort": result["cohort"],
