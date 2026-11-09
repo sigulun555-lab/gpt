@@ -200,3 +200,69 @@ rows, so this guard does not change the training cohort or fitted predictions
 for that snapshot. The pinned round-1666 parity and Claude share-verification
 scripts were updated to expect the new loader blob; their CI reruns are
 required before the updated parity claim is considered verified.
+
+## Subsequent Claude-source and parity verification (2026-11-09)
+
+This addendum supersedes the earlier unresolved statement in §4 that Claude's
+10,000-replicate match-cluster sensitivity could not be reproduced, and the
+§8 note that round-1666 parity / Claude share-verification CI reruns were still
+required.
+
+### Claude all-k share audit
+
+- GOAL3 Claude all-k provenance workflow #121 / run ID
+  `42559858131`: SUCCESS; portable test suite 9/9 PASS.
+- Audit artifact ID `13649295985`; ZIP SHA-256
+  `53f3764637a6b4aa469cba1588cbbe7b3897ab116146bf1e72673180d7904363`;
+  inner JSON SHA-256
+  `0bbd9943861d025849256591a3fbec3e49cc656513c18f26b7f953c68208bdbe`.
+- The five pinned files at toto-lab commit
+  `17da09beedee57c571038c8204cd51112fb1d959` and three version files at
+  `7401bc2f640a22f7f0cac36fca541ca127cfb91b` were fetched and their Git blob
+  SHA-1 values matched the audit manifest.
+- Claude's fixed k6-k10 bootstrap uses Python `random.Random(1)`, not NumPy
+  PCG64. Re-running that exact method on the full-precision 472-target data
+  reproduces all four Claude date/match cluster percentile intervals exactly.
+  The earlier GPT NumPy PCG64 seed-1 endpoints differ because the RNG sequence
+  differs; both sets of intervals include zero. The two methods are not a
+  data or model-output discrepancy.
+- Claude's date / team-match / team-side leave-one-out counts were independently
+  recomputed and match the report exactly: date 16/17 and 17/17 directional
+  wins (Brier / LogLoss); team-match 58/60 and 60/60; team-side 60/60 and
+  60/60. Best-k counts are preserved as distinct diagnostics, not proof that
+  k=6 is the stable optimum.
+- Claude's artifact correctly distinguishes unconditional raw variance/mean
+  from conditional Pearson residual dispersion. The latter remains the
+  GOAL3 residual diagnostic; neither is toto13 raw VMR.
+
+### Round-1666 parity rerun
+
+- Round-1666 implementation parity workflow #130 / run ID
+  `42559858163`: SUCCESS; parity artifact ID `13648079499`.
+- ZIP SHA-256
+  `42c858dd4acf6c1149e20acaf678af52a9b166feb06a9ec68871dacb4dc79648`;
+  inner JSON SHA-256
+  `01cef98188863f760365c79a611d4a7f8f93af76b3845b5ece1c72dc902259b3`.
+- All six pinned source-file Git blob SHA-1 values were independently fetched
+  from the PR #20 branch and matched the artifact manifest.
+- Six saved Claude targets reproduce to 4dp exactly; standalone Claude vs GPT
+  unrounded probabilities differ by at most `1.385891401639583e-12`, and
+  expected goals by at most `5.248024237403115e-12`.
+- The 380-match / 34-date snapshot is the separate 2026-10-27 round-1666
+  parity snapshot. It is not the current 2026-11-03 all-k snapshot (429 rows /
+  37 dates); the original Claude generation input hash remains unrecorded, so
+  exact original-run input identity is still not cryptographically proven.
+
+### Remaining limitations
+
+- Claude's original all-k generation manifest and exact local input SHA linkage
+  are still absent.
+- Original `test_versions.py` retains absolute Claude paths; its portable
+  research copy patches file handles only. The original test3 bypasses the
+  Claude loader, and original test4 checks the blend formula rather than
+  calling `run_version("v2")`. The portable harness adds synthetic-market
+  integration coverage, but no real GOAL3 market snapshot was supplied.
+- GOAL3 v2 / market weight 0.7 remains unvalidated for GOAL3. No market weight
+  or production model was changed.
+- These are implementation/provenance checks, not prospective performance
+  evidence and not production-adoption approval.
