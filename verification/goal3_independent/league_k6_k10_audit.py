@@ -178,7 +178,7 @@ def main():
     input_path = Path(a.input)
     input_bytes = input_path.read_bytes()
     code_bytes = Path(__file__).read_bytes()
-    code_blob_header = b"blob " + str(len(code_bytes)).encode("ascii") + b"\\0"
+    code_blob_header = b"blob " + str(len(code_bytes)).encode("ascii") + b"\0"
     result = audit(
         json.loads(input_bytes), a.replicates, a.seed,
         input_sha256=hashlib.sha256(input_bytes).hexdigest(),
