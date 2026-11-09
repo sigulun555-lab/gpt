@@ -36,6 +36,20 @@ class LeagueK6K10AuditTests(unittest.TestCase):
         self.assertEqual(set(first["byScope"]), {"ALL", "J1", "J2", "J3"})
         self.assertEqual(len(first["calibration"]["J1"]["6.0"]), 4)
 
+    def test_audit_records_input_and_code_provenance(self):
+        result = audit(
+            synthetic(), replicates=1000, seed=77,
+            input_sha256="a" * 64,
+            code_sha256="b" * 64,
+            code_git_blob_sha="c" * 40,
+        )
+        provenance = result["provenance"]
+        self.assertEqual(provenance["inputSha256"], "a" * 64)
+        self.assertEqual(provenance["codeSha256"], "b" * 64)
+        self.assertEqual(provenance["codeGitBlobSha"], "c" * 40)
+        self.assertTrue(provenance["python"])
+        self.assertTrue(provenance["numpy"])
+
     def test_brier_and_logloss_share_date_cluster_draws(self):
         first = audit(synthetic(), replicates=1000, seed=20261107)
         for scope, metrics in first["byScope"].items():
