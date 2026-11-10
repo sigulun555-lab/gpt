@@ -73,8 +73,8 @@ An independent review of the run #263 reliability artifact re-fit all eight
 one-vs-rest logistic point models with a separate statsmodels GLM implementation.
 All eight intercept/slope pairs matched the artifact to a maximum absolute
 difference below 7.5e-11. A separate vectorized date-cluster bootstrap
-reconstruction (5,000 PCG64 replicates, seed 20261112) reproduced all eight
-marginal coefficient percentile intervals and the paired 8-contrast
+reconstruction (5,000 PCG64 replicates, seed 20261112) reproduced all 16
+intercept/slope coefficient percentile intervals and the paired 8-contrast
 studentized max-|t| bands; the maximum paired-band endpoint difference was
 below 8e-11.
 
