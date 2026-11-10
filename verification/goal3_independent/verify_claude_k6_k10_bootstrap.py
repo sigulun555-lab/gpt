@@ -287,7 +287,7 @@ def audit_rows(
             }
 
     leagues = {}
-    for league in ("J1", "J2", "J3"):
+    for league in sorted({row["league"] for row in recomputed}):
         subset = [row for row in recomputed if row["league"] == league]
         per_date: dict[str, list[dict]] = defaultdict(list)
         for row in subset:
