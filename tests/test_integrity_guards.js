@@ -62,6 +62,9 @@ assert.ok(validateProbabilityVector([0.5, NaN, 0.5, 0], 4, 'test').length > 0);
 assert.ok(validateProbabilityVector([0.5, 0.5], 4, 'test').length > 0);
 
 assert.ok(validateHistory([historyRow(), historyRow()], generatedAt).some(x => x.includes('duplicates match key')));
+assert.ok(validateHistory([historyRow({ competition: '' })], generatedAt).some(x => x.includes('.competition')));
+assert.ok(validateHistory([historyRow({ home: '' })], generatedAt).some(x => x.includes('.home is missing')));
+assert.ok(validateHistory([historyRow({ date: '2025-01-02' }), historyRow({ date: '2025-01-01', home: 'Home 2' })], generatedAt).some(x => x.includes('not in chronological order')));
 assert.ok(validateHistory([historyRow({ date: '2026-02-30' })], generatedAt).some(x => x.includes('real YYYY-MM-DD')));
 assert.ok(validateHistory([historyRow({ home_goals: 1.5 })], generatedAt).some(x => x.includes('non-negative integer')));
 assert.ok(validateHistory([historyRow({ date: '2026-10-23' })], generatedAt).some(x => x.includes('after the generation date')));
@@ -77,6 +80,9 @@ assert.deepEqual(validatePredictions(predictions, fixtures, 'totoGOAL3', 1666), 
 const badPrediction = structuredClone(predictions);
 badPrediction[0].prediction.homeGoalProbabilities = [0.5, 0.5, 0.5, 0.5];
 assert.ok(validatePredictions(badPrediction, fixtures, 'totoGOAL3', 1666).some(x => x.includes('must sum to 1')));
+const badOutcomePrediction = structuredClone(predictions);
+badOutcomePrediction[0].prediction.probabilities = { '1': 0.5, '0': 0.5, '2': 0.5 };
+assert.ok(validatePredictions(badOutcomePrediction, fixtures, 'totoGOAL3', 1666).some(x => x.includes('must sum to 1')));
 assert.ok(validatePredictions(predictions.slice(0, 2), fixtures, 'totoGOAL3', 1666).some(x => x.includes('count must match')));
 
 const provenance = createInputProvenance('schedule bytes', 'official page bytes', generatedAt, deadlineAt, sourceUrl, totoUrl);
