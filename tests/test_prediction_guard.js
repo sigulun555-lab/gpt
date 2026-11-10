@@ -31,5 +31,23 @@ assert.throws(() => validatePredictionSet({ marketType: 'totoGOAL3', fixtures, p
 const duplicateFixtures = [fixtures[0], { ...fixtures[1], home: 'Home', away: 'Away' }, fixtures[2]];
 assert.throws(() => validatePredictionSet({ marketType: 'totoGOAL3', fixtures: duplicateFixtures, predictions, generatedAt, deadlineAt }), /duplicate target fixture/i);
 assert.throws(() => validatePredictionSet({ marketType: 'totoGOAL3', fixtures: fixtures.slice(0, 2), predictions: predictions.slice(0, 2), generatedAt, deadlineAt }), /exactly 3 fixtures/i);
-assert.equal(validatePredictionSet({ marketType: 'toto', fixtures: fixtures.slice(0, 1), predictions: predictions.slice(0, 1), generatedAt, deadlineAt }).status, 'passed');
+const totoFixtures = Array.from({ length: 13 }, (_, i) => ({
+ number: i + 1, date: '2026-11-11', home: 'TotoHome' + i, away: 'TotoAway' + i
+}));
+const totoPredictions = totoFixtures.map(f => makePrediction(f.number));
+const totoAudit = validatePredictionSet({ marketType: 'toto', fixtures: totoFixtures, predictions: totoPredictions, generatedAt, deadlineAt });
+assert.equal(totoAudit.status, 'passed');
+assert.equal(totoAudit.fixtureCount, 13);
+assert.throws(() => validatePredictionSet({
+ marketType: 'toto', fixtures: totoFixtures.slice(0, 12), predictions: totoPredictions.slice(0, 12), generatedAt, deadlineAt
+}), /exactly 13 fixtures/i);
+assert.throws(() => validateHistory([{ ...history[0], home: '' }], { generatedAt }), /missing or identical teams/i);
+assert.throws(() => validateHistory([{ ...history[0], away: 'Home' }], { generatedAt }), /missing or identical teams/i);
+assert.throws(() => validateHistory([{ ...history[0], home_goals: 1.5 }], { generatedAt }), /invalid goal counts/i);
+assert.throws(() => validateHistory([{ ...history[0], date: '2026-02-30' }], { generatedAt }), /invalid date/i);
+assert.throws(() => validatePredictionSet({
+ marketType: 'totoGOAL3', fixtures, predictions: [{ ...predictions[0], prediction: {
+ ...predictions[0].prediction, probabilities: { '1': -0.1, '0': 0.5, '2': 0.6 }
+}}, ...predictions.slice(1)], generatedAt, deadlineAt
+}), /finite probability/i);
 console.log('PASS runtime prediction guards: history quality, duplicate/future leakage, probability simplex, and deadline provenance');
