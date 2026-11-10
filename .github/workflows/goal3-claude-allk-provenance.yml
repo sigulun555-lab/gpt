@@ -7,7 +7,9 @@ on:
     paths:
       - ".github/workflows/goal3-claude-allk-provenance.yml"
       - "verification/goal3_independent/verify_claude_goal3_share.py"
+      - "verification/goal3_independent/verify_claude_k6_k10_bootstrap.py"
       - "tests/test_goal3_claude_versions_portable.py"
+      - "tests/test_goal3_claude_k6_k10_bootstrap_portable.py"
       - "verification/goal3_independent/goal3_outer_matches.csv"
       - "verification/goal3_independent/nested_validation.py"
       - "verification/goal3_independent/2025.csv"
@@ -20,7 +22,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout research PR
         uses: actions/checkout@v4
@@ -36,11 +38,25 @@ jobs:
             --out verification/goal3_independent/results/claude_goal3_share_audit.json
       - name: Portable Claude version, CLI loader, and metric-separation tests
         run: python tests/test_goal3_claude_versions_portable.py -v
-      - name: Upload independent audit report
+      - name: Independently verify Claude k6/k10 artifacts and bootstrap
+        run: |
+          python verification/goal3_independent/verify_claude_k6_k10_bootstrap.py \
+            --out verification/goal3_independent/results/claude_k6_k10_bootstrap_audit.json
+      - name: Portable Claude k6/k10 artifact and bootstrap tests
+        run: python tests/test_goal3_claude_k6_k10_bootstrap_portable.py -v
+      - name: Upload independent all-k audit report
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-claude-allk-provenance-audit-${{ github.sha }}
+          name: goal3-claude-allk-provenance-audit-\${{ github.sha }}
           path: verification/goal3_independent/results/claude_goal3_share_audit.json
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: false
+      - name: Upload independent k6/k10 bootstrap audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-claude-k6-k10-bootstrap-audit-\${{ github.sha }}
+          path: verification/goal3_independent/results/claude_k6_k10_bootstrap_audit.json
           if-no-files-found: error
           retention-days: 30
           overwrite: false
