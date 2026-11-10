@@ -65,3 +65,36 @@ resolution, and it contains no prospective official-round outcomes. The
 retrospective history snapshot has a single fetchedAt timestamp and does not
 prove first-known availability for each target date. All results are exploratory
 and cannot satisfy the prospective adoption rule.
+
+
+## Independent interpretation check (2026-11-10; run #263)
+
+An independent review of the run #263 reliability artifact re-fit all eight
+one-vs-rest logistic point models with a separate statsmodels GLM implementation.
+All eight intercept/slope pairs matched the artifact to a maximum absolute
+difference below 7.5e-11. A separate vectorized date-cluster bootstrap
+reconstruction (5,000 PCG64 replicates, seed 20261112) reproduced all eight
+marginal coefficient percentile intervals and the paired 8-contrast
+studentized max-|t| bands; the maximum paired-band endpoint difference was
+below 8e-11.
+
+The paired k=6 minus k=10 simultaneous bands exclude zero for category 0
+intercept and slope, and for category 3+ intercept and slope. The category 1
+and category 2 paired bands include zero. These are **relative parameter
+differences**, not evidence that either arm is absolutely miscalibrated or
+that one arm is globally better calibrated: all 16 arm/category absolute
+simultaneous bands still contain their ideal values (intercept 0, slope 1).
+The direction is mixed: category 0 point estimates are closer to ideal under
+k=10, while category 3+ point estimates are closer under k=6. No recalibration
+or k adoption is justified by these results.
+
+The same independent reconstruction of fixed probability-bin reliability
+reproduced the 23 eligible bins and their simultaneous bands exactly:
+23/23 bands contain zero; 10 non-empty bins below 20 targets have point
+estimates only; 23 bins are empty. The family max-|t| critical value was
+2.9845353653225204, matching the saved artifact.
+
+This supplements, but does not replace, the separate 32-family
+marginal-calibration audit. All results remain exploratory because the cohort
+contains only 17 retrospective target dates and repeated teams are not
+separately clustered in this date-only calibration analysis.
