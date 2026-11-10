@@ -48,6 +48,12 @@ assert.equal(goal3Parsed.deadline,'2026-10-28T18:50:00+09:00');
 assert.equal(goal3Parsed.fixtures.length,3,'GOAL3 should normalize six team rows to three matches');
 assert.deepEqual(goal3Parsed.fixtures.map(f=>[f.number,f.home,f.away]),[[1,'水戸','Ｃ大阪'],[2,'横浜FM','広島'],[3,'名古屋','浦和']]);
 const goal3Built=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"',goal3Html,new Date('2026-10-22T00:00:00Z'));
+const malformedScoredSchedule='"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"\\n"2025","J1","R2","invalid-date","2025-01-08T12:00:00+09:00","Home2","1-0","Away2"';
+assert.throws(
+  ()=>build(malformedScoredSchedule,goal3Html,new Date('2026-10-22T00:00:00Z')),
+  /scored source rows/,
+  'a scored source row dropped by date/team parsing must block forecast generation'
+);
 assert.equal(goal3Built.payload.totoTargetsConfirmed,true);
 assert.equal(goal3Built.fixtures.fixtures.length,3);
 assert.deepEqual(Object.keys(goal3Built.fixtures.fixtures[0]).sort(),['away','deadline','home','marketType','matchNumber','round'].sort());
