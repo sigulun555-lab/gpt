@@ -48,6 +48,7 @@ def _match(date, league, home, away):
 
 class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
     def test_bootstrap_rng_batching_is_explicit_in_artifact_metadata(self):
+        """Pin batch grouping because seeded PCG64 output depends on call batching."""
         metadata = audit.bootstrap_execution_metadata(
             replicates=50_000, seed=20261111, redraws=1,
             batch_size=audit.BOOTSTRAP_BATCH_SIZE,
