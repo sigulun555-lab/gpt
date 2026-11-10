@@ -85,11 +85,13 @@ function parseToto(html,now=new Date()){
 async function get(url,accept){const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);try{const r=await fetch(url,{headers:{Accept:accept,'User-Agent':'JLeagueTotoPredictor/0.1 (+scheduled data pipeline)'},signal:c.signal});if(!r.ok)throw Error('HTTP '+r.status+' from '+new URL(url).hostname);const s=await r.text();if(s.length<100)throw Error('Unexpectedly short response from '+url);return s;}finally{clearTimeout(t);}}
 function build(scheduleText,totoHtml,now=new Date()){
  const generatedAt=now.toISOString();
+ const rawScoredRows=csv(scheduleText).filter(row=>score(row[6])).length;
  const rows=parseSchedule(scheduleText);
  const history=rows
   .filter(m=>Number.isInteger(m.home_goals)&&Number.isInteger(m.away_goals))
   .sort((a,b)=>a.date.localeCompare(b.date))
   .map(m=>({...m,source:'community_jleague_csv',sourceUrl:SCHEDULE_URL,fetchedAt:generatedAt}));
+ if(rawScoredRows!==history.length)throw new Error('Schedule integrity validation failed: parsed history rows '+history.length+' do not match scored source rows '+rawScoredRows);
  const toto=parseToto(totoHtml,now);
  const expectedFixtures=toto.marketType==='totoGOAL3'?3:MAX_FIXTURES;
  const numberingValid=toto.fixtures.map(x=>x.number).sort((a,b)=>a-b).every((v,i)=>v===i+1);
@@ -164,6 +166,7 @@ function build(scheduleText,totoHtml,now=new Date()){
   provenance,
   counts:{
    scheduleRows:rows.length,
+   scoredSourceRows:rawScoredRows,
    historyMatches:history.length,
    totoFixtures:confirmed?toto.fixtures.length:0,
    predictions:predictions.length
