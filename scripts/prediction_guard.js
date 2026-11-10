@@ -54,7 +54,7 @@ function validatePredictionSet({ marketType, fixtures, predictions, generatedAt,
   if (!['toto', 'totoGOAL3'].includes(marketType)) fail('unsupported marketType');
   if (!Array.isArray(fixtures) || !Array.isArray(predictions) || fixtures.length === 0 || fixtures.length !== predictions.length) fail('fixture/prediction count mismatch');
   if (marketType === 'totoGOAL3' && fixtures.length !== 3) fail('GOAL3 must contain exactly 3 fixtures');
-  if (marketType === 'toto' && fixtures.length > 13) fail('toto fixture count exceeds 13');
+  if (marketType === 'toto' && fixtures.length !== 13) fail('standard toto must contain exactly 13 fixtures');
   const generatedMs = Date.parse(generatedAt), deadlineMs = Date.parse(deadlineAt);
   if (!Number.isFinite(generatedMs) || !Number.isFinite(deadlineMs) || generatedMs >= deadlineMs) fail('generatedAt must be valid and earlier than deadlineAt');
   const seen = new Set(); let maxProbabilitySumError = 0;
