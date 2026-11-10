@@ -23,6 +23,12 @@ REFERENCE_K = pair_audit.REFERENCE_K
 PRIMARY_K = pair_audit.PRIMARY_K
 SCOPES = pair_audit.SCOPES
 LEAGUES = ("J1", "J2", "J3")
+BOOTSTRAP_BATCH_SIZE = 500
+RNG_DRAW_ORDER = (
+    "per batch: global date multinomial first, then league team multinomials "
+    "in J1/J2/J3 order; empty-scope redraws repeat date then J1/J2/J3 draws "
+    "for affected replicate rows"
+)
 EXPECTED_SOURCE_PROVENANCE = {
     "frozenCsvSha256": "5cc8960c10f3554d44ccc0d5388d0ceeb4c8a39dec4cc8b28bd713f0e3755678",
     "history2026Sha256": "efca00ea491fcfea6a1267af403cb5ba80ae540fca97a076def25815fc318201",
@@ -41,6 +47,21 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def bootstrap_execution_metadata(
+    replicates: int, seed: int, redraws: int, batch_size: int
+) -> dict:
+    """Record RNG stream consumption needed for exact seeded reproduction."""
+    return {
+        "rng": "NumPy PCG64",
+        "seed": seed,
+        "replicates": replicates,
+        "batchSize": batch_size,
+        "rngDrawOrder": RNG_DRAW_ORDER,
+        "quantile": "linear percentile",
+        "emptyScopeReplicatesRedrawn": redraws,
+    }
 
 
 def validate_source_provenance(document: dict) -> None:
@@ -255,7 +276,7 @@ def run_audit(data: dict, replicates: int = 50_000, seed: int = 20261111) -> dic
     team_ess = [np.empty(replicates, dtype=float) for _ in LEAGUES]
     positive_match_count = np.empty(replicates, dtype=np.int64)
     redraws = 0
-    batch_size = 500
+    batch_size = BOOTSTRAP_BATCH_SIZE
 
     for start in range(0, replicates, batch_size):
         size = min(batch_size, replicates - start)
@@ -424,11 +445,7 @@ def run_audit(data: dict, replicates: int = 50_000, seed: int = 20261111) -> dic
             "matchWeight": "date multiplicity * home-team multiplicity within league * away-team multiplicity within league",
             "pairing": "same match weight applied to both home and away team-side targets",
             "weighting": "weighted target means within each scope",
-            "rng": "NumPy PCG64",
-            "seed": seed,
-            "replicates": replicates,
-            "quantile": "linear percentile",
-            "emptyScopeReplicatesRedrawn": redraws,
+            **bootstrap_execution_metadata(replicates, seed, redraws, batch_size),
             "selectionFamily": "15 non-reference k contrasts x 2 primary metrics (Brier, LogLoss), each against k=10",
             "calibrationFamily": "ALL/J1/J2/J3 x k=6/k=10 x categories 0/1/2/3+ (32 intervals)",
             "residualFamily": "ALL/J1/J2/J3 x k=6/k=10 (8 intervals)",

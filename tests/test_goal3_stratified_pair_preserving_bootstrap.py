@@ -47,6 +47,20 @@ def _match(date, league, home, away):
 
 
 class StratifiedPairPreservingBootstrapTests(unittest.TestCase):
+    def test_bootstrap_rng_batching_is_explicit_in_artifact_metadata(self):
+        metadata = audit.bootstrap_execution_metadata(
+            replicates=50_000, seed=20261111, redraws=1,
+            batch_size=audit.BOOTSTRAP_BATCH_SIZE,
+        )
+        self.assertEqual(metadata["rng"], "NumPy PCG64")
+        self.assertEqual(metadata["seed"], 20261111)
+        self.assertEqual(metadata["replicates"], 50_000)
+        self.assertEqual(metadata["batchSize"], 500)
+        self.assertIn("global date multinomial first", metadata["rngDrawOrder"])
+        self.assertIn("J1/J2/J3 order", metadata["rngDrawOrder"])
+        self.assertIn("empty-scope redraws", metadata["rngDrawOrder"])
+        self.assertEqual(metadata["emptyScopeReplicatesRedrawn"], 1)
+
     def test_paired_residual_max_t_family_handles_zero_variance_contrasts(self):
         bootstrap = np.column_stack([
             np.linspace(-1.0, 1.0, 1000),
