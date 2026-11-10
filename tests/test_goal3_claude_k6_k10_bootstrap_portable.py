@@ -57,9 +57,11 @@ class ClaudeGoal3K6K10PortableTests(unittest.TestCase):
         self.assertEqual(report["cohort"]["dates"], 2)
         self.assertEqual(report["cohort"]["duplicateDateMatchSideKeys"], 0)
         self.assertEqual(report["cohort"]["sameDayOrFutureCutoffViolations"], 0)
-        self.assertTrue(report["bootstrap"]["allIntervalsContainZero"] or isinstance(
-            report["bootstrap"]["allIntervalsContainZero"], bool
-        ))
+        self.assertEqual(set(report["bootstrap"]["intervals"]), {"D_brier", "D_ll"})
+        self.assertEqual(
+            set(report["bootstrap"]["intervals"]["D_brier"]),
+            {"date", "match"},
+        )
 
     def test_bootstrap_is_deterministic_for_fixed_seed(self):
         rows = fixture_rows()
