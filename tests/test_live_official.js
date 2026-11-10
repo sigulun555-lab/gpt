@@ -69,8 +69,8 @@ function selectedRoundFromHtml(html) {
   assert.equal(goal3.round, expectedGoal3Round,
     'current official GOAL3 round should be parsed from the selected form, not stale navigation text');
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
-  assert.ok(goal3.deadline === null || Number.isFinite(Date.parse(goal3.deadline)),
-    'selected GOAL3 deadline must be absent or a valid timestamp');
+  assert.ok(goal3.deadline === null || (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+09:00$/.test(goal3.deadline) && Number.isFinite(Date.parse(goal3.deadline))),
+    'selected GOAL3 deadline must be absent or a valid JST ISO-8601 timestamp');
   if (goal3.deadline === null) {
     console.log('WARN official GOAL3 page omitted a parsable deadline; pipeline integrity gate must suppress forecast publication');
   }
