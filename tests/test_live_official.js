@@ -2,6 +2,23 @@
 const assert = require('node:assert/strict');
 const { parseToto } = require('../scripts/auto_pipeline.js');
 
+function selectedRoundFromHtml(html) {
+  const selectedOption = [...String(html).matchAll(/<option\\b([^>]*)>([\\s\\S]*?)<\\/option>/gi)]
+    .find(([, attrs, label]) => /\\bselected(?:\\s|=|$)/i.test(attrs) && /第\\s*\\d+\\s*回/.test(label.replace(/<[^>]*>/g, ' ')));
+  if (selectedOption) {
+    const match = selectedOption[2].replace(/<[^>]*>/g, ' ').match(/第\\s*(\\d+)\\s*回/);
+    if (match) return Number(match[1]);
+  }
+  const selectedInput = [...String(html).matchAll(/<input\\b([^>]*)>/gi)]
+    .find(([, attrs]) => /\\bname=["'](?:holdCntId|kaiCntId|roundNo)["']/i.test(attrs)
+      && /\\bvalue=["']\\d+["']/i.test(attrs));
+  if (selectedInput) {
+    const match = selectedInput[1].match(/\\bvalue=["'](\\d+)["']/i);
+    if (match) return Number(match[1]);
+  }
+  return null;
+}
+
 // Regression: the selected round must win over a newer round listed in navigation.
 {
   const html = '<label>開催回</label><select name="holdCntId"><option value="1668">第1668回</option><option value="1666" selected="selected">第1666回</option></select><div>第1668回 totoくじ情報</div><div>〖くじ〗 totoGOAL3</div>';
@@ -46,14 +63,23 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  assert.equal(goal3.round, 1668, 'current official GOAL3 round should be parsed from the selected form');
+  const expectedGoal3Round = selectedRoundFromHtml(goal3Html);
+  assert.ok(Number.isInteger(expectedGoal3Round) && expectedGoal3Round > 0,
+    'official GOAL3 page should expose a selected round');
+  assert.equal(goal3.round, expectedGoal3Round,
+    'current official GOAL3 round should be parsed from the selected form, not stale navigation text');
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
-  assert.equal(goal3.deadline, '2026-10-31T13:50:00+09:00', 'official GOAL3 online deadline should be parsed');
+  assert.ok(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+09:00$/.test(goal3.deadline),
+    'official GOAL3 online deadline should be parsed as JST ISO-8601');
+  assert.ok(Date.parse(goal3.deadline) > Date.parse('2026-10-28T00:00:00+09:00'),
+    'selected GOAL3 deadline should be after the test reference time');
   assert.equal(goal3.fixtures.length, 3, 'GOAL3 should normalize six team rows to three matches');
-  assert.deepEqual(goal3.fixtures.map(f => [f.home, f.away]), [
-    ['岡山', 'FC東京'], ['神戸', '名古屋'], ['柏', '浦和']
-  ], 'official GOAL3 home/away pairs should match in order');
-  console.log('PASS live official totoGOAL3 HTML: round 1668, deadline, and all 3 fixtures');
+  assert.deepEqual(goal3.fixtures.map(f => f.number), [1, 2, 3], 'GOAL3 fixture numbers should be sequential');
+  assert.ok(goal3.fixtures.every(f => f.date && f.home && f.away && f.home !== f.away),
+    'all selected GOAL3 fixtures should have valid dates and distinct home/away teams');
+  assert.equal(new Set(goal3.fixtures.flatMap(f => [f.home, f.away])).size, 6,
+    'the selected GOAL3 page should identify six distinct team-side targets');
+  console.log('PASS live official totoGOAL3 HTML: selected round ' + goal3.round + ', deadline, and 3 fixtures');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
