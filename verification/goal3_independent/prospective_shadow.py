@@ -289,7 +289,7 @@ def main() -> None:
             "primaryMetrics": ["brier", "logloss"],
             "optimizerDiagnostics": {
                 "maxAbsGradientTolerance": 1e-6,
-                "gradientSource": "L-BFGS-B res.jac at the returned parameter vector",
+                "gradientSource": "independent analytic gradient of the pinned objective; finite-difference tested",
                 "successFlagAloneIsInsufficient": True,
             },
             "scoring": {
