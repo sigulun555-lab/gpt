@@ -196,7 +196,10 @@ def main() -> None:
             fit_diagnostics.append({
                 "fixtureNumber": fixture["number"], "k": int(k),
                 "trainingRows": len(prior), "trainingCutoffExclusive": target_date,
-                "fitSuccess": bool(info["success"]), "optimizerIterations": int(info["nit"]),
+                "fitSuccess": bool(info["success"]), "optimizerStatus": int(info["status"]),
+                "optimizerIterations": int(info["nit"]),
+                "maxAbsGradient": info.get("maxAbsGradient"),
+                "gradientL2": info.get("gradientL2"),
             })
         fixture_results.append({
             "number": fixture["number"], "date": target_date,
@@ -276,9 +279,14 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "protocolVersion": "1.3",
+            "protocolVersion": "1.4",
             "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
+            "optimizerDiagnostics": {
+                "maxAbsGradientTolerance": 1e-6,
+                "gradientSource": "L-BFGS-B res.jac at the returned parameter vector",
+                "successFlagAloneIsInsufficient": True,
+            },
             "scoring": {
                 "brier": "mean team-side sum over four categories of (p - one_hot)^2; range 0..2",
                 "logloss": "mean natural -ln(max(p_observed, 1e-12))",
