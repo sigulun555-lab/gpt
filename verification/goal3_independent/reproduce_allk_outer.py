@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np
 import scipy
+from threadpoolctl import threadpool_info
 import nested_validation as nv
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -20,13 +21,28 @@ def git_blob_sha(path):
     header=f"blob {len(raw)}\0".encode("utf-8")
     return hashlib.sha1(header+raw).hexdigest()
 
+def canonical_threadpool_info(infos):
+    """Normalize and sort BLAS/OpenMP runtime records independent of discovery order."""
+    normalized = []
+    for info in infos:
+        if not isinstance(info, dict):
+            raise ValueError("threadpool runtime entries must be objects")
+        normalized.append({str(key): info[key] for key in sorted(info)})
+    sort_fields = (
+        "user_api", "internal_api", "prefix", "version", "filepath",
+        "threading_layer", "architecture", "num_threads",
+    )
+    normalized.sort(key=lambda item: tuple(str(item.get(key, "")) for key in sort_fields))
+    return normalized
+
+
 def execution_environment():
-    """Capture numerical-library and thread-pool details for reproducibility audits."""
-    runtime = io.StringIO()
+    """Capture numerical-library and thread-pool details in canonical order."""
     try:
-        with contextlib.redirect_stdout(runtime):
-            np.show_runtime()
-        runtime_config = runtime.getvalue().strip()
+        runtime_records = canonical_threadpool_info(threadpool_info())
+        runtime_config = json.dumps(
+            runtime_records, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
     except Exception as exc:  # Environment introspection must not block the audit.
         runtime_config = f"unavailable: {type(exc).__name__}: {exc}"
     thread_names = (
@@ -43,6 +59,7 @@ def execution_environment():
         "cpuCount": os.cpu_count(),
         "threadEnvironment": {name: os.environ.get(name) for name in thread_names},
         "numpyRuntimeConfig": runtime_config,
+        "numpyRuntimeConfigSource": "threadpoolctl.threadpool_info; sorted by stable library identifiers",
         "numpyBuildConfigRepr": repr(np.__config__.CONFIG),
     }
 
