@@ -1,10 +1,25 @@
-"""Independent analytic gradient diagnostics for the pinned nested_validation fit.
+"""Independent optimizer and analytic-gradient diagnostics for GOAL3 research.
 
-This module does not change optimizer settings or model predictions. It evaluates
-the gradient of the exact penalized Poisson objective at the returned parameter
-vector so a successful L-BFGS-B status is not mistaken for stationarity.
+The pinned nested_validation implementation remains unchanged for retrospective
+parity. Prospective v1.5 uses the same penalized Poisson objective with fixed,
+stricter L-BFGS-B options; this module records an independent analytic gradient
+at the returned parameter vector so success status alone is not mistaken for
+stationarity.
 """
+import math
+
 import numpy as np
+from scipy.optimize import minimize
+
+
+STRICT_LBFGSB_OPTIONS = {
+    "maxiter": 10000,
+    "maxfun": 200000,
+    "ftol": 0.0,
+    "gtol": 1e-8,
+    "maxls": 100,
+    "maxcor": 50,
+}
 
 
 def objective_gradient(matches, params, team_index, lam_pen):
@@ -55,3 +70,54 @@ def gradient_diagnostics(matches, params, team_index, lam_pen):
         "gradientL2": float(np.linalg.norm(gradient)),
         "gradientDimension": int(gradient.size),
     }
+
+
+def fit_shrinkage_strict(matches, lam_pen):
+    if not matches:
+        raise ValueError("strict shrinkage fit requires non-empty training matches")
+    team_list = sorted({m["home"] for m in matches} | {m["away"] for m in matches})
+    team_index = {team: i for i, team in enumerate(team_list)}
+    n = len(team_list)
+    homes = np.asarray([team_index[m["home"]] for m in matches], dtype=np.int64)
+    aways = np.asarray([team_index[m["away"]] for m in matches], dtype=np.int64)
+    home_goals = np.asarray([m["hg"] for m in matches], dtype=float)
+    away_goals = np.asarray([m["ag"] for m in matches], dtype=float)
+    x0 = np.zeros(2 + 2 * n, dtype=float)
+    x0[0] = math.log(1.3)
+
+    def objective(x):
+        mu, home_adv = x[0], x[1]
+        attack = x[2:2 + n]
+        defense = x[2 + n:2 + 2 * n]
+        eta_h_raw = mu + home_adv + attack[homes] - defense[aways]
+        eta_a_raw = mu + attack[aways] - defense[homes]
+        eta_h = np.clip(eta_h_raw, -20.0, 20.0)
+        eta_a = np.clip(eta_a_raw, -20.0, 20.0)
+        lambda_h = np.exp(eta_h)
+        lambda_a = np.exp(eta_a)
+        value = (
+            np.sum(lambda_h - home_goals * eta_h)
+            + np.sum(lambda_a - away_goals * eta_a)
+            + float(lam_pen) * (np.sum(attack ** 2) + np.sum(defense ** 2))
+        )
+        gradient = objective_gradient(matches, x, team_index, lam_pen)
+        return float(value), gradient
+
+    result = minimize(
+        objective,
+        x0,
+        jac=True,
+        method="L-BFGS-B",
+        options=dict(STRICT_LBFGSB_OPTIONS),
+    )
+    diagnostics = gradient_diagnostics(matches, result.x, team_index, lam_pen)
+    info = {
+        "success": bool(result.success),
+        "status": int(result.status),
+        "nit": int(result.nit),
+        "message": str(result.message),
+        "optimizerName": "L-BFGS-B",
+        "optimizerOptions": dict(STRICT_LBFGSB_OPTIONS),
+        **diagnostics,
+    }
+    return result.x, team_index, info
