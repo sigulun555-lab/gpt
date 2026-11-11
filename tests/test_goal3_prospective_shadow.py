@@ -97,7 +97,10 @@ class ProspectiveShadowTests(unittest.TestCase):
             for diagnostic in record["fitDiagnostics"]:
                 self.assertIn("maxAbsGradient", diagnostic)
                 self.assertIn("gradientL2", diagnostic)
+                self.assertIn("gradientDimension", diagnostic)
                 self.assertIn("optimizerStatus", diagnostic)
+                self.assertGreater(diagnostic["gradientDimension"], 0)
+            self.assertRegex(record["code"]["optimizerGradientSha256"], r"^[0-9a-f]{64}$")
             snapshot_available_by = datetime.fromisoformat(
                 record["snapshotAvailableBy"].replace("Z", "+00:00")
             )
