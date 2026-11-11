@@ -92,13 +92,34 @@ def github_execution_provenance(environ=None, event_payload=None) -> dict:
 
     event_name = env.get("GITHUB_EVENT_NAME")
     event_sha = env.get("GITHUB_SHA")
+
+    def is_git_sha(value) -> bool:
+        return (
+            isinstance(value, str)
+            and len(value) == 40
+            and all(character in "0123456789abcdefABCDEF" for character in value)
+        )
+
+    if event_name == "pull_request":
+        if not isinstance(pull_request, dict):
+            raise ValueError("pull_request event is missing pull_request metadata")
+        head_sha = head.get("sha")
+        base_sha = base.get("sha")
+        if not all(is_git_sha(value) for value in (event_sha, head_sha, base_sha)):
+            raise ValueError(
+                "pull_request event requires valid 40-character event/head/base SHAs"
+            )
+    else:
+        head_sha = head.get("sha")
+        base_sha = base.get("sha")
+
     return {
         "eventName": event_name,
         "githubSha": event_sha,
         "githubEventSha": event_sha,
         "githubRef": env.get("GITHUB_REF"),
-        "pullRequestHeadSha": head.get("sha"),
-        "pullRequestBaseSha": base.get("sha"),
+        "pullRequestHeadSha": head_sha,
+        "pullRequestBaseSha": base_sha,
         "pushAfterSha": event_payload.get("after") if event_name == "push" else None,
         "githubRunId": env.get("GITHUB_RUN_ID"),
         "githubRunAttempt": env.get("GITHUB_RUN_ATTEMPT"),
