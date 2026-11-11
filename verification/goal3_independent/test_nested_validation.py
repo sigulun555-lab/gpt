@@ -2,12 +2,16 @@ import hashlib
 import os
 import tempfile
 import unittest
+import numpy as np
 from pathlib import Path
 from unittest.mock import patch
 
 from verification.goal3_independent.nested_validation import (
     date_blocks, select_training, score, fit_shrinkage, predict_shrinkage,
     build_input_provenance, sha256_file,
+)
+from verification.goal3_independent.optimizer_gradient import (
+    gradient_diagnostics, objective_gradient,
 )
 
 class NestedValidationTests(unittest.TestCase):
@@ -42,6 +46,37 @@ class NestedValidationTests(unittest.TestCase):
         self.assertEqual(result["accuracy"], 1.0)
         self.assertEqual(result["brier"], 0.0)
         self.assertEqual(result["logloss"], 0.0)
+
+    def test_analytic_gradient_matches_finite_difference(self):
+        matches = self.h2025 + self.h2026
+        params, idx, _ = fit_shrinkage(matches, 10.0)
+        analytic = objective_gradient(matches, params, idx, 10.0)
+        n = len(idx)
+        homes = np.asarray([idx[m["home"]] for m in matches], dtype=int)
+        aways = np.asarray([idx[m["away"]] for m in matches], dtype=int)
+        hg = np.asarray([m["hg"] for m in matches], dtype=float)
+        ag = np.asarray([m["ag"] for m in matches], dtype=float)
+
+        def value(theta):
+            mu, home_adv = theta[0], theta[1]
+            attack = theta[2:2 + n]
+            defense = theta[2 + n:2 + 2 * n]
+            eh = np.clip(mu + home_adv + attack[homes] - defense[aways], -20.0, 20.0)
+            ea = np.clip(mu + attack[aways] - defense[homes], -20.0, 20.0)
+            return float(
+                np.sum(np.exp(eh) - hg * eh)
+                + np.sum(np.exp(ea) - ag * ea)
+                + 10.0 * (np.sum(attack ** 2) + np.sum(defense ** 2))
+            )
+
+        eps = 1e-6
+        numeric = np.empty_like(params)
+        for i in range(len(params)):
+            plus, minus = params.copy(), params.copy()
+            plus[i] += eps
+            minus[i] -= eps
+            numeric[i] = (value(plus) - value(minus)) / (2 * eps)
+        np.testing.assert_allclose(analytic, numeric, rtol=2e-5, atol=2e-5)
 
     def test_input_provenance_records_input_code_and_execution_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -83,10 +118,12 @@ class NestedValidationTests(unittest.TestCase):
     def test_fit_returns_normalized_distributions(self):
         params, idx, info = fit_shrinkage(self.h2025 + self.h2026, 10.0)
         self.assertTrue(info["success"])
-        self.assertIsInstance(info["maxAbsGradient"], float)
-        self.assertIsInstance(info["gradientL2"], float)
-        self.assertGreaterEqual(info["maxAbsGradient"], 0.0)
-        self.assertGreaterEqual(info["gradientL2"], 0.0)
+        diagnostics = gradient_diagnostics(self.h2025 + self.h2026, params, idx, 10.0)
+        self.assertIsInstance(diagnostics["maxAbsGradient"], float)
+        self.assertIsInstance(diagnostics["gradientL2"], float)
+        self.assertEqual(diagnostics["gradientDimension"], len(params))
+        self.assertGreaterEqual(diagnostics["maxAbsGradient"], 0.0)
+        self.assertGreaterEqual(diagnostics["gradientL2"], 0.0)
         ph, pa = predict_shrinkage(params, idx, "A", "B")
         self.assertAlmostEqual(sum(ph), 1.0, places=10)
         self.assertAlmostEqual(sum(pa), 1.0, places=10)
