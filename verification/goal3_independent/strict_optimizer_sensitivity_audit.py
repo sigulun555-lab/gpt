@@ -58,15 +58,15 @@ def load_allk(path: Path) -> dict:
 
 
 def reconstruct_strict_predictions(
-    allk: dict, h2026: list[dict], replicates: int, seed: int
+    allk: dict, h2026: list[dict], aliases: dict, replicates: int, seed: int
 ) -> tuple[dict, dict]:
     rows = allk["allKPredictions"]
     dates = sorted({str(row["date"]) for row in rows})
     date_index = np.asarray([dates.index(str(row["date"])) for row in rows], dtype=np.int64)
-    teams = sorted({canonical(row[side], {}) for row in rows for side in ("home", "away")})
+    teams = sorted({canonical(row[side], aliases) for row in rows for side in ("home", "away")})
     team_index = {team: i for i, team in enumerate(teams)}
-    home_team_index = np.asarray([team_index[canonical(row["home"], {})] for row in rows], dtype=np.int64)
-    away_team_index = np.asarray([team_index[canonical(row["away"], {})] for row in rows], dtype=np.int64)
+    home_team_index = np.asarray([team_index[canonical(row["home"], aliases)] for row in rows], dtype=np.int64)
+    away_team_index = np.asarray([team_index[canonical(row["away"], aliases)] for row in rows], dtype=np.int64)
     match_count = len(rows)
     target_count = 2 * match_count
     target_actual = np.empty(target_count, dtype=np.int64)
@@ -95,7 +95,7 @@ def reconstruct_strict_predictions(
         if not isinstance(by_k, dict):
             raise ValueError(f"missing frozen byK predictions at match {match_index}")
         for k_index, k in enumerate(K_VALUES):
-            saved = by_k.get(f"{k:g}")
+            saved = by_k.get(str(float(k)))
             if not isinstance(saved, dict):
                 raise ValueError(f"missing default k={k:g} predictions")
             default_probabilities[2 * match_index, k_index] = saved["home"]
@@ -117,8 +117,8 @@ def reconstruct_strict_predictions(
                 raise RuntimeError(f"invalid strict gradient for date={date}, k={k:g}")
             for match_index in match_indices:
                 row = rows[match_index]
-                home = canonical(row["home"], {})
-                away = canonical(row["away"], {})
+                home = canonical(row["home"], aliases)
+                away = canonical(row["away"], aliases)
                 ph, pa = predict_shrinkage(params, fit_team_index, home, away)
                 strict_probabilities[2 * match_index, k_index] = ph
                 strict_probabilities[2 * match_index + 1, k_index] = pa
@@ -166,7 +166,7 @@ def reconstruct_strict_predictions(
     # its point metrics before interpreting the strict-optimizer sensitivity.
     baseline_differences = {}
     for k in K_VALUES:
-        key = f"{k:g}"
+        key = str(float(k))
         saved = allk["metricsByK"][key]["overall"]
         computed = default_point_metrics[key]
         baseline_differences[key] = {
@@ -202,7 +202,7 @@ def reconstruct_strict_predictions(
             "logloss": float(strict_point_metrics["6"]["logloss"] - strict_point_metrics["10"]["logloss"]),
             "accuracy": float(strict_point_metrics["6"]["accuracy"] - strict_point_metrics["10"]["accuracy"]),
         },
-        "selectionAdjustedK6MinusK10": strict_report["selectionStability"]["selectionAdjusted"]["intervals"]["6.0"],
+        "selectionAdjustedK6MinusK10": strict_report["selectionStability"]["selectionAdjusted"]["intervals"]["6"],
         "bestCandidateFrequency": strict_report["selectionStability"]["bestCandidateFrequency"],
         "interpretation": (
             "Retrospective optimizer sensitivity only. The strict optimizer does not replace "
@@ -265,13 +265,14 @@ def run(args: argparse.Namespace) -> dict:
     csv2025_path = Path(args.csv2025)
     allk = load_allk(allk_path)
     _, h2026 = load_data(history_path, aliases_path, csv2025_path)
+    aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
     if len(h2026) != int(allk["cohort"]["history2026Rows"]):
         raise ValueError(
             f"history row count differs from frozen all-k cohort: {len(h2026)} "
             f"!= {allk['cohort']['history2026Rows']}"
         )
     strict_report, details = reconstruct_strict_predictions(
-        allk, h2026, args.bootstrap_replicates, args.bootstrap_seed
+        allk, h2026, aliases, args.bootstrap_replicates, args.bootstrap_seed
     )
     script_path = Path(__file__).resolve()
     model_path = Path(__file__).with_name("nested_validation.py")
