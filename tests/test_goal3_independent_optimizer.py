@@ -1046,11 +1046,18 @@ class StrictSensitivityExecutionProvenanceTests(unittest.TestCase):
             {"pull_request": {"head": {"sha": "b" * 40}, "base": {}}},
             {
                 "pull_request": {
+                    "head": {"sha": "not-a-git-sha"},
+                    "base": {"sha": "c" * 40},
+                }
+            },
+            {
+                "pull_request": {
                     "head": {"sha": "b" * 40},
                     "base": {"sha": "not-a-git-sha"},
                 }
             },
             {"pull_request": {"head": None, "base": {}}},
+            [],
         )
         for payload in invalid_payloads:
             with self.subTest(payload=payload), self.assertRaises(ValueError):
@@ -1063,7 +1070,7 @@ class StrictSensitivityExecutionProvenanceTests(unittest.TestCase):
                 "base": {"sha": "c" * 40},
             }
         }
-        with self.assertRaisesRegex(ValueError, "event/head/base SHAs"):
+        with self.assertRaisesRegex(ValueError, "GITHUB_SHA"):
             strict_sensitivity.github_execution_provenance(invalid_env, valid_payload)
 
 
