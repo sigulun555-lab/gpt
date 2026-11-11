@@ -24,6 +24,36 @@ class ExecutionEnvironmentTests(unittest.TestCase):
         self.assertIsInstance(result["threadEnvironment"], dict)
         self.assertIn("OPENBLAS_NUM_THREADS", result["threadEnvironment"])
         self.assertIn("numpyRuntimeConfig", result)
+        runtime_records = json.loads(result["numpyRuntimeConfig"])
+        self.assertEqual(runtime_records, audit.canonical_threadpool_info(runtime_records))
+        self.assertIn("threadpoolctl", result["numpyRuntimeConfigSource"])
+
+    def test_threadpool_runtime_order_is_canonical(self):
+        records = [
+            {
+                "user_api": "blas",
+                "internal_api": "openblas",
+                "prefix": "libscipy_openblas",
+                "version": "0.3.31",
+                "filepath": "/z/libopenblas.so",
+                "num_threads": 4,
+            },
+            {
+                "user_api": "blas",
+                "internal_api": "openblas",
+                "prefix": "libopenblas",
+                "version": "0.3.30",
+                "filepath": "/a/libopenblas.so",
+                "num_threads": 2,
+            },
+        ]
+        forward = audit.canonical_threadpool_info(records)
+        reverse = audit.canonical_threadpool_info(list(reversed(records)))
+        self.assertEqual(forward, reverse)
+        self.assertEqual(
+            json.dumps(forward, sort_keys=True, separators=(",", ":")),
+            json.dumps(reverse, sort_keys=True, separators=(",", ":")),
+        )
 
 
 class TeamAliasProvenanceTests(unittest.TestCase):
