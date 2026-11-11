@@ -7,9 +7,18 @@ from pathlib import Path
 from urllib.parse import urlparse
 import numpy as np
 
-PROTOCOL = "1.4"
+PROTOCOL = "1.5"
 EXPECTED_SHADOW_BRANCH = "research/goal3-prospective-shadow-20261104-v2"
 FIT_GRADIENT_MAX_ABS_TOL = 1e-6
+STRICT_OPTIMIZER_NAME = "L-BFGS-B"
+STRICT_OPTIMIZER_OPTIONS = {
+    "maxiter": 10000,
+    "maxfun": 200000,
+    "ftol": 0.0,
+    "gtol": 1e-8,
+    "maxls": 100,
+    "maxcor": 50,
+}
 EXPERIMENT = "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10"
 KS = ("6", "10")
 LEAGUES = ("J1", "J2", "J3")
@@ -67,9 +76,11 @@ def forecast_errors(f, round_no):
     if f.get("productionImpact") != "none": e.append("production_impact_not_none")
     ev = f.get("evaluation")
     if not isinstance(ev, dict): ev = {}
-    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.4")
+    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.5")
     optimizer_meta = ev.get("optimizerDiagnostics")
     if (not isinstance(optimizer_meta, dict)
+            or optimizer_meta.get("optimizerName") != STRICT_OPTIMIZER_NAME
+            or optimizer_meta.get("optimizerOptions") != STRICT_OPTIMIZER_OPTIONS
             or optimizer_meta.get("maxAbsGradientTolerance") != FIT_GRADIENT_MAX_ABS_TOL
             or optimizer_meta.get("gradientSource") != "independent analytic gradient of the pinned objective; finite-difference tested"
             or optimizer_meta.get("successFlagAloneIsInsufficient") is not True):
@@ -222,6 +233,10 @@ def forecast_errors(f, round_no):
             if d.get("fitSuccess") is not True: e.append(f"fit_diagnostic_failed:{key}")
             if d.get("optimizerStatus") != 0:
                 e.append(f"fit_optimizer_status_not_zero:{key}")
+            if d.get("optimizerName") != STRICT_OPTIMIZER_NAME:
+                e.append(f"fit_optimizer_name_mismatch:{key}")
+            if d.get("optimizerOptions") != STRICT_OPTIMIZER_OPTIONS:
+                e.append(f"fit_optimizer_options_mismatch:{key}")
             max_gradient = d.get("maxAbsGradient")
             if (not isinstance(max_gradient, (int, float)) or isinstance(max_gradient, bool)
                     or not math.isfinite(max_gradient) or max_gradient < 0):
@@ -563,7 +578,7 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     mp = Path(manifest_path).resolve()
     manifest = read_json(mp)
     if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != PROTOCOL:
-        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.4")
+        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.5")
     entries = manifest.get("rounds")
     if not isinstance(entries, list) or not entries: raise ValueError("manifest rounds missing")
     if any(not isinstance(x, dict) for x in entries): raise ValueError("manifest round entries must be objects")
