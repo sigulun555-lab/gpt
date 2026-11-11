@@ -7,7 +7,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 import numpy as np
 
-PROTOCOL = "1.2"
+PROTOCOL = "1.3"
+EXPECTED_SHADOW_BRANCH = "research/goal3-prospective-shadow-20261104-v2"
 EXPERIMENT = "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10"
 KS = ("6", "10")
 LEAGUES = ("J1", "J2", "J3")
@@ -95,8 +96,17 @@ def forecast_errors(f, round_no):
             value = workflow.get(key)
             if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                 e.append(f"workflow_run_{key}_invalid")
-        if workflow.get("event") != "workflow_dispatch":
-            e.append("workflow_run_event_not_workflow_dispatch")
+        event = workflow.get("event")
+        if event == "workflow_dispatch":
+            pass
+        elif event == "push":
+            if workflow.get("headBranch") != EXPECTED_SHADOW_BRANCH:
+                e.append("workflow_run_push_branch_not_research")
+            message = workflow.get("headCommitMessage")
+            if not isinstance(message, str) or "[goal3-shadow]" not in message:
+                e.append("workflow_run_push_marker_missing")
+        else:
+            e.append("workflow_run_event_not_allowed")
         if not isinstance(workflow.get("headSha"), str) or not GIT_SHA_RE.fullmatch(workflow["headSha"]):
             e.append("workflow_run_head_sha_invalid")
 
@@ -273,8 +283,23 @@ def artifact_evidence_errors(entry, round_no, forecast, forecast_sha):
         errors.append("artifact_evidence_workflow_run_id_mismatch")
     if evidence.get("workflowRunAttempt") != attempt:
         errors.append("artifact_evidence_workflow_run_attempt_mismatch")
-    if evidence.get("workflowRunEvent") != "workflow_dispatch" or workflow.get("event") != "workflow_dispatch":
-        errors.append("artifact_evidence_event_not_workflow_dispatch")
+    event = workflow.get("event")
+    if evidence.get("workflowRunEvent") != event:
+        errors.append("artifact_evidence_event_mismatch")
+    if event == "workflow_dispatch":
+        pass
+    elif event == "push":
+        if evidence.get("workflowRunHeadBranch") != workflow.get("headBranch"):
+            errors.append("artifact_evidence_head_branch_mismatch")
+        if evidence.get("workflowRunHeadCommitMessage") != workflow.get("headCommitMessage"):
+            errors.append("artifact_evidence_head_commit_message_mismatch")
+        if workflow.get("headBranch") != EXPECTED_SHADOW_BRANCH:
+            errors.append("artifact_evidence_push_branch_not_research")
+        message = workflow.get("headCommitMessage")
+        if not isinstance(message, str) or "[goal3-shadow]" not in message:
+            errors.append("artifact_evidence_push_marker_missing")
+    else:
+        errors.append("artifact_evidence_event_not_allowed")
     if evidence.get("workflowRunConclusion") != "success":
         errors.append("artifact_evidence_workflow_run_not_success")
     head_sha = evidence.get("workflowRunHeadSha")
