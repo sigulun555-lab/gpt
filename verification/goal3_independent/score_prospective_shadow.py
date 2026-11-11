@@ -71,6 +71,7 @@ def forecast_errors(f, round_no):
     optimizer_meta = ev.get("optimizerDiagnostics")
     if (not isinstance(optimizer_meta, dict)
             or optimizer_meta.get("maxAbsGradientTolerance") != FIT_GRADIENT_MAX_ABS_TOL
+            or optimizer_meta.get("gradientSource") != "independent analytic gradient of the pinned objective; finite-difference tested"
             or optimizer_meta.get("successFlagAloneIsInsufficient") is not True):
         e.append("optimizer_diagnostic_protocol_missing")
     try:
