@@ -68,7 +68,7 @@ Consider k=6 for adoption review only after the 20-round / 60-match floor is met
 
 1. The upper bound of the primary 95% round-cluster bootstrap interval is below zero for **both** overall Brier and overall Log Loss.
 2. The J1/J2/J3 non-inferiority guards above pass for both metrics.
-3. k=6 has no increase in fit failures or missing forecasts relative to k=10, every included round is fully paired, and all six fits satisfy the v1.4 gradient convergence gate.
+3. k=6 has no increase in fit failures or missing forecasts relative to k=10, every included round is fully paired, and all six fits satisfy the v1.5 strict-optimizer gradient convergence gate.
 4. The data provenance, exclusions, and deadline evidence are complete and auditable.
 
 Otherwise retain k=10 for this research comparison. Retaining k=10 is not a claim that it is statistically superior.
@@ -135,7 +135,7 @@ that the page identifies the same round, fixture, full-time score and
 90-minute-plus-stoppage basis, and record the publication/retrieval evidence.
 Extra time and shoot-outs are not valid inputs.
 
-The scorer verifies the v1.3 forecast timing bounds, workflow-run metadata,
+The scorer verifies the v1.5 forecast timing bounds, workflow-run metadata,
 byte-identical input snapshots, GitHub artifact evidence, input/code hashes,
 exact k=6/k=10 arms, all six successful fit diagnostics, probability
 simplexes, fixture identity, and result provenance. If any one fixture in a round is
