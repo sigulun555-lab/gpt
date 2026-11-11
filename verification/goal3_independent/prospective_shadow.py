@@ -19,6 +19,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 from nested_validation import canonical, fit_shrinkage, predict_shrinkage  # noqa: E402
+from optimizer_gradient import gradient_diagnostics  # noqa: E402
 
 K_ARMS = (6.0, 10.0)
 VALID_LEAGUES = {"J1", "J2", "J3"}
@@ -176,6 +177,7 @@ def main() -> None:
         arms = {}
         for k in K_ARMS:
             params, team_index, info = fit_shrinkage(prior, k)
+            gradient_info = gradient_diagnostics(prior, params, team_index, k)
             ph, pa = predict_shrinkage(params, team_index, home, away)
             if abs(sum(ph) - 1.0) > 1e-9 or abs(sum(pa) - 1.0) > 1e-9:
                 raise AssertionError("Goal-category probabilities do not sum to one")
@@ -198,8 +200,9 @@ def main() -> None:
                 "trainingRows": len(prior), "trainingCutoffExclusive": target_date,
                 "fitSuccess": bool(info["success"]), "optimizerStatus": int(info["status"]),
                 "optimizerIterations": int(info["nit"]),
-                "maxAbsGradient": info.get("maxAbsGradient"),
-                "gradientL2": info.get("gradientL2"),
+                "maxAbsGradient": gradient_info["maxAbsGradient"],
+                "gradientL2": gradient_info["gradientL2"],
+                "gradientDimension": gradient_info["gradientDimension"],
             })
         fixture_results.append({
             "number": fixture["number"], "date": target_date,
@@ -232,6 +235,7 @@ def main() -> None:
 
     code_path = Path(__file__)
     model_path = HERE / "nested_validation.py"
+    gradient_path = HERE / "optimizer_gradient.py"
     record = {
         "schemaVersion": 1,
         "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
@@ -274,6 +278,7 @@ def main() -> None:
         "code": {
             "runnerSha256": sha256_text(code_path.read_text(encoding="utf-8")),
             "modelSha256": sha256_text(model_path.read_text(encoding="utf-8")),
+            "optimizerGradientSha256": sha256_text(gradient_path.read_text(encoding="utf-8")),
             "snapshotPipelineSha256": sha256_text((ROOT / "scripts" / "auto_pipeline.js").read_text(encoding="utf-8")),
         },
         "fitDiagnostics": fit_diagnostics,
