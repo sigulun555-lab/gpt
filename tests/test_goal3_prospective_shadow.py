@@ -82,7 +82,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.4")
+            self.assertEqual(evaluation["protocolVersion"], "1.5")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
@@ -93,6 +93,11 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertIn("1e-12", evaluation["scoring"]["logloss"])
             self.assertEqual(len(record["fixtures"]), 3)
             self.assertEqual(len(record["fitDiagnostics"]), 6)
+            self.assertEqual(evaluation["optimizerDiagnostics"]["optimizerName"], "L-BFGS-B")
+            self.assertEqual(evaluation["optimizerDiagnostics"]["optimizerOptions"], {
+                "maxiter": 10000, "maxfun": 200000, "ftol": 0.0,
+                "gtol": 1e-8, "maxls": 100, "maxcor": 50,
+            })
             self.assertEqual(evaluation["optimizerDiagnostics"]["maxAbsGradientTolerance"], 1e-6)
             self.assertEqual(
                 evaluation["optimizerDiagnostics"]["gradientSource"],
@@ -103,6 +108,8 @@ class ProspectiveShadowTests(unittest.TestCase):
                 self.assertIn("gradientL2", diagnostic)
                 self.assertIn("gradientDimension", diagnostic)
                 self.assertIn("optimizerStatus", diagnostic)
+                self.assertEqual(diagnostic["optimizerName"], "L-BFGS-B")
+                self.assertEqual(diagnostic["optimizerOptions"], evaluation["optimizerDiagnostics"]["optimizerOptions"])
                 self.assertGreater(diagnostic["gradientDimension"], 0)
             self.assertRegex(record["code"]["optimizerGradientSha256"], r"^[0-9a-f]{64}$")
             snapshot_available_by = datetime.fromisoformat(
