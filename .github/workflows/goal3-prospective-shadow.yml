@@ -354,7 +354,7 @@ jobs:
       - name: Upload immutable run artifact
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
-          path: artifacts/goal3-prospective-shadow.json
+          name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: artifacts/
           if-no-files-found: error
           retention-days: 90
