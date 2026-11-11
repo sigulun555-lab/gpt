@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 from pathlib import Path
 
@@ -58,6 +59,49 @@ def execution_environment_fingerprint(allk: dict) -> dict:
     return {
         "sha256": hashlib.sha256(canonical).hexdigest(),
         "details": environment,
+    }
+
+
+def github_execution_provenance(environ=None, event_payload=None) -> dict:
+    """Record the event SHA separately from the source PR head SHA.
+
+    For pull_request workflows GITHUB_SHA is GitHub's synthetic merge ref.
+    It is not the PR head commit. Preserve the legacy githubSha field as the
+    event SHA, while recording explicit event/head/base fields for auditability.
+    """
+    env = os.environ if environ is None else environ
+    if event_payload is None:
+        event_path = env.get("GITHUB_EVENT_PATH")
+        if event_path:
+            try:
+                event_payload = json.loads(Path(event_path).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError("cannot read GitHub event payload for execution provenance") from exc
+        else:
+            event_payload = {}
+    if not isinstance(event_payload, dict):
+        raise ValueError("GitHub event payload must be a JSON object")
+
+    pull_request = event_payload.get("pull_request")
+    if pull_request is not None and not isinstance(pull_request, dict):
+        raise ValueError("GitHub pull_request event payload must be an object")
+    head = pull_request.get("head", {}) if isinstance(pull_request, dict) else {}
+    base = pull_request.get("base", {}) if isinstance(pull_request, dict) else {}
+    if not isinstance(head, dict) or not isinstance(base, dict):
+        raise ValueError("GitHub pull_request head/base metadata must be objects")
+
+    event_name = env.get("GITHUB_EVENT_NAME")
+    event_sha = env.get("GITHUB_SHA")
+    return {
+        "eventName": event_name,
+        "githubSha": event_sha,
+        "githubEventSha": event_sha,
+        "githubRef": env.get("GITHUB_REF"),
+        "pullRequestHeadSha": head.get("sha"),
+        "pullRequestBaseSha": base.get("sha"),
+        "pushAfterSha": event_payload.get("after") if event_name == "push" else None,
+        "githubRunId": env.get("GITHUB_RUN_ID"),
+        "githubRunAttempt": env.get("GITHUB_RUN_ATTEMPT"),
     }
 
 
@@ -315,9 +359,7 @@ def run(args: argparse.Namespace) -> dict:
             "python": platform.python_version(),
             "numpy": np.__version__,
             "scipy": scipy.__version__,
-            "githubSha": __import__("os").environ.get("GITHUB_SHA"),
-            "githubRunId": __import__("os").environ.get("GITHUB_RUN_ID"),
-            "githubRunAttempt": __import__("os").environ.get("GITHUB_RUN_ATTEMPT"),
+            **github_execution_provenance(),
         },
     }
     strict_report["cohort"]["history2026Rows"] = len(h2026)
