@@ -974,5 +974,55 @@ class StrictSensitivityRuntimeProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing executionEnvironment"):
             strict_sensitivity.execution_environment_fingerprint({})
 
+class StrictSensitivityExecutionProvenanceTests(unittest.TestCase):
+    def test_pull_request_records_merge_sha_and_source_head_separately(self):
+        merge_sha = "a" * 40
+        head_sha = "b" * 40
+        base_sha = "c" * 40
+        provenance = strict_sensitivity.github_execution_provenance(
+            {
+                "GITHUB_EVENT_NAME": "pull_request",
+                "GITHUB_SHA": merge_sha,
+                "GITHUB_REF": "refs/pull/20/merge",
+                "GITHUB_RUN_ID": "123",
+                "GITHUB_RUN_ATTEMPT": "1",
+            },
+            {
+                "pull_request": {
+                    "head": {"sha": head_sha},
+                    "base": {"sha": base_sha},
+                }
+            },
+        )
+        self.assertEqual(provenance["githubSha"], merge_sha)
+        self.assertEqual(provenance["githubEventSha"], merge_sha)
+        self.assertEqual(provenance["pullRequestHeadSha"], head_sha)
+        self.assertEqual(provenance["pullRequestBaseSha"], base_sha)
+        self.assertIsNone(provenance["pushAfterSha"])
+        self.assertEqual(provenance["eventName"], "pull_request")
+
+    def test_push_records_after_sha_without_pr_fields(self):
+        after_sha = "d" * 40
+        provenance = strict_sensitivity.github_execution_provenance(
+            {
+                "GITHUB_EVENT_NAME": "push",
+                "GITHUB_SHA": after_sha,
+                "GITHUB_REF": "refs/heads/research/example",
+            },
+            {"after": after_sha},
+        )
+        self.assertEqual(provenance["githubEventSha"], after_sha)
+        self.assertEqual(provenance["pushAfterSha"], after_sha)
+        self.assertIsNone(provenance["pullRequestHeadSha"])
+        self.assertIsNone(provenance["pullRequestBaseSha"])
+
+    def test_invalid_pull_request_metadata_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "head/base metadata"):
+            strict_sensitivity.github_execution_provenance(
+                {"GITHUB_EVENT_NAME": "pull_request"},
+                {"pull_request": {"head": None, "base": {}}},
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
