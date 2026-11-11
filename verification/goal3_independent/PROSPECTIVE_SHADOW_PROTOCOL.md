@@ -2,7 +2,7 @@
 
 ## Protocol version and purpose
 
-Protocol v1.2 (provenance-only amendment before the first prospective run/result scoring; 2026-11-11). The v1.1 scoring rules, metrics, bootstrap settings, margins, and adoption thresholds are unchanged; v1.2 adds byte-identical input retention and external GitHub artifact deadline evidence.
+Protocol v1.3 (provenance-only amendment before the first prospective run/result scoring; 2026-11-11). The v1.1 scoring rules, metrics, bootstrap settings, margins, and adoption thresholds are unchanged; v1.2 added byte-identical input retention and GitHub artifact deadline evidence. v1.3 adds a branch-restricted push trigger because this workflow file is not present on default main, so workflow_dispatch cannot be used without merging or changing main.
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
@@ -94,19 +94,25 @@ forecast and its exact inputs remain in one immutable ZIP artifact.
 
 artifactEvidence must include workflowRunId, workflowRunAttempt,
 workflowRunEvent, workflowRunConclusion, workflowRunHeadSha,
-workflowRunCreatedAt, workflowRunUrl, artifactId, artifactName,
-artifactDigest, artifactCreatedAt, artifactApiUrl, and forecastSha256.
-The reviewer must retrieve and verify these fields against the GitHub Actions
-run and artifact API responses; the scorer validates their internal
-consistency but does not make network calls. The event must be
-workflow_dispatch, the run conclusion must be success, the artifact name must
-include round, run ID, and attempt, and the extracted forecast SHA must match.
-Both workflowRunCreatedAt and artifactCreatedAt must be strictly before the
+workflowRunHeadBranch, workflowRunHeadCommitMessage, workflowRunCreatedAt,
+workflowRunUrl, artifactId, artifactName, artifactDigest, artifactCreatedAt,
+artifactApiUrl, and forecastSha256. The reviewer must retrieve and verify
+these fields against the GitHub Actions run, commit, and artifact API
+responses; the scorer validates their internal consistency but does not make
+network calls. The event must be either workflow_dispatch or a push on the
+exact research branch research/goal3-prospective-shadow-20261104-v2 whose
+head commit message contains [goal3-shadow]. For a push run, the branch and
+full commit message are preserved in the forecast and repeated in the
+manifest; the reviewer verifies them against the GitHub run/commit API. The
+run conclusion must be success, the artifact name must include round, run ID,
+and attempt, and the extracted forecast SHA must match. Both
+workflowRunCreatedAt and artifactCreatedAt must be strictly before the
 official deadline. The artifact must be created after the forecast record;
 an artifact uploaded at/after the deadline is excluded even if forecastAsOf
 was earlier. The artifact digest must match the GitHub API ZIP digest and the
 artifact's extracted contents must contain the forecast and all three raw
-input copies.
+input copies. The workflow's static/unit-test job must succeed before the
+shadow job is allowed to run.
 
 Each result JSON contains the matching round number,
 resultBasis: "full_time_90_plus_stoppage", and exactly three fixture records.
@@ -122,7 +128,7 @@ that the page identifies the same round, fixture, full-time score and
 90-minute-plus-stoppage basis, and record the publication/retrieval evidence.
 Extra time and shoot-outs are not valid inputs.
 
-The scorer verifies the v1.2 forecast timing bounds, workflow-run metadata,
+The scorer verifies the v1.3 forecast timing bounds, workflow-run metadata,
 byte-identical input snapshots, GitHub artifact evidence, input/code hashes,
 exact k=6/k=10 arms, all six successful fit diagnostics, probability
 simplexes, fixture identity, and result provenance. If any one fixture in a round is
@@ -148,8 +154,8 @@ return a research status or eligibility for human review; automatic production
 adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
 replicates and seed 20261105; smaller settings are available only to unit tests.
 
-Forecast artifacts created before protocol v1.2, including any v1.1
-artifacts, are not silently upgraded or included in the v1.2 primary cohort.
+Forecast artifacts created before protocol v1.3, including any v1.1/v1.2
+artifacts, are not silently upgraded or included in the v1.3 primary cohort.
 Keep them unchanged and list them as legacy/excluded unless a separately
 reviewed, pre-scoring provenance procedure is documented.
 
@@ -158,6 +164,7 @@ reviewed, pre-scoring provenance procedure is documented.
 - Actual paired shadow forecast generation runs only on `workflow_dispatch`; pull-request actions, including `ready_for_review`, never launch it.
 - Pull-request CI may run syntax/unit tests and read-only retrospective diagnostics, but it does not create or publish prospective shadow forecasts.
 - Each run artifact name includes the official round, GitHub run ID, and run attempt. The artifact contains the forecast JSON plus byte-identical input snapshots. Existing output files and snapshot directories are never overwritten.
+- A controlled push to the exact research branch runs the shadow job only when the commit message contains [goal3-shadow]; ordinary pushes to other branches or without the marker cannot create a shadow artifact.
 - The runner does not write to `data/`, production files, or the default branch.
 - Production `scripts/auto_pipeline.js` is not modified by this experiment; timestamp handling specific to the shadow is implemented in the research runner.
 - A shadow artifact is evidence of forecast generation, not a claim of improved accuracy.
