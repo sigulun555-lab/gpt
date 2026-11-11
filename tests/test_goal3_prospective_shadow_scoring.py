@@ -44,6 +44,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
                 "optimizerStatus": 0,
                 "maxAbsGradient": 1e-8,
                 "gradientL2": 1e-7,
+                "gradientDimension": 122,
             })
         fixtures.append({
             "number": number,
