@@ -541,7 +541,7 @@ def score_manifest(manifest_path, replicates=REPS, seed=SEED):
     mp = Path(manifest_path).resolve()
     manifest = read_json(mp)
     if manifest.get("schemaVersion") != 1 or manifest.get("protocolVersion") != PROTOCOL:
-        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.1")
+        raise ValueError("manifest must declare schemaVersion=1 and protocolVersion=1.3")
     entries = manifest.get("rounds")
     if not isinstance(entries, list) or not entries: raise ValueError("manifest rounds missing")
     if any(not isinstance(x, dict) for x in entries): raise ValueError("manifest round entries must be objects")
