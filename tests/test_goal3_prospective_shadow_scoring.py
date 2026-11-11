@@ -54,13 +54,19 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         "experiment": scorer.EXPERIMENT,
         "round": round_no,
         "forecastAsOf": now,
-        "recordedAt": now,
+        "recordedAt": "2026-11-05T04:00:01Z",
         "snapshotAvailableBy": snapshot,
         "pipelineGeneratedAt": "2026-11-04T00:00:00Z",
         "pipelineDeclaredLastFetchedAt": "2026-11-04T00:01:00Z",
         "deadline": "2026-11-07T03:50:00Z",
         "status": "forecast_created_before_deadline",
         "productionImpact": "none",
+        "workflowRun": {
+            "id": 1000 + round_no,
+            "attempt": 1,
+            "event": "workflow_dispatch",
+            "headSha": "a" * 40,
+        },
         "model": {
             "arms": [6, 10],
             "trainingWindow": "2026_only",
@@ -81,7 +87,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         },
         "fitDiagnostics": diagnostics,
         "fixtures": fixtures,
-        "evaluation": {"protocolVersion": "1.1"},
+        "evaluation": {"protocolVersion": "1.2"},
     }
     if legacy:
         doc.pop("snapshotAvailableBy")
@@ -127,19 +133,59 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         for round_no, forecast_doc, result_doc in specs:
             forecast_path = root / f"forecast-{round_no}.json"
             result_path = root / f"results-{round_no}.json"
+            snapshot_dir = root / f"forecast-{round_no}-inputs"
+            snapshot_dir.mkdir()
+            snapshot_specs = {
+                "history": ("history.json", "historySha256", b'{"history":[]}\n'),
+                "officialPredictions": ("official_predictions.json", "officialPredictionsSha256", b'{"round":1}\n'),
+                "aliases": ("team_aliases.json", "aliasesSha256", b'{"aliases":{}}\n'),
+            }
+            snapshot_files = {}
+            for label, (filename, hash_key, raw) in snapshot_specs.items():
+                copied = snapshot_dir / filename
+                copied.write_bytes(raw)
+                digest = hashlib.sha256(raw).hexdigest()
+                forecast_doc["inputs"][hash_key] = digest
+                snapshot_files[label] = {
+                    "path": f"{snapshot_dir.name}/{filename}",
+                    "sha256": digest,
+                    "sizeBytes": len(raw),
+                }
+            forecast_doc["inputSnapshots"] = {
+                "format": "byte-for-byte copies of the raw UTF-8 input files",
+                "files": snapshot_files,
+            }
             forecast_path.write_text(json.dumps(forecast_doc), encoding="utf-8")
             result_path.write_text(json.dumps(result_doc), encoding="utf-8")
+            run_id = forecast_doc["workflowRun"]["id"]
+            attempt = forecast_doc["workflowRun"]["attempt"]
+            artifact_id = 2000 + round_no
             entries.append({
                 "round": round_no,
                 "forecastPath": forecast_path.name,
                 "forecastSha256": sha(forecast_path),
                 "resultsPath": result_path.name,
                 "resultsSha256": sha(result_path),
+                "artifactEvidence": {
+                    "workflowRunId": run_id,
+                    "workflowRunAttempt": attempt,
+                    "workflowRunEvent": "workflow_dispatch",
+                    "workflowRunConclusion": "success",
+                    "workflowRunHeadSha": "a" * 40,
+                    "workflowRunCreatedAt": "2026-11-05T03:58:00Z",
+                    "workflowRunUrl": f"https://github.com/sigulun555-lab/gpt/actions/runs/{run_id}",
+                    "artifactId": artifact_id,
+                    "artifactName": f"goal3-shadow-round-{round_no}-run-{run_id}-attempt-{attempt}",
+                    "artifactDigest": "sha256:" + "1" * 64,
+                    "artifactCreatedAt": "2026-11-05T04:02:00Z",
+                    "artifactApiUrl": f"https://api.github.com/repos/sigulun555-lab/gpt/actions/artifacts/{artifact_id}",
+                    "forecastSha256": sha(forecast_path),
+                },
             })
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
-            "protocolVersion": "1.1",
+            "protocolVersion": "1.2",
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
@@ -202,8 +248,8 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
 
     def test_recorded_at_must_follow_forecast_and_precede_deadline(self):
         forecast = make_forecast(1)
-        forecast["recordedAt"] = "2026-11-05T03:58:00Z"
-        self.assertIn("recorded_before_forecast", scorer.forecast_errors(forecast, 1))
+        forecast["recordedAt"] = "2026-11-05T04:00:00Z"
+        self.assertIn("recorded_not_after_forecast", scorer.forecast_errors(forecast, 1))
         forecast["recordedAt"] = "2026-11-07T03:50:00Z"
         self.assertIn("recorded_not_before_deadline", scorer.forecast_errors(forecast, 1))
 
@@ -263,6 +309,39 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertFalse(report["leagueNonInferiority"]["J3"]["logloss"]["passes"])
             self.assertFalse(report["decision"]["allLeagueNonInferiorityGuardsPass"])
             self.assertFalse(report["decision"]["eligibleForHumanAdoptionReview"])
+
+    def test_input_snapshot_hash_mismatch_excludes_round(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            copied = root / "forecast-1-inputs" / "history.json"
+            copied.write_text('{"history":[{"tampered":true}]}', encoding="utf-8")
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("input_snapshot_sha_mismatch:history", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+    def test_artifact_evidence_is_required_and_must_precede_deadline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            doc = json.loads(manifest.read_text())
+            doc["rounds"][0]["artifactEvidence"]["artifactCreatedAt"] = "2026-11-07T03:50:00Z"
+            manifest.write_text(json.dumps(doc))
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("artifact_not_created_before_deadline", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            doc = json.loads(manifest.read_text())
+            doc["rounds"][0].pop("artifactEvidence")
+            manifest.write_text(json.dumps(doc))
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            self.assertIn("artifact_evidence_missing", report["roundAudit"][0]["exclusionReasons"])
+            self.assertFalse(report["roundAudit"][0]["included"])
 
     def test_result_source_url_must_use_official_jleague_domain(self):
         forecast = make_forecast(1)
