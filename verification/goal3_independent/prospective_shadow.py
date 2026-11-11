@@ -36,8 +36,9 @@ def parse_time(value: str) -> datetime:
 
 
 def load_json(path: Path):
-    raw = path.read_text(encoding="utf-8")
-    return json.loads(raw), raw
+    raw_bytes = path.read_bytes()
+    raw = raw_bytes.decode("utf-8")
+    return json.loads(raw), raw, raw_bytes
 
 
 def main() -> None:
@@ -50,12 +51,16 @@ def main() -> None:
 
     history_path, predictions_path, aliases_path = map(Path, (args.history, args.predictions, args.aliases))
     out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     if out_path.exists():
         raise FileExistsError(f"Append-only guard: refusing to overwrite {out_path}")
+    snapshot_dir = out_path.parent / f"{out_path.stem}-inputs"
+    if snapshot_dir.exists():
+        raise FileExistsError(f"Append-only input snapshot guard: refusing to overwrite {snapshot_dir}")
 
-    history_doc, history_raw = load_json(history_path)
-    predictions, predictions_raw = load_json(predictions_path)
-    aliases_doc, aliases_raw = load_json(aliases_path)
+    history_doc, history_raw, history_bytes = load_json(history_path)
+    predictions, predictions_raw, predictions_bytes = load_json(predictions_path)
+    aliases_doc, aliases_raw, aliases_bytes = load_json(aliases_path)
 
     if predictions.get("marketType") not in (None, "totoGOAL3"):
         raise ValueError("Prediction snapshot is not totoGOAL3")
@@ -140,6 +145,23 @@ def main() -> None:
     if not prepared:
         raise ValueError("No eligible historical results in the frozen input snapshot")
 
+    # Preserve exact input bytes in the same immutable artifact as the forecast.
+    snapshot_dir.mkdir(parents=True, exist_ok=False)
+    snapshot_files = {}
+    for label, filename, raw_bytes in (
+        ("history", "history.json", history_bytes),
+        ("officialPredictions", "official_predictions.json", predictions_bytes),
+        ("aliases", "team_aliases.json", aliases_bytes),
+    ):
+        target = snapshot_dir / filename
+        with target.open("xb") as stream:
+            stream.write(raw_bytes)
+        snapshot_files[label] = {
+            "path": f"{snapshot_dir.name}/{filename}",
+            "sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "sizeBytes": len(raw_bytes),
+        }
+
     fixture_results = []
     fit_diagnostics = []
     for fixture in sorted(fixtures, key=lambda p: p["number"]):
@@ -186,6 +208,13 @@ def main() -> None:
     forecast_as_of = datetime.now(timezone.utc)
     if not forecast_as_of < deadline_dt:
         raise ValueError("Refusing to publish a forecast created at or after the official deadline")
+    recorded_at = datetime.now(timezone.utc)
+    if not recorded_at < deadline_dt:
+        raise ValueError("Refusing to record a forecast at or after the official deadline")
+
+    def env_int(name):
+        value = os.getenv(name, "")
+        return int(value) if value.isdigit() else None
 
     code_path = Path(__file__)
     model_path = HERE / "nested_validation.py"
@@ -197,10 +226,16 @@ def main() -> None:
         "snapshotAvailableBy": snapshot_available_by.isoformat(),
         "pipelineGeneratedAt": generated_at,
         "pipelineDeclaredLastFetchedAt": source_fetched,
-        "recordedAt": forecast_as_of.isoformat(),
+        "recordedAt": recorded_at.isoformat(),
         "deadline": deadline,
         "status": "forecast_created_before_deadline",
         "productionImpact": "none",
+        "workflowRun": {
+            "id": env_int("GITHUB_RUN_ID"),
+            "attempt": env_int("GITHUB_RUN_ATTEMPT"),
+            "event": os.getenv("GITHUB_EVENT_NAME"),
+            "headSha": os.getenv("GITHUB_SHA"),
+        },
         "model": {
             "family": "independent shrinkage MLE with Poisson goal marginals",
             "trainingWindow": "2026_only",
@@ -209,12 +244,16 @@ def main() -> None:
             "otherAdjustments": "none; no market blend, Dixon-Coles or draw boost",
         },
         "inputs": {
-            "historySha256": sha256_text(history_raw),
-            "officialPredictionsSha256": sha256_text(predictions_raw),
-            "aliasesSha256": sha256_text(aliases_raw),
+            "historySha256": hashlib.sha256(history_bytes).hexdigest(),
+            "officialPredictionsSha256": hashlib.sha256(predictions_bytes).hexdigest(),
+            "aliasesSha256": hashlib.sha256(aliases_bytes).hexdigest(),
             "historyEligibleRows": len(prepared),
             "historyMaxDeclaredFetchedAt": max(m["sourceFetchedAt"] for m in prepared),
             "snapshotAvailableBy": snapshot_available_by.isoformat(),
+        },
+        "inputSnapshots": {
+            "format": "byte-for-byte copies of the raw UTF-8 input files",
+            "files": snapshot_files,
         },
         "code": {
             "runnerSha256": sha256_text(code_path.read_text(encoding="utf-8")),
@@ -224,7 +263,7 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "protocolVersion": "1.1",
+            "protocolVersion": "1.2",
             "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
             "scoring": {
