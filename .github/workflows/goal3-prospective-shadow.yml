@@ -49,6 +49,9 @@ on:
       - "verification/goal3_independent/GOAL3_OUTER_REVIEW_2026-11-04.md"
       - "verification/goal3_independent/INDEPENDENT_OPTIMIZER_AUDIT.md"
       - ".github/workflows/goal3-prospective-shadow.yml"
+  push:
+    branches:
+      - research/goal3-prospective-shadow-20261104-v2
 
 permissions:
   contents: read
@@ -59,7 +62,10 @@ concurrency:
 
 jobs:
   static-and-unit-tests:
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/research/goal3-prospective-shadow-20261104-v2')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -320,7 +326,12 @@ jobs:
           python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
 
   shadow:
-    if: github.event_name == 'workflow_dispatch'
+    needs: static-and-unit-tests
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       github.ref == 'refs/heads/research/goal3-prospective-shadow-20261104-v2' &&
+       contains(github.event.head_commit.message, '[goal3-shadow]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
