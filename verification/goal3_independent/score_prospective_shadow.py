@@ -7,8 +7,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 import numpy as np
 
-PROTOCOL = "1.3"
+PROTOCOL = "1.4"
 EXPECTED_SHADOW_BRANCH = "research/goal3-prospective-shadow-20261104-v2"
+FIT_GRADIENT_MAX_ABS_TOL = 1e-6
 EXPERIMENT = "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10"
 KS = ("6", "10")
 LEAGUES = ("J1", "J2", "J3")
@@ -66,7 +67,12 @@ def forecast_errors(f, round_no):
     if f.get("productionImpact") != "none": e.append("production_impact_not_none")
     ev = f.get("evaluation")
     if not isinstance(ev, dict): ev = {}
-    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.3")
+    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.4")
+    optimizer_meta = ev.get("optimizerDiagnostics")
+    if (not isinstance(optimizer_meta, dict)
+            or optimizer_meta.get("maxAbsGradientTolerance") != FIT_GRADIENT_MAX_ABS_TOL
+            or optimizer_meta.get("successFlagAloneIsInsufficient") is not True):
+        e.append("optimizer_diagnostic_protocol_missing")
     try:
         snap = ts(f.get("snapshotAvailableBy"), "snapshotAvailableBy")
     except ValueError:
@@ -213,6 +219,18 @@ def forecast_errors(f, round_no):
             if key in actual: e.append("duplicate_fit_diagnostic")
             actual.add(key)
             if d.get("fitSuccess") is not True: e.append(f"fit_diagnostic_failed:{key}")
+            if d.get("optimizerStatus") != 0:
+                e.append(f"fit_optimizer_status_not_zero:{key}")
+            max_gradient = d.get("maxAbsGradient")
+            if (not isinstance(max_gradient, (int, float)) or isinstance(max_gradient, bool)
+                    or not math.isfinite(max_gradient) or max_gradient < 0):
+                e.append(f"fit_max_gradient_missing_or_invalid:{key}")
+            elif max_gradient > FIT_GRADIENT_MAX_ABS_TOL:
+                e.append(f"fit_gradient_exceeds_tolerance:{key}")
+            gradient_l2 = d.get("gradientL2")
+            if (not isinstance(gradient_l2, (int, float)) or isinstance(gradient_l2, bool)
+                    or not math.isfinite(gradient_l2) or gradient_l2 < 0):
+                e.append(f"fit_gradient_l2_missing_or_invalid:{key}")
             training_rows = d.get("trainingRows")
             if (not isinstance(training_rows, int) or isinstance(training_rows, bool)
                 or training_rows <= 0):
