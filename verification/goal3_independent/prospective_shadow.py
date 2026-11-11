@@ -216,6 +216,17 @@ def main() -> None:
         value = os.getenv(name, "")
         return int(value) if value.isdigit() else None
 
+    def event_head_commit_message():
+        event_path = os.getenv("GITHUB_EVENT_PATH")
+        if not event_path or not Path(event_path).is_file():
+            return None
+        try:
+            event_doc = json.loads(Path(event_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        head_commit = event_doc.get("head_commit")
+        return head_commit.get("message") if isinstance(head_commit, dict) else None
+
     code_path = Path(__file__)
     model_path = HERE / "nested_validation.py"
     record = {
@@ -235,6 +246,8 @@ def main() -> None:
             "attempt": env_int("GITHUB_RUN_ATTEMPT"),
             "event": os.getenv("GITHUB_EVENT_NAME"),
             "headSha": os.getenv("GITHUB_SHA"),
+            "headBranch": os.getenv("GITHUB_REF_NAME"),
+            "headCommitMessage": event_head_commit_message(),
         },
         "model": {
             "family": "independent shrinkage MLE with Poisson goal marginals",
@@ -263,7 +276,7 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "protocolVersion": "1.2",
+            "protocolVersion": "1.3",
             "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
             "scoring": {
