@@ -11,6 +11,7 @@ from verification.goal3_independent.nested_validation import (
     build_input_provenance, sha256_file,
 )
 from verification.goal3_independent.optimizer_gradient import (
+    STRICT_LBFGSB_OPTIONS, fit_shrinkage_strict,
     gradient_diagnostics, objective_gradient,
 )
 
@@ -77,6 +78,15 @@ class NestedValidationTests(unittest.TestCase):
             minus[i] -= eps
             numeric[i] = (value(plus) - value(minus)) / (2 * eps)
         np.testing.assert_allclose(analytic, numeric, rtol=2e-5, atol=2e-5)
+
+    def test_strict_fit_uses_fixed_optimizer_and_meets_gradient_tolerance(self):
+        params, idx, info = fit_shrinkage_strict(self.h2025 + self.h2026, 10.0)
+        self.assertTrue(info["success"])
+        self.assertEqual(info["optimizerName"], "L-BFGS-B")
+        self.assertEqual(info["optimizerOptions"], STRICT_LBFGSB_OPTIONS)
+        self.assertLessEqual(info["maxAbsGradient"], 1e-6)
+        diagnostics = gradient_diagnostics(self.h2025 + self.h2026, params, idx, 10.0)
+        self.assertAlmostEqual(info["maxAbsGradient"], diagnostics["maxAbsGradient"], places=12)
 
     def test_input_provenance_records_input_code_and_execution_hashes(self):
         with tempfile.TemporaryDirectory() as tmp:
