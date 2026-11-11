@@ -89,7 +89,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         "code": {
             "runnerSha256": "d" * 64,
             "modelSha256": "e" * 64,
-            "optimizerGradientSha256": "g" * 64,
+            "optimizerGradientSha256": "9" * 64,
             "snapshotPipelineSha256": "f" * 64,
         },
         "fitDiagnostics": diagnostics,
