@@ -59,11 +59,17 @@ class ProspectiveShadowTests(unittest.TestCase):
                 (tmp / name).write_text(json.dumps(data), encoding="utf-8")
             out = tmp / "shadow.json"
             env = os.environ.copy()
+            event_path = tmp / "event.json"
+            event_path.write_text(json.dumps({
+                "head_commit": {"message": "[goal3-shadow] test round 1671"}
+            }), encoding="utf-8")
             env.update({
                 "GITHUB_RUN_ID": "123456789",
                 "GITHUB_RUN_ATTEMPT": "1",
-                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_EVENT_NAME": "push",
                 "GITHUB_SHA": "a" * 40,
+                "GITHUB_REF_NAME": "research/goal3-prospective-shadow-20261104-v2",
+                "GITHUB_EVENT_PATH": str(event_path),
             })
             command = [
                 sys.executable, str(RUNNER),
@@ -76,7 +82,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.2")
+            self.assertEqual(evaluation["protocolVersion"], "1.3")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
@@ -103,7 +109,12 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertGreater(recorded_at, forecast_as_of)
             self.assertLess(recorded_at, parsed_deadline)
             self.assertEqual(record["workflowRun"], {
-                "id": 123456789, "attempt": 1, "event": "workflow_dispatch", "headSha": "a" * 40
+                "id": 123456789,
+                "attempt": 1,
+                "event": "push",
+                "headSha": "a" * 40,
+                "headBranch": "research/goal3-prospective-shadow-20261104-v2",
+                "headCommitMessage": "[goal3-shadow] test round 1671",
             })
             snapshot_dir = tmp / "shadow-inputs"
             self.assertTrue(snapshot_dir.is_dir())
