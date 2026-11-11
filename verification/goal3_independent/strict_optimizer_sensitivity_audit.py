@@ -167,8 +167,9 @@ def reconstruct_strict_predictions(
     baseline_differences = {}
     for k in K_VALUES:
         key = str(float(k))
+        metric_key = f"{k:g}"
         saved = allk["metricsByK"][key]["overall"]
-        computed = default_point_metrics[key]
+        computed = default_point_metrics[metric_key]
         baseline_differences[key] = {
             metric: float(computed[metric] - saved[metric])
             for metric in ("brier", "logloss", "accuracy")
