@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebuild the fixed-2026-only GOAL3 outer k sweep from the shared reference fit code."""
 from __future__ import annotations
-import argparse, contextlib, csv, hashlib, io, json, math, os, platform, sys
+import argparse, csv, hashlib, json, math, os, platform, sys
 from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np
