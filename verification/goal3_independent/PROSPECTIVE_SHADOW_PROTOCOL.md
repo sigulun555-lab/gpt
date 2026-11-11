@@ -77,7 +77,7 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
-The manifest is JSON with schemaVersion: 1, protocolVersion: "1.2", and a
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.3", and a
 rounds array. Each entry supplies the round number, a relative forecastPath
 and its exact forecastSha256, a relative resultsPath and its exact
 resultsSha256, plus an artifactEvidence object transcribed from GitHub's
@@ -161,7 +161,7 @@ reviewed, pre-scoring provenance procedure is documented.
 
 ## Operational safeguards
 
-- Actual paired shadow forecast generation runs only on `workflow_dispatch`; pull-request actions, including `ready_for_review`, never launch it.
+- Actual paired shadow forecast generation runs only on `workflow_dispatch` or the guarded push marker on the exact research branch; pull-request actions, including `ready_for_review`, never launch it.
 - Pull-request CI may run syntax/unit tests and read-only retrospective diagnostics, but it does not create or publish prospective shadow forecasts.
 - Each run artifact name includes the official round, GitHub run ID, and run attempt. The artifact contains the forecast JSON plus byte-identical input snapshots. Existing output files and snapshot directories are never overwritten.
 - A controlled push to the exact research branch runs the shadow job only when the commit message contains [goal3-shadow]; ordinary pushes to other branches or without the marker cannot create a shadow artifact.
