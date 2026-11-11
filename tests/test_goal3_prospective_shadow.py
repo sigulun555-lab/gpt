@@ -94,6 +94,10 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertEqual(len(record["fixtures"]), 3)
             self.assertEqual(len(record["fitDiagnostics"]), 6)
             self.assertEqual(evaluation["optimizerDiagnostics"]["maxAbsGradientTolerance"], 1e-6)
+            self.assertEqual(
+                evaluation["optimizerDiagnostics"]["gradientSource"],
+                "independent analytic gradient of the pinned objective; finite-difference tested",
+            )
             for diagnostic in record["fitDiagnostics"]:
                 self.assertIn("maxAbsGradient", diagnostic)
                 self.assertIn("gradientL2", diagnostic)
