@@ -265,6 +265,11 @@ def run(args: argparse.Namespace) -> dict:
     csv2025_path = Path(args.csv2025)
     allk = load_allk(allk_path)
     _, h2026 = load_data(history_path, aliases_path, csv2025_path)
+    if len(h2026) != int(allk["cohort"]["history2026Rows"]):
+        raise ValueError(
+            f"history row count differs from frozen all-k cohort: {len(h2026)} "
+            f"!= {allk['cohort']['history2026Rows']}"
+        )
     strict_report, details = reconstruct_strict_predictions(
         allk, h2026, args.bootstrap_replicates, args.bootstrap_seed
     )
@@ -288,7 +293,8 @@ def run(args: argparse.Namespace) -> dict:
             "githubRunAttempt": __import__("os").environ.get("GITHUB_RUN_ATTEMPT"),
         },
     }
-    strict_report["cohort"]["history2026Rows"] = details["matchCount"]
+    strict_report["cohort"]["history2026Rows"] = len(h2026)
+    strict_report["cohort"]["history2026DistinctDates"] = len({x["date"] for x in h2026})
     strict_report["experiment"] = "GOAL3 strict-L-BFGS-B optimizer sensitivity on frozen all-k outer cohort"
     strict_report["scope"] = "research-only retrospective sensitivity; not prospective adoption"
     return strict_report
