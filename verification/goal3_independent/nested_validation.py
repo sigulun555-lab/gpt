@@ -202,8 +202,15 @@ def fit_shrinkage(prior, lam_pen):
         return float(value), grad
 
     res = minimize(objective, x0, jac=True, method="L-BFGS-B", options={"maxiter": 300})
-    info = {"success": bool(res.success), "status": int(res.status),
-            "nit": int(res.nit), "message": str(res.message)}
+    gradient = np.asarray(res.jac, dtype=float) if res.jac is not None else np.array([], dtype=float)
+    info = {
+        "success": bool(res.success),
+        "status": int(res.status),
+        "nit": int(res.nit),
+        "message": str(res.message),
+        "maxAbsGradient": float(np.max(np.abs(gradient))) if gradient.size else None,
+        "gradientL2": float(np.linalg.norm(gradient)) if gradient.size else None,
+    }
     if not res.success:
         raise RuntimeError("L-BFGS-B failed: " + str(info))
     return res.x, idx, info
