@@ -1017,11 +1017,36 @@ class StrictSensitivityExecutionProvenanceTests(unittest.TestCase):
         self.assertIsNone(provenance["pullRequestBaseSha"])
 
     def test_invalid_pull_request_metadata_fails_closed(self):
-        with self.assertRaisesRegex(ValueError, "head/base metadata"):
-            strict_sensitivity.github_execution_provenance(
-                {"GITHUB_EVENT_NAME": "pull_request"},
-                {"pull_request": {"head": None, "base": {}}},
-            )
+        valid_env = {
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_SHA": "a" * 40,
+            "GITHUB_REF": "refs/pull/20/merge",
+        }
+        invalid_payloads = (
+            {},
+            {"pull_request": {}},
+            {"pull_request": {"head": {"sha": "b" * 40}, "base": {}}},
+            {
+                "pull_request": {
+                    "head": {"sha": "b" * 40},
+                    "base": {"sha": "not-a-git-sha"},
+                }
+            },
+            {"pull_request": {"head": None, "base": {}}},
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                strict_sensitivity.github_execution_provenance(valid_env, payload)
+
+        invalid_env = dict(valid_env, GITHUB_SHA="short")
+        valid_payload = {
+            "pull_request": {
+                "head": {"sha": "b" * 40},
+                "base": {"sha": "c" * 40},
+            }
+        }
+        with self.assertRaisesRegex(ValueError, "event/head/base SHAs"):
+            strict_sensitivity.github_execution_provenance(invalid_env, valid_payload)
 
 
 if __name__ == "__main__":
