@@ -97,6 +97,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
             "protocolVersion": "1.4",
             "optimizerDiagnostics": {
                 "maxAbsGradientTolerance": 1e-6,
+                "gradientSource": "independent analytic gradient of the pinned objective; finite-difference tested",
                 "successFlagAloneIsInsufficient": True,
             },
         },
