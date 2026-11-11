@@ -321,7 +321,8 @@ def artifact_evidence_errors(entry, round_no, forecast, forecast_sha):
             errors.append("artifact_not_created_before_deadline")
         if run_created and artifact_created < run_created:
             errors.append("artifact_created_before_workflow_run")
-        if recorded and artifact_created < recorded:
+        # GitHub artifact created_at is second-granularity; compare at that precision.
+        if recorded and artifact_created < recorded.replace(microsecond=0):
             errors.append("artifact_created_before_forecast_record")
     except ValueError:
         errors.append("artifact_created_at_invalid")
