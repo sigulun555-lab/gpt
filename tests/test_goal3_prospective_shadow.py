@@ -8,11 +8,80 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from verification.goal3_independent.optimizer_gradient import (
+    objective_gradient,
+    gradient_diagnostics,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"
 
 
 class ProspectiveShadowTests(unittest.TestCase):
+    def test_v15_optimizer_gradient_matches_central_finite_difference(self):
+        matches = [
+            {"home": "A", "away": "B", "hg": 1, "ag": 0},
+            {"home": "B", "away": "C", "hg": 2, "ag": 1},
+            {"home": "C", "away": "A", "hg": 0, "ag": 2},
+            {"home": "A", "away": "C", "hg": 3, "ag": 1},
+            {"home": "B", "away": "A", "hg": 1, "ag": 1},
+        ]
+        teams = sorted({m["home"] for m in matches} | {m["away"] for m in matches})
+        team_index = {team: i for i, team in enumerate(teams)}
+        n = len(teams)
+        theta = np.asarray([
+            np.log(1.3), 0.12,
+            0.10, -0.08, 0.02,
+            -0.04, 0.06, -0.03,
+        ], dtype=float)
+        homes = np.asarray([team_index[m["home"]] for m in matches], dtype=np.int64)
+        aways = np.asarray([team_index[m["away"]] for m in matches], dtype=np.int64)
+        home_goals = np.asarray([m["hg"] for m in matches], dtype=float)
+        away_goals = np.asarray([m["ag"] for m in matches], dtype=float)
+
+        for lam_pen in (6.0, 10.0):
+            analytic = objective_gradient(matches, theta, team_index, lam_pen)
+
+            def independent_objective(x):
+                mu, home_adv = x[0], x[1]
+                attack = x[2:2 + n]
+                defense = x[2 + n:2 + 2 * n]
+                eta_h_raw = mu + home_adv + attack[homes] - defense[aways]
+                eta_a_raw = mu + attack[aways] - defense[homes]
+                eta_h = np.clip(eta_h_raw, -20.0, 20.0)
+                eta_a = np.clip(eta_a_raw, -20.0, 20.0)
+                return float(
+                    np.sum(np.exp(eta_h) - home_goals * eta_h)
+                    + np.sum(np.exp(eta_a) - away_goals * eta_a)
+                    + lam_pen * (np.sum(attack ** 2) + np.sum(defense ** 2))
+                )
+
+            eps = 1e-6
+            numeric = np.empty_like(theta)
+            for j in range(theta.size):
+                plus = theta.copy()
+                minus = theta.copy()
+                plus[j] += eps
+                minus[j] -= eps
+                numeric[j] = (
+                    independent_objective(plus) - independent_objective(minus)
+                ) / (2.0 * eps)
+
+            self.assertEqual(analytic.shape, theta.shape)
+            self.assertTrue(np.all(np.isfinite(analytic)))
+            np.testing.assert_allclose(analytic, numeric, rtol=1e-6, atol=2e-7)
+
+            diagnostics = gradient_diagnostics(matches, theta, team_index, lam_pen)
+            self.assertAlmostEqual(
+                diagnostics["maxAbsGradient"],
+                float(np.max(np.abs(analytic))),
+                places=14,
+            )
+            self.assertEqual(diagnostics["gradientDimension"], theta.size)
+
     def test_paired_k_arms_use_same_fixture_and_emit_valid_probabilities(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
