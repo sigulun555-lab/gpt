@@ -41,6 +41,9 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
                 "trainingRows": 429,
                 "trainingCutoffExclusive": fixture_date,
                 "fitSuccess": success,
+                "optimizerStatus": 0,
+                "maxAbsGradient": 1e-8,
+                "gradientL2": 1e-7,
             })
         fixtures.append({
             "number": number,
@@ -89,7 +92,13 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         },
         "fitDiagnostics": diagnostics,
         "fixtures": fixtures,
-        "evaluation": {"protocolVersion": "1.3"},
+        "evaluation": {
+            "protocolVersion": "1.4",
+            "optimizerDiagnostics": {
+                "maxAbsGradientTolerance": 1e-6,
+                "successFlagAloneIsInsufficient": True,
+            },
+        },
     }
     if legacy:
         doc.pop("snapshotAvailableBy")
@@ -189,7 +198,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
-            "protocolVersion": "1.3",
+            "protocolVersion": "1.4",
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
@@ -361,6 +370,25 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         workflow["headBranch"] = "research/goal3-prospective-shadow-20261104-v2"
         workflow["headCommitMessage"] = "ordinary maintenance"
         self.assertIn("workflow_run_push_marker_missing", scorer.forecast_errors(forecast, 1))
+
+    def test_fit_gradient_above_tolerance_excludes_round(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            doc = json.loads(manifest.read_text())
+            entry = doc["rounds"][0]
+            forecast_path = root / entry["forecastPath"]
+            forecast = json.loads(forecast_path.read_text())
+            forecast["fitDiagnostics"][0]["maxAbsGradient"] = 0.003
+            forecast_path.write_text(json.dumps(forecast), encoding="utf-8")
+            digest = sha(forecast_path)
+            entry["forecastSha256"] = digest
+            entry["artifactEvidence"]["forecastSha256"] = digest
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("fit_gradient_exceeds_tolerance:(1, 6)", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
 
     def test_result_source_url_must_use_official_jleague_domain(self):
         forecast = make_forecast(1)
