@@ -948,5 +948,31 @@ class StrictSensitivityGitBlobHeaderTests(unittest.TestCase):
             )
 
 
+
+class StrictSensitivityRuntimeProvenanceTests(unittest.TestCase):
+    def test_runtime_fingerprint_is_key_order_invariant(self):
+        first = {
+            "machine": "x86_64",
+            "numpyRuntimeConfig": '[{"architecture":"Haswell","num_threads":4}]',
+            "numpyVersion": "2.4.6",
+        }
+        second = {
+            "numpyVersion": "2.4.6",
+            "numpyRuntimeConfig": '[{"architecture":"Haswell","num_threads":4}]',
+            "machine": "x86_64",
+        }
+        a = strict_sensitivity.execution_environment_fingerprint(
+            {"executionEnvironment": first}
+        )
+        b = strict_sensitivity.execution_environment_fingerprint(
+            {"executionEnvironment": second}
+        )
+        self.assertEqual(a["sha256"], b["sha256"])
+        self.assertEqual(a["details"], first)
+
+    def test_runtime_fingerprint_fails_closed_when_missing(self):
+        with self.assertRaisesRegex(ValueError, "missing executionEnvironment"):
+            strict_sensitivity.execution_environment_fingerprint({})
+
 if __name__ == "__main__":
     unittest.main()
