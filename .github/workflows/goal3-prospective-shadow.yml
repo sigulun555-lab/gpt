@@ -80,7 +80,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py tests/test_goal3_reproduce_allk_provenance.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/optimizer_gradient.py verification/goal3_independent/strict_optimizer_sensitivity_audit.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py tests/test_goal3_reproduce_allk_provenance.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
@@ -161,6 +161,49 @@ jobs:
                  "aliasMappedOccurrences": a["aliasMappedHistoryTeamNameOccurrences"],
                  "preUpdateTargetDates": len(a["targetDatesBeforeAliasUpdatedAt"])})
           PY
+      - name: Strict L-BFGS-B optimizer sensitivity audit
+        run: |
+          python verification/goal3_independent/strict_optimizer_sensitivity_audit.py \
+            --allk-input artifacts/goal3_outer_allk_reproduction.json \
+            --history2026 data/history.json \
+            --aliases data/team_aliases.json \
+            --csv2025 verification/goal3_independent/2025.csv \
+            --out artifacts/goal3_strict_optimizer_sensitivity.json \
+            --bootstrap-replicates 50000 --bootstrap-seed 20261111
+      - name: Verify strict optimizer sensitivity report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/goal3_strict_optimizer_sensitivity.json").read_text(encoding="utf-8"))
+          audit = report["strictOptimizerSensitivity"]
+          assert report["cohort"]["matches"] == 236
+          assert report["cohort"]["teamSideTargets"] == 472
+          assert report["cohort"]["dates"] == 17
+          assert report["cohort"]["history2026Rows"] == 429
+          assert audit["fitCount"] == 272
+          assert audit["fitSuccessCount"] == 272
+          assert audit["maximumStrictSimplexError"] <= 1e-12
+          assert max(abs(v) for per_k in audit["defaultBaselineMetricDifferencesFromPinnedAllK"].values() for v in per_k.values()) <= 2e-12
+          intervals = audit["selectionAdjustedK6MinusK10"]
+          for metric in ("brier", "logloss"):
+              lo, hi = intervals[metric]["simultaneous95Band"]
+              assert lo <= 0 <= hi, (metric, lo, hi)
+          print({
+              "fitCount": audit["fitCount"],
+              "fitsWithinGradient1e-6": audit["fitsWithinMaxAbsGradient1eMinus6"],
+              "maxGradient": audit["maximumObservedMaxAbsGradient"],
+              "k6MinusK10": audit["k6MinusK10"],
+              "selectionAdjusted": intervals,
+          })
+          PY
+      - name: Upload strict optimizer sensitivity audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-strict-optimizer-sensitivity-${{ github.run_id }}
+          path: artifacts/goal3_strict_optimizer_sensitivity.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Probability-bin reliability and one-vs-rest calibration audit
         run: |
           python verification/goal3_independent/calibration_reliability_audit.py \
