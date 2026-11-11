@@ -14,6 +14,18 @@ sys.path.insert(0, str(ROOT / "verification" / "goal3_independent"))
 import reproduce_allk_outer as audit
 
 
+class ExecutionEnvironmentTests(unittest.TestCase):
+    def test_numerical_runtime_and_thread_settings_are_recorded(self):
+        result = audit.execution_environment()
+        self.assertTrue(result["pythonVersion"])
+        self.assertTrue(result["numpyVersion"])
+        self.assertTrue(result["scipyVersion"])
+        self.assertTrue(result["platform"])
+        self.assertIsInstance(result["threadEnvironment"], dict)
+        self.assertIn("OPENBLAS_NUM_THREADS", result["threadEnvironment"])
+        self.assertIn("numpyRuntimeConfig", result)
+
+
 class TeamAliasProvenanceTests(unittest.TestCase):
     def test_alias_usage_and_pre_update_target_dates_are_explicit(self):
         rows = [
