@@ -2,7 +2,7 @@
 
 ## Protocol version and purpose
 
-Protocol v1.4 (optimizer-diagnostic eligibility amendment before any prospective result scoring; 2026-11-11). The statistical metrics, bootstrap settings, non-inferiority margins, and 20-round/60-match adoption floor are unchanged. v1.2 added byte-identical input retention and GitHub artifact deadline evidence; v1.3 added a branch-restricted push trigger; v1.4 requires explicit L-BFGS-B gradient diagnostics because the success flag alone can report convergence while the gradient remains materially nonzero.
+Protocol v1.5 (strict-optimizer prospective amendment before the first v1.5 shadow run/result scoring; 2026-11-11). The statistical metrics, bootstrap settings, non-inferiority margins, and 20-round/60-match adoption floor are unchanged. v1.2 added byte-identical input retention and GitHub artifact deadline evidence; v1.3 added a branch-restricted push trigger; v1.4 added a gradient eligibility gate; v1.5 uses a fixed stricter L-BFGS-B preset for prospective fits after independent retrospective optimizer sensitivity showed that the default success flag can conceal non-stationary fits. The pinned nested_validation implementation remains unchanged for retrospective parity.
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
@@ -21,7 +21,9 @@ This experiment does not alter production forecasts, production model code, mark
 - `forecastAsOf` is recorded after both k arms finish fitting. Both `snapshotAvailableBy` and `forecastAsOf` must be strictly before the official deadline; a snapshot or completed forecast at/after the deadline is rejected.
 - The official GOAL3 round, three fixtures, six team targets, and deadline must be confirmed.
 - The artifact records SHA-256 hashes for history, official target snapshot, aliases, runner, pinned model implementation, independent optimizer-gradient helper, and snapshot pipeline.
-- Each of the six L-BFGS-B fits must record optimizerStatus, maxAbsGradient (infinity norm of the independent analytic objective gradient, finite-difference tested), and gradientL2. A success flag alone is insufficient. The v1.4 primary cohort requires optimizerStatus=0, finite nonnegative gradient diagnostics, and maxAbsGradient <= 1e-6 for every fixture/arm fit. Any missing or over-tolerance fit excludes the entire round from the primary cohort; retain the immutable forecast as a diagnostic artifact.
+- Each of the six fits must record optimizerStatus, optimizerName, optimizerOptions, maxAbsGradient (infinity norm of the independent analytic objective gradient, finite-difference tested), gradientL2, and gradientDimension. A success flag alone is insufficient.
+- The v1.5 prospective optimizer is L-BFGS-B with exactly maxiter=10000, maxfun=200000, ftol=0.0, gtol=1e-8, maxls=100, maxcor=50. The pinned default nested_validation.fit_shrinkage remains unchanged and is used for retrospective parity; the prospective strict helper minimizes the identical penalized Poisson objective.
+- The v1.5 primary cohort requires optimizerStatus=0, optimizerName/options exactly matching the preset, finite nonnegative gradient diagnostics, and maxAbsGradient <= 1e-6 for every fixture/arm fit. Any missing or over-tolerance fit excludes the entire round from the primary cohort; retain the immutable forecast as a diagnostic artifact.
 - The same immutable workflow artifact must also contain byte-identical copies of the raw history, official predictions snapshot, and aliases files. The forecast JSON records each relative path, byte size, and SHA-256. Hashes without the corresponding raw input bytes are insufficient for a prospective adoption cohort.
 
 ## Outcome definitions (pre-registered)
@@ -78,7 +80,7 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
-The manifest is JSON with schemaVersion: 1, protocolVersion: "1.4", and a
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.5", and a
 rounds array. Each entry supplies the round number, a relative forecastPath
 and its exact forecastSha256, a relative resultsPath and its exact
 resultsSha256, plus an artifactEvidence object transcribed from GitHub's
@@ -90,9 +92,9 @@ with byte-identical history.json, official_predictions.json, and
 team_aliases.json copies. The scorer re-hashes each copied file and requires
 the hash to match both the forecast's input hash and the inputSnapshots
 entry. Missing, changed, path-escaping, or size-mismatched inputs exclude the
-entire round. It also requires the forecast optimizerDiagnostics tolerance to
-equal 1e-6 and all six fitDiagnostics entries to have status 0, finite
-gradientL2, and maxAbsGradient <= 1e-6. A fitSuccess flag without these
+entire round. It also requires optimizerDiagnostics and every
+fitDiagnostics entry to match the v1.5 strict L-BFGS-B preset, with status 0,
+finite gradientL2, and maxAbsGradient <= 1e-6. A fitSuccess flag without these
 diagnostics is not eligible. The workflow uploads the whole artifacts/
 directory so the forecast and its exact inputs remain in one immutable ZIP
 artifact.
@@ -159,8 +161,8 @@ return a research status or eligibility for human review; automatic production
 adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
 replicates and seed 20261105; smaller settings are available only to unit tests.
 
-Forecast artifacts created before protocol v1.4, including any v1.1-v1.3
-artifacts, are not silently upgraded or included in the v1.4 primary cohort.
+Forecast artifacts created before protocol v1.5, including any v1.1-v1.4
+artifacts, are not silently upgraded or included in the v1.5 primary cohort.
 Keep them unchanged and list them as legacy/excluded unless a separately
 reviewed, pre-scoring provenance procedure is documented.
 
