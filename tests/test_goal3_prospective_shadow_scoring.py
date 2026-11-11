@@ -390,6 +390,25 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             self.assertIn("fit_gradient_exceeds_tolerance:(1, 6)", reasons)
             self.assertFalse(report["roundAudit"][0]["included"])
 
+    def test_missing_fit_gradient_diagnostic_excludes_round(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self.build_manifest(root, [(1, make_forecast(1), make_results(1))])
+            doc = json.loads(manifest.read_text())
+            entry = doc["rounds"][0]
+            forecast_path = root / entry["forecastPath"]
+            forecast = json.loads(forecast_path.read_text())
+            forecast["fitDiagnostics"][0].pop("maxAbsGradient")
+            forecast_path.write_text(json.dumps(forecast), encoding="utf-8")
+            digest = sha(forecast_path)
+            entry["forecastSha256"] = digest
+            entry["artifactEvidence"]["forecastSha256"] = digest
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            report = scorer.score_manifest(manifest, replicates=1000, seed=11)
+            reasons = report["roundAudit"][0]["exclusionReasons"]
+            self.assertIn("fit_max_gradient_missing_or_invalid:(1, 6)", reasons)
+            self.assertFalse(report["roundAudit"][0]["included"])
+
     def test_result_source_url_must_use_official_jleague_domain(self):
         forecast = make_forecast(1)
         for valid in (
