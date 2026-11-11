@@ -1,4 +1,6 @@
 import json
+import os
+import hashlib
 import subprocess
 import sys
 import tempfile
@@ -56,6 +58,13 @@ class ProspectiveShadowTests(unittest.TestCase):
             for name, data in files.items():
                 (tmp / name).write_text(json.dumps(data), encoding="utf-8")
             out = tmp / "shadow.json"
+            env = os.environ.copy()
+            env.update({
+                "GITHUB_RUN_ID": "123456789",
+                "GITHUB_RUN_ATTEMPT": "1",
+                "GITHUB_EVENT_NAME": "workflow_dispatch",
+                "GITHUB_SHA": "a" * 40,
+            })
             command = [
                 sys.executable, str(RUNNER),
                 "--history", str(tmp / "history.json"),
@@ -63,11 +72,11 @@ class ProspectiveShadowTests(unittest.TestCase):
                 "--aliases", str(tmp / "aliases.json"),
                 "--out", str(out),
             ]
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            subprocess.run(command, check=True, capture_output=True, text=True, env=env)
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.1")
+            self.assertEqual(evaluation["protocolVersion"], "1.2")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
@@ -90,6 +99,26 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertGreaterEqual(snapshot_available_by, now)
             self.assertGreaterEqual(forecast_as_of, snapshot_available_by)
             self.assertLess(forecast_as_of, parsed_deadline)
+            recorded_at = datetime.fromisoformat(record["recordedAt"].replace("Z", "+00:00"))
+            self.assertGreater(recorded_at, forecast_as_of)
+            self.assertLess(recorded_at, parsed_deadline)
+            self.assertEqual(record["workflowRun"], {
+                "id": 123456789, "attempt": 1, "event": "workflow_dispatch", "headSha": "a" * 40
+            })
+            snapshot_dir = tmp / "shadow-inputs"
+            self.assertTrue(snapshot_dir.is_dir())
+            snapshot_files = record["inputSnapshots"]["files"]
+            expected_snapshot_bytes = {
+                "history": (tmp / "history.json").read_bytes(),
+                "officialPredictions": (tmp / "predictions.json").read_bytes(),
+                "aliases": (tmp / "aliases.json").read_bytes(),
+            }
+            for label, raw in expected_snapshot_bytes.items():
+                entry = snapshot_files[label]
+                copied = tmp / entry["path"]
+                self.assertEqual(copied.read_bytes(), raw)
+                self.assertEqual(entry["sha256"], hashlib.sha256(raw).hexdigest())
+                self.assertEqual(entry["sizeBytes"], len(raw))
             self.assertEqual(record["pipelineGeneratedAt"], as_of)
             self.assertEqual(record["pipelineDeclaredLastFetchedAt"], as_of)
             for fixture in record["fixtures"]:
@@ -98,8 +127,22 @@ class ProspectiveShadowTests(unittest.TestCase):
                     for key in ("homeGoalProbabilities", "awayGoalProbabilities"):
                         self.assertAlmostEqual(sum(arm[key]), 1.0, places=9)
             # Exclusive output creation guarantees prior forecast records cannot be overwritten.
-            rejected = subprocess.run(command, capture_output=True, text=True)
+            rejected = subprocess.run(command, capture_output=True, text=True, env=env)
             self.assertNotEqual(rejected.returncode, 0)
+
+            # A pre-existing snapshot directory is immutable.
+            blocked_out = tmp / "blocked.json"
+            blocked_dir = tmp / "blocked-inputs"
+            blocked_dir.mkdir()
+            sentinel = blocked_dir / "sentinel.txt"
+            sentinel.write_text("keep", encoding="utf-8")
+            blocked_command = list(command)
+            blocked_command[blocked_command.index("--out") + 1] = str(blocked_out)
+            blocked = subprocess.run(blocked_command, capture_output=True, text=True, env=env)
+            self.assertNotEqual(blocked.returncode, 0)
+            self.assertIn("Append-only input snapshot guard", blocked.stderr)
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "keep")
+            self.assertFalse(blocked_out.exists())
 
             # A mixed-year source must fail closed instead of silently using
             # non-2026 rows in the nominally 2026-only experiment.
