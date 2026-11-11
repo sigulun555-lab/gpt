@@ -66,7 +66,7 @@ def forecast_errors(f, round_no):
     if f.get("productionImpact") != "none": e.append("production_impact_not_none")
     ev = f.get("evaluation")
     if not isinstance(ev, dict): ev = {}
-    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.2")
+    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.3")
     try:
         snap = ts(f.get("snapshotAvailableBy"), "snapshotAvailableBy")
     except ValueError:
