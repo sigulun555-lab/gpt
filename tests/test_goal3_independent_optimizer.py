@@ -1016,6 +1016,24 @@ class StrictSensitivityExecutionProvenanceTests(unittest.TestCase):
         self.assertIsNone(provenance["pullRequestHeadSha"])
         self.assertIsNone(provenance["pullRequestBaseSha"])
 
+    def test_invalid_push_after_sha_fails_closed(self):
+        event_sha = "d" * 40
+        env = {
+            "GITHUB_EVENT_NAME": "push",
+            "GITHUB_SHA": event_sha,
+            "GITHUB_REF": "refs/heads/research/example",
+        }
+        invalid_payloads = ({}, {"after": "not-a-git-sha"}, {"after": "e" * 40})
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                strict_sensitivity.github_execution_provenance(env, payload)
+
+        invalid_env = dict(env, GITHUB_SHA="short")
+        with self.assertRaisesRegex(ValueError, "GITHUB_SHA"):
+            strict_sensitivity.github_execution_provenance(
+                invalid_env, {"after": event_sha}
+            )
+
     def test_invalid_pull_request_metadata_fails_closed(self):
         valid_env = {
             "GITHUB_EVENT_NAME": "pull_request",
