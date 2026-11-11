@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import numpy as np
 
-PROTOCOL = "1.1"
+PROTOCOL = "1.2"
 EXPERIMENT = "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10"
 KS = ("6", "10")
 LEAGUES = ("J1", "J2", "J3")
@@ -15,6 +15,8 @@ FLOOR = 1e-12
 REPS = 10_000
 SEED = 20261105
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+ARTIFACT_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+GIT_SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
 
 
 def sha(path):
@@ -63,7 +65,7 @@ def forecast_errors(f, round_no):
     if f.get("productionImpact") != "none": e.append("production_impact_not_none")
     ev = f.get("evaluation")
     if not isinstance(ev, dict): ev = {}
-    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.1")
+    if ev.get("protocolVersion") != PROTOCOL: e.append("protocol_version_not_1.2")
     try:
         snap = ts(f.get("snapshotAvailableBy"), "snapshotAvailableBy")
     except ValueError:
@@ -82,8 +84,21 @@ def forecast_errors(f, round_no):
         deadline = None; e.append("missing_or_invalid_deadline")
     if snap and asof and snap >= asof: e.append("snapshot_not_before_forecast")
     if asof and deadline and asof >= deadline: e.append("forecast_not_before_deadline")
-    if asof and recorded and recorded < asof: e.append("recorded_before_forecast")
+    if asof and recorded and recorded <= asof: e.append("recorded_not_after_forecast")
     if recorded and deadline and recorded >= deadline: e.append("recorded_not_before_deadline")
+
+    workflow = f.get("workflowRun")
+    if not isinstance(workflow, dict):
+        e.append("workflow_run_metadata_missing")
+    else:
+        for key in ("id", "attempt"):
+            value = workflow.get(key)
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                e.append(f"workflow_run_{key}_invalid")
+        if workflow.get("event") != "workflow_dispatch":
+            e.append("workflow_run_event_not_workflow_dispatch")
+        if not isinstance(workflow.get("headSha"), str) or not GIT_SHA_RE.fullmatch(workflow["headSha"]):
+            e.append("workflow_run_head_sha_invalid")
 
     inp = f.get("inputs")
     if not isinstance(inp, dict): inp = {}
@@ -196,6 +211,121 @@ def forecast_errors(f, round_no):
                 e.append(f"training_cutoff_mismatch:{key}")
         if actual != expected: e.append("fit_diagnostic_coverage_incomplete")
     return sorted(set(e))
+
+
+def input_snapshot_errors(f, forecast_path):
+    """Verify the byte-identical input files are present beside the forecast."""
+    errors = []
+    snapshot = f.get("inputSnapshots")
+    if not isinstance(snapshot, dict):
+        return ["input_snapshot_missing"]
+    if snapshot.get("format") != "byte-for-byte copies of the raw UTF-8 input files":
+        errors.append("input_snapshot_format_invalid")
+    files = snapshot.get("files")
+    if not isinstance(files, dict):
+        return sorted(set(errors + ["input_snapshot_files_missing"]))
+    expected = {
+        "history": ("historySha256", "history.json"),
+        "officialPredictions": ("officialPredictionsSha256", "official_predictions.json"),
+        "aliases": ("aliasesSha256", "team_aliases.json"),
+    }
+    if set(files) != set(expected):
+        errors.append("input_snapshot_file_set_invalid")
+    inputs = f.get("inputs") if isinstance(f.get("inputs"), dict) else {}
+    base = forecast_path.parent.resolve()
+    expected_dir = f"{forecast_path.stem}-inputs"
+    for label, (hash_key, filename) in expected.items():
+        item = files.get(label)
+        if not isinstance(item, dict):
+            errors.append(f"input_snapshot_entry_missing:{label}")
+            continue
+        value = item.get("path")
+        rel = Path(value) if isinstance(value, str) else None
+        expected_rel = Path(expected_dir) / filename
+        if rel is None or rel.is_absolute() or rel != expected_rel:
+            errors.append(f"input_snapshot_path_invalid:{label}")
+            continue
+        resolved = (base / rel).resolve()
+        if base not in resolved.parents:
+            errors.append(f"input_snapshot_path_escapes:{label}")
+            continue
+        if not resolved.is_file():
+            errors.append(f"input_snapshot_file_missing:{label}")
+            continue
+        actual = sha(resolved)
+        if item.get("sha256") != actual or inputs.get(hash_key) != actual:
+            errors.append(f"input_snapshot_sha_mismatch:{label}")
+        size = item.get("sizeBytes")
+        if not isinstance(size, int) or isinstance(size, bool) or size != resolved.stat().st_size:
+            errors.append(f"input_snapshot_size_mismatch:{label}")
+    return sorted(set(errors))
+
+
+def artifact_evidence_errors(entry, round_no, forecast, forecast_sha):
+    """Validate reviewer-transcribed GitHub run/artifact metadata."""
+    errors = []
+    evidence = entry.get("artifactEvidence")
+    if not isinstance(evidence, dict):
+        return ["artifact_evidence_missing"]
+    workflow = forecast.get("workflowRun") if isinstance(forecast.get("workflowRun"), dict) else {}
+    run_id, attempt = workflow.get("id"), workflow.get("attempt")
+    if evidence.get("workflowRunId") != run_id:
+        errors.append("artifact_evidence_workflow_run_id_mismatch")
+    if evidence.get("workflowRunAttempt") != attempt:
+        errors.append("artifact_evidence_workflow_run_attempt_mismatch")
+    if evidence.get("workflowRunEvent") != "workflow_dispatch" or workflow.get("event") != "workflow_dispatch":
+        errors.append("artifact_evidence_event_not_workflow_dispatch")
+    if evidence.get("workflowRunConclusion") != "success":
+        errors.append("artifact_evidence_workflow_run_not_success")
+    head_sha = evidence.get("workflowRunHeadSha")
+    if not isinstance(head_sha, str) or not GIT_SHA_RE.fullmatch(head_sha) or head_sha != workflow.get("headSha"):
+        errors.append("artifact_evidence_head_sha_mismatch")
+    if not isinstance(run_id, int) or isinstance(run_id, bool) or run_id <= 0:
+        errors.append("forecast_workflow_run_id_invalid")
+    if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt <= 0:
+        errors.append("forecast_workflow_run_attempt_invalid")
+    artifact_id = evidence.get("artifactId")
+    if not isinstance(artifact_id, int) or isinstance(artifact_id, bool) or artifact_id <= 0:
+        errors.append("artifact_evidence_artifact_id_invalid")
+    expected_name = (
+        f"goal3-shadow-round-{round_no}-run-{run_id}-attempt-{attempt}"
+        if isinstance(run_id, int) and isinstance(attempt, int) else None
+    )
+    if evidence.get("artifactName") != expected_name:
+        errors.append("artifact_evidence_name_mismatch")
+    if not isinstance(evidence.get("artifactDigest"), str) or not ARTIFACT_DIGEST_RE.fullmatch(evidence["artifactDigest"]):
+        errors.append("artifact_evidence_digest_invalid")
+    if evidence.get("forecastSha256") != forecast_sha:
+        errors.append("artifact_evidence_forecast_sha_mismatch")
+    if run_id and evidence.get("workflowRunUrl") != f"https://github.com/sigulun555-lab/gpt/actions/runs/{run_id}":
+        errors.append("artifact_evidence_workflow_url_mismatch")
+    if artifact_id and evidence.get("artifactApiUrl") != f"https://api.github.com/repos/sigulun555-lab/gpt/actions/artifacts/{artifact_id}":
+        errors.append("artifact_evidence_api_url_mismatch")
+    try:
+        run_created = ts(evidence.get("workflowRunCreatedAt"), "workflowRunCreatedAt")
+        deadline = ts(forecast.get("deadline"), "deadline")
+        snapshot = ts(forecast.get("snapshotAvailableBy"), "snapshotAvailableBy")
+        recorded = ts(forecast.get("recordedAt"), "recordedAt")
+        if run_created >= deadline:
+            errors.append("workflow_run_not_created_before_deadline")
+        if run_created > snapshot:
+            errors.append("workflow_run_after_input_snapshot")
+    except ValueError:
+        run_created = None
+        deadline = None
+        recorded = None
+        errors.append("workflow_run_created_at_invalid")
+    try:
+        artifact_created = ts(evidence.get("artifactCreatedAt"), "artifactCreatedAt")
+        if deadline and artifact_created >= deadline:
+            errors.append("artifact_not_created_before_deadline")
+        if run_created and artifact_created < run_created:
+            errors.append("artifact_created_before_workflow_run")
+        if recorded and artifact_created < recorded:
+            errors.append("artifact_created_before_forecast_record")
+    except ValueError:
+        errors.append("artifact_created_at_invalid")
+    return sorted(set(errors))
 
 
 def is_official_result_url(value):
@@ -313,11 +443,16 @@ def score_one(entry, base):
     if rsha != entry.get("resultsSha256"): raise ValueError(f"round {n}: results SHA-256 mismatch")
     f, res = read_json(fp), read_json(rp)
     failures, missing = failure_counts(f)
-    errors = forecast_errors(f, n) + result_errors(res, n, f)
+    snapshot_errors = input_snapshot_errors(f, fp)
+    artifact_errors = artifact_evidence_errors(entry, n, f, fsha)
+    errors = forecast_errors(f, n) + snapshot_errors + artifact_errors + result_errors(res, n, f)
     audit = {
         "round": n, "forecastSha256": fsha, "resultsSha256": rsha,
         "forecastTiming": {k: f.get(k) for k in ("snapshotAvailableBy", "forecastAsOf", "deadline")},
         "inputHashes": f.get("inputs", {}), "codeHashes": f.get("code", {}),
+        "inputSnapshotFiles": (f.get("inputSnapshots", {}).get("files", {})
+                               if isinstance(f.get("inputSnapshots"), dict) else {}),
+        "artifactEvidence": entry.get("artifactEvidence"),
         "resultBasis": res.get("resultBasis"),
         "resultProvenance": [
             {k: x.get(k) for k in ("number", "competition", "sourceType", "sourceUrl", "publishedAt", "retrievedAt")}
