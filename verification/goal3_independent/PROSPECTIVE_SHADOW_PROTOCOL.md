@@ -2,11 +2,11 @@
 
 ## Protocol version and purpose
 
-Protocol v1.3 (provenance-only amendment before the first prospective run/result scoring; 2026-11-11). The v1.1 scoring rules, metrics, bootstrap settings, margins, and adoption thresholds are unchanged; v1.2 added byte-identical input retention and GitHub artifact deadline evidence. v1.3 adds a branch-restricted push trigger because this workflow file is not present on default main, so workflow_dispatch cannot be used without merging or changing main.
+Protocol v1.4 (optimizer-diagnostic eligibility amendment before any prospective result scoring; 2026-11-11). The statistical metrics, bootstrap settings, non-inferiority margins, and 20-round/60-match adoption floor are unchanged. v1.2 added byte-identical input retention and GitHub artifact deadline evidence; v1.3 added a branch-restricted push trigger; v1.4 requires explicit L-BFGS-B gradient diagnostics because the success flag alone can report convergence while the gradient remains materially nonzero.
 
 Research-only prospective comparison of the shrinkage-MLE penalty coefficient. The single L2 penalty currently named `lambda` is called `k` in this experiment; it is not a second penalty.
 
-This experiment does not alter production forecasts, model code, market weights, or published prediction logs. The runner is manually dispatched and stores one immutable workflow artifact per run.
+This experiment does not alter production forecasts, production model code, market weights, or published prediction logs. The runner stores one immutable workflow artifact per run and can be launched by workflow_dispatch or the exact branch-restricted push marker described below.
 
 ## Frozen comparison
 
@@ -21,6 +21,7 @@ This experiment does not alter production forecasts, model code, market weights,
 - `forecastAsOf` is recorded after both k arms finish fitting. Both `snapshotAvailableBy` and `forecastAsOf` must be strictly before the official deadline; a snapshot or completed forecast at/after the deadline is rejected.
 - The official GOAL3 round, three fixtures, six team targets, and deadline must be confirmed.
 - The artifact records SHA-256 hashes for history, official target snapshot, aliases, runner, and model implementation.
+- Each of the six L-BFGS-B fits must record optimizerStatus, maxAbsGradient (infinity norm of res.jac), and gradientL2. A success flag alone is insufficient. The v1.4 primary cohort requires optimizerStatus=0, finite nonnegative gradient diagnostics, and maxAbsGradient <= 1e-6 for every fixture/arm fit. Any missing or over-tolerance fit excludes the entire round from the primary cohort; retain the immutable forecast as a diagnostic artifact.
 - The same immutable workflow artifact must also contain byte-identical copies of the raw history, official predictions snapshot, and aliases files. The forecast JSON records each relative path, byte size, and SHA-256. Hashes without the corresponding raw input bytes are insufficient for a prospective adoption cohort.
 
 ## Outcome definitions (pre-registered)
@@ -65,7 +66,7 @@ Consider k=6 for adoption review only after the 20-round / 60-match floor is met
 
 1. The upper bound of the primary 95% round-cluster bootstrap interval is below zero for **both** overall Brier and overall Log Loss.
 2. The J1/J2/J3 non-inferiority guards above pass for both metrics.
-3. k=6 has no increase in fit failures or missing forecasts relative to k=10, and every included round is fully paired.
+3. k=6 has no increase in fit failures or missing forecasts relative to k=10, every included round is fully paired, and all six fits satisfy the v1.4 gradient convergence gate.
 4. The data provenance, exclusions, and deadline evidence are complete and auditable.
 
 Otherwise retain k=10 for this research comparison. Retaining k=10 is not a claim that it is statistically superior.
@@ -77,7 +78,7 @@ It does not fetch results, generate forecasts, write to data/, or alter any
 existing shadow artifact. It consumes a separate manifest and writes a new
 output path exclusively; an existing output file is never overwritten.
 
-The manifest is JSON with schemaVersion: 1, protocolVersion: "1.3", and a
+The manifest is JSON with schemaVersion: 1, protocolVersion: "1.4", and a
 rounds array. Each entry supplies the round number, a relative forecastPath
 and its exact forecastSha256, a relative resultsPath and its exact
 resultsSha256, plus an artifactEvidence object transcribed from GitHub's
@@ -89,8 +90,12 @@ with byte-identical history.json, official_predictions.json, and
 team_aliases.json copies. The scorer re-hashes each copied file and requires
 the hash to match both the forecast's input hash and the inputSnapshots
 entry. Missing, changed, path-escaping, or size-mismatched inputs exclude the
-entire round. The workflow uploads the whole artifacts/ directory so the
-forecast and its exact inputs remain in one immutable ZIP artifact.
+entire round. It also requires the forecast optimizerDiagnostics tolerance to
+equal 1e-6 and all six fitDiagnostics entries to have status 0, finite
+gradientL2, and maxAbsGradient <= 1e-6. A fitSuccess flag without these
+diagnostics is not eligible. The workflow uploads the whole artifacts/
+directory so the forecast and its exact inputs remain in one immutable ZIP
+artifact.
 
 artifactEvidence must include workflowRunId, workflowRunAttempt,
 workflowRunEvent, workflowRunConclusion, workflowRunHeadSha,
@@ -154,8 +159,8 @@ return a research status or eligibility for human review; automatic production
 adoption is hard-disabled. CLI runs are fixed to the pre-registered 10,000
 replicates and seed 20261105; smaller settings are available only to unit tests.
 
-Forecast artifacts created before protocol v1.3, including any v1.1/v1.2
-artifacts, are not silently upgraded or included in the v1.3 primary cohort.
+Forecast artifacts created before protocol v1.4, including any v1.1-v1.3
+artifacts, are not silently upgraded or included in the v1.4 primary cohort.
 Keep them unchanged and list them as legacy/excluded unless a separately
 reviewed, pre-scoring provenance procedure is documented.
 
