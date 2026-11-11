@@ -121,6 +121,8 @@ artifact's extracted contents must contain the forecast and all three raw
 input copies. The workflow's static/unit-test job must succeed before the
 shadow job is allowed to run.
 
+Canonical-attempt policy (prevents same-round retry selection): at most one forecast artifact per official round may enter the primary cohort. If multiple complete forecast artifacts for the same round are created before the deadline, the canonical candidate is the earliest artifact by workflowRunCreatedAt, with run ID as a deterministic tie-breaker. Every later same-round attempt is diagnostic only and can never replace the first candidate, even if it has a smaller gradient or better-looking probabilities. If the first candidate fails any v1.5 timing, input, fit, probability, or provenance gate, exclude the whole round; do not rerun to obtain a passing fit. The scorer manifest must contain at most one entry per round; duplicate round entries fail closed. Preserve all later artifacts and report their diagnostics separately.
+
 Each result JSON contains the matching round number,
 resultBasis: "full_time_90_plus_stoppage", and exactly three fixture records.
 Every fixture record must match the forecast number/date/home/away and provide:
