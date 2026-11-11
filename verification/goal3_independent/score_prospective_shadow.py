@@ -149,7 +149,7 @@ def forecast_errors(f, round_no):
 
     code = f.get("code")
     if not isinstance(code, dict): code = {}
-    for key in ("runnerSha256", "modelSha256", "snapshotPipelineSha256"):
+    for key in ("runnerSha256", "modelSha256", "optimizerGradientSha256", "snapshotPipelineSha256"):
         if not isinstance(code.get(key), str) or not SHA_RE.fullmatch(code[key]):
             e.append(f"invalid_code_hash:{key}")
     model = f.get("model")
@@ -231,6 +231,9 @@ def forecast_errors(f, round_no):
             if (not isinstance(gradient_l2, (int, float)) or isinstance(gradient_l2, bool)
                     or not math.isfinite(gradient_l2) or gradient_l2 < 0):
                 e.append(f"fit_gradient_l2_missing_or_invalid:{key}")
+            gradient_dimension = d.get("gradientDimension")
+            if not isinstance(gradient_dimension, int) or isinstance(gradient_dimension, bool) or gradient_dimension <= 0:
+                e.append(f"fit_gradient_dimension_invalid:{key}")
             training_rows = d.get("trainingRows")
             if (not isinstance(training_rows, int) or isinstance(training_rows, bool)
                 or training_rows <= 0):
