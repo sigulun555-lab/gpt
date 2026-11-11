@@ -83,6 +83,10 @@ class NestedValidationTests(unittest.TestCase):
     def test_fit_returns_normalized_distributions(self):
         params, idx, info = fit_shrinkage(self.h2025 + self.h2026, 10.0)
         self.assertTrue(info["success"])
+        self.assertIsInstance(info["maxAbsGradient"], float)
+        self.assertIsInstance(info["gradientL2"], float)
+        self.assertGreaterEqual(info["maxAbsGradient"], 0.0)
+        self.assertGreaterEqual(info["gradientL2"], 0.0)
         ph, pa = predict_shrinkage(params, idx, "A", "B")
         self.assertAlmostEqual(sum(ph), 1.0, places=10)
         self.assertAlmostEqual(sum(pa), 1.0, places=10)
