@@ -82,7 +82,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.3")
+            self.assertEqual(evaluation["protocolVersion"], "1.4")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
@@ -93,6 +93,11 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertIn("1e-12", evaluation["scoring"]["logloss"])
             self.assertEqual(len(record["fixtures"]), 3)
             self.assertEqual(len(record["fitDiagnostics"]), 6)
+            self.assertEqual(evaluation["optimizerDiagnostics"]["maxAbsGradientTolerance"], 1e-6)
+            for diagnostic in record["fitDiagnostics"]:
+                self.assertIn("maxAbsGradient", diagnostic)
+                self.assertIn("gradientL2", diagnostic)
+                self.assertIn("optimizerStatus", diagnostic)
             snapshot_available_by = datetime.fromisoformat(
                 record["snapshotAvailableBy"].replace("Z", "+00:00")
             )
