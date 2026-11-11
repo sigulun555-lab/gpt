@@ -28,6 +28,16 @@ review = importlib.util.module_from_spec(review_spec)
 sys.modules[review_spec.name] = review
 review_spec.loader.exec_module(review)
 
+# Load the strict sensitivity audit and its adjacent research-only modules.
+sys.path.insert(0, str(ROOT / "verification" / "goal3_independent"))
+STRICT_SENSITIVITY_SCRIPT = ROOT / "verification" / "goal3_independent" / "strict_optimizer_sensitivity_audit.py"
+strict_sensitivity_spec = importlib.util.spec_from_file_location(
+    "strict_optimizer_sensitivity_audit", STRICT_SENSITIVITY_SCRIPT
+)
+strict_sensitivity = importlib.util.module_from_spec(strict_sensitivity_spec)
+sys.modules[strict_sensitivity_spec.name] = strict_sensitivity
+strict_sensitivity_spec.loader.exec_module(strict_sensitivity)
+
 
 def independent_exact_hessian(theta, x_home, x_away, k, team_count):
     """Exact Hessian for the independently written clipped Poisson objective."""
@@ -925,6 +935,17 @@ class StrictOptimizerModuleTests(unittest.TestCase):
                     )[1]
                     numeric[:, j] = (grad_plus - grad_minus) / (2 * step)
                 self.assertLess(float(np.max(np.abs(analytic - numeric))), 1e-6)
+
+
+class StrictSensitivityGitBlobHeaderTests(unittest.TestCase):
+    def test_git_blob_sha_uses_nul_terminated_git_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "known.txt"
+            path.write_bytes(b"abc")
+            self.assertEqual(
+                strict_sensitivity.git_blob_sha(path),
+                "f2ba8f84ab5c1bce84a7b441cb1959cfc7093b7f",
+            )
 
 
 if __name__ == "__main__":
