@@ -18,8 +18,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
-from nested_validation import canonical, fit_shrinkage, predict_shrinkage  # noqa: E402
-from optimizer_gradient import gradient_diagnostics  # noqa: E402
+from nested_validation import canonical, predict_shrinkage  # noqa: E402
+from optimizer_gradient import (
+    STRICT_LBFGSB_OPTIONS, fit_shrinkage_strict, gradient_diagnostics,
+)  # noqa: E402
 
 K_ARMS = (6.0, 10.0)
 VALID_LEAGUES = {"J1", "J2", "J3"}
@@ -176,8 +178,10 @@ def main() -> None:
         away = canonical(fixture["away"], aliases)
         arms = {}
         for k in K_ARMS:
-            params, team_index, info = fit_shrinkage(prior, k)
+            params, team_index, info = fit_shrinkage_strict(prior, k)
             gradient_info = gradient_diagnostics(prior, params, team_index, k)
+            if abs(info["maxAbsGradient"] - gradient_info["maxAbsGradient"]) > 1e-12:
+                raise RuntimeError("strict optimizer gradient diagnostic mismatch")
             ph, pa = predict_shrinkage(params, team_index, home, away)
             if abs(sum(ph) - 1.0) > 1e-9 or abs(sum(pa) - 1.0) > 1e-9:
                 raise AssertionError("Goal-category probabilities do not sum to one")
@@ -199,6 +203,8 @@ def main() -> None:
                 "fixtureNumber": fixture["number"], "k": int(k),
                 "trainingRows": len(prior), "trainingCutoffExclusive": target_date,
                 "fitSuccess": bool(info["success"]), "optimizerStatus": int(info["status"]),
+                "optimizerName": info["optimizerName"],
+                "optimizerOptions": info["optimizerOptions"],
                 "optimizerIterations": int(info["nit"]),
                 "maxAbsGradient": gradient_info["maxAbsGradient"],
                 "gradientL2": gradient_info["gradientL2"],
@@ -284,10 +290,12 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "protocolVersion": "1.4",
+            "protocolVersion": "1.5",
             "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
             "optimizerDiagnostics": {
+                "optimizerName": "L-BFGS-B",
+                "optimizerOptions": dict(STRICT_LBFGSB_OPTIONS),
                 "maxAbsGradientTolerance": 1e-6,
                 "gradientSource": "independent analytic gradient of the pinned objective; finite-difference tested",
                 "successFlagAloneIsInsufficient": True,
