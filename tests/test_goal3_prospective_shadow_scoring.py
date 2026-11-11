@@ -66,6 +66,8 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
             "attempt": 1,
             "event": "workflow_dispatch",
             "headSha": "a" * 40,
+            "headBranch": "research/goal3-prospective-shadow-20261104-v2",
+            "headCommitMessage": None,
         },
         "model": {
             "arms": [6, 10],
@@ -87,7 +89,7 @@ def make_forecast(round_no, legacy=False, failed_k6=False, fixture_date="2026-11
         },
         "fitDiagnostics": diagnostics,
         "fixtures": fixtures,
-        "evaluation": {"protocolVersion": "1.2"},
+        "evaluation": {"protocolVersion": "1.3"},
     }
     if legacy:
         doc.pop("snapshotAvailableBy")
@@ -169,9 +171,11 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
                 "artifactEvidence": {
                     "workflowRunId": run_id,
                     "workflowRunAttempt": attempt,
-                    "workflowRunEvent": "workflow_dispatch",
+                    "workflowRunEvent": forecast_doc["workflowRun"]["event"],
                     "workflowRunConclusion": "success",
                     "workflowRunHeadSha": "a" * 40,
+                    "workflowRunHeadBranch": forecast_doc["workflowRun"]["headBranch"],
+                    "workflowRunHeadCommitMessage": forecast_doc["workflowRun"]["headCommitMessage"],
                     "workflowRunCreatedAt": "2026-11-05T03:58:00Z",
                     "workflowRunUrl": f"https://github.com/sigulun555-lab/gpt/actions/runs/{run_id}",
                     "artifactId": artifact_id,
@@ -185,7 +189,7 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         manifest_path = root / "manifest.json"
         manifest_path.write_text(json.dumps({
             "schemaVersion": 1,
-            "protocolVersion": "1.2",
+            "protocolVersion": "1.3",
             "rounds": entries,
         }), encoding="utf-8")
         return manifest_path
@@ -342,6 +346,21 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
             report = scorer.score_manifest(manifest, replicates=1000, seed=11)
             self.assertIn("artifact_evidence_missing", report["roundAudit"][0]["exclusionReasons"])
             self.assertFalse(report["roundAudit"][0]["included"])
+
+    def test_push_trigger_requires_research_branch_and_marker(self):
+        forecast = make_forecast(1)
+        workflow = forecast["workflowRun"]
+        workflow.update({
+            "event": "push",
+            "headBranch": "research/goal3-prospective-shadow-20261104-v2",
+            "headCommitMessage": "[goal3-shadow] round 1671 prospective run",
+        })
+        self.assertNotIn("workflow_run_event_not_allowed", scorer.forecast_errors(forecast, 1))
+        workflow["headBranch"] = "main"
+        self.assertIn("workflow_run_push_branch_not_research", scorer.forecast_errors(forecast, 1))
+        workflow["headBranch"] = "research/goal3-prospective-shadow-20261104-v2"
+        workflow["headCommitMessage"] = "ordinary maintenance"
+        self.assertIn("workflow_run_push_marker_missing", scorer.forecast_errors(forecast, 1))
 
     def test_result_source_url_must_use_official_jleague_domain(self):
         forecast = make_forecast(1)
