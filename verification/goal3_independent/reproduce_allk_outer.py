@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Rebuild the fixed-2026-only GOAL3 outer k sweep from the shared reference fit code."""
 from __future__ import annotations
-import argparse, csv, hashlib, json, math
+import argparse, contextlib, csv, hashlib, io, json, math, os, platform, sys
 from collections import Counter, defaultdict
 from pathlib import Path
 import numpy as np
+import scipy
 import nested_validation as nv
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -18,6 +19,32 @@ def git_blob_sha(path):
     raw=Path(path).read_bytes()
     header=f"blob {len(raw)}\0".encode("utf-8")
     return hashlib.sha1(header+raw).hexdigest()
+
+def execution_environment():
+    """Capture numerical-library and thread-pool details for reproducibility audits."""
+    runtime = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(runtime):
+            np.show_runtime()
+        runtime_config = runtime.getvalue().strip()
+    except Exception as exc:  # Environment introspection must not block the audit.
+        runtime_config = f"unavailable: {type(exc).__name__}: {exc}"
+    thread_names = (
+        "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+        "BLIS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
+    )
+    return {
+        "pythonVersion": sys.version,
+        "numpyVersion": np.__version__,
+        "scipyVersion": scipy.__version__,
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or None,
+        "cpuCount": os.cpu_count(),
+        "threadEnvironment": {name: os.environ.get(name) for name in thread_names},
+        "numpyRuntimeConfig": runtime_config,
+        "numpyBuildConfigRepr": repr(np.__config__.CONFIG),
+    }
 
 def build_team_alias_provenance(raw_history_rows, aliases_doc, target_dates, aliases_path):
     """Describe how the current alias map changes historical team identities."""
@@ -291,6 +318,7 @@ def main():
 
     report={
         "experiment":"GPT reconstruction of fixed-2026-only all-k outer diagnostics using nested_validation.py fit/predict functions",
+        "executionEnvironment":execution_environment(),
         "provenance":{
             "frozenCsvSha256":sha(args.frozen_csv),
             "reproduceAllkOuterPySha256":sha(Path(__file__)),
