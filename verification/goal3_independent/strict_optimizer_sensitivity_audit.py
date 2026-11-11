@@ -42,6 +42,25 @@ def git_blob_sha(path: Path) -> str:
     return _hashlib.sha1(header + raw).hexdigest()
 
 
+def execution_environment_fingerprint(allk: dict) -> dict:
+    """Return a canonical fingerprint for the runtime used to build the all-k input.
+
+    The strict sensitivity fit runs immediately after all-k reconstruction in the
+    same CI job. Embedding this exact runtime record makes CPU/BLAS dispatch
+    differences auditable from the strict artifact itself.
+    """
+    environment = allk.get("executionEnvironment")
+    if not isinstance(environment, dict) or not environment:
+        raise ValueError("all-k input is missing executionEnvironment CPU/BLAS provenance")
+    canonical = json.dumps(
+        environment, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return {
+        "sha256": hashlib.sha256(canonical).hexdigest(),
+        "details": environment,
+    }
+
+
 def load_allk(path: Path) -> dict:
     document = json.loads(path.read_text(encoding="utf-8"))
     stratified_audit.validate_source_provenance(document)
@@ -265,6 +284,7 @@ def run(args: argparse.Namespace) -> dict:
     aliases_path = Path(args.aliases)
     csv2025_path = Path(args.csv2025)
     allk = load_allk(allk_path)
+    runtime_fingerprint = execution_environment_fingerprint(allk)
     _, h2026 = load_data(history_path, aliases_path, csv2025_path)
     aliases = json.loads(aliases_path.read_text(encoding="utf-8"))["aliases"]
     if len(h2026) != int(allk["cohort"]["history2026Rows"]):
@@ -278,6 +298,11 @@ def run(args: argparse.Namespace) -> dict:
     script_path = Path(__file__).resolve()
     model_path = Path(__file__).with_name("nested_validation.py")
     optimizer_path = Path(__file__).with_name("optimizer_gradient.py")
+    strict_report["executionEnvironment"] = {
+        "source": "allkInput.executionEnvironment (same CI job, immediately before strict refit)",
+        "allkInputSha256": sha256_file(allk_path),
+        **runtime_fingerprint,
+    }
     strict_report["provenance"] = {
         "allkInput": {"path": str(allk_path), "sizeBytes": allk_path.stat().st_size, "sha256": sha256_file(allk_path)},
         "history2026": {"path": str(history_path), "sizeBytes": history_path.stat().st_size, "sha256": sha256_file(history_path)},
