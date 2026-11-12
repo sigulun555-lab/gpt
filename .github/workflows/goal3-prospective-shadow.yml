@@ -371,7 +371,8 @@ jobs:
   shadow:
     needs: static-and-unit-tests
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/research/goal3-prospective-shadow-20261104-v2') ||
       (github.event_name == 'push' &&
        github.ref == 'refs/heads/research/goal3-prospective-shadow-20261104-v2' &&
        contains(github.event.head_commit.message, '[goal3-shadow]'))
