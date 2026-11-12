@@ -8,6 +8,8 @@ on:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/score_prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
+      - "tests/test_nested_validation.py"
+      - "verification/goal3_independent/NESTED_VALIDATION.md"
       - "verification/goal3_independent/independent_optimizer_audit.py"
       - "verification/goal3_independent/controlled_openblas_dispatch_audit.py"
       - "tests/test_goal3_controlled_openblas_dispatch.py"
