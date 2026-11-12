@@ -937,6 +937,28 @@ class StrictOptimizerModuleTests(unittest.TestCase):
                 self.assertLess(float(np.max(np.abs(analytic - numeric))), 1e-6)
 
 
+class StrictSensitivityFitDiagnosticTests(unittest.TestCase):
+    def test_fit_diagnostic_preserves_real_optimizer_termination_message(self):
+        prior = StrictOptimizerModuleTests._prior()
+        _, team_index, info = strict_sensitivity.fit_shrinkage_strict(prior, 6.0)
+        record = strict_sensitivity.build_fit_diagnostic(
+            "2026-08-31", 6.0, len(prior), len(team_index), info
+        )
+        self.assertEqual(record["optimizerMessage"], info["message"])
+        self.assertTrue(record["optimizerMessage"].strip())
+        self.assertIn("maxAbsGradient", record)
+
+    def test_fit_diagnostic_rejects_missing_termination_message(self):
+        info = {
+            "success": True, "status": 0, "optimizerName": "L-BFGS-B",
+            "optimizerOptions": dict(strict_sensitivity.STRICT_LBFGSB_OPTIONS),
+            "nit": 1, "message": " ", "maxAbsGradient": 0.0,
+            "gradientL2": 0.0, "gradientDimension": 2,
+        }
+        with self.assertRaisesRegex(ValueError, "termination message"):
+            strict_sensitivity.build_fit_diagnostic("2026-08-31", 6.0, 1, 2, info)
+
+
 class StrictSensitivityGitBlobHeaderTests(unittest.TestCase):
     def test_git_blob_sha_uses_nul_terminated_git_header(self):
         with tempfile.TemporaryDirectory() as tmp:
