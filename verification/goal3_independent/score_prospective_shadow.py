@@ -116,7 +116,8 @@ def forecast_errors(f, round_no):
                 e.append(f"workflow_run_{key}_invalid")
         event = workflow.get("event")
         if event == "workflow_dispatch":
-            pass
+            if workflow.get("headBranch") != EXPECTED_SHADOW_BRANCH:
+                e.append("workflow_run_dispatch_branch_not_research")
         elif event == "push":
             if workflow.get("headBranch") != EXPECTED_SHADOW_BRANCH:
                 e.append("workflow_run_push_branch_not_research")
