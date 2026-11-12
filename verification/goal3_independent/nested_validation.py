@@ -184,7 +184,11 @@ def select_training(h2025, h2026, target_date, window):
 def fit_shrinkage(prior, lam_pen):
     teams = sorted({m["home"] for m in prior} | {m["away"] for m in prior})
     if not teams:
-        return None, {}, {"success": True, "nit": 0, "message": "empty prior fallback"}
+        return None, {}, {
+            "success": True, "status": 0, "nit": 0,
+            "message": "empty prior fallback", "optimizerFit": False,
+            "maxAbsGradient": None, "gradientL2": None, "gradientDimension": 0,
+        }
     idx = {t: i for i, t in enumerate(teams)}
     n = len(teams)
     homes = np.array([idx[m["home"]] for m in prior], dtype=int)
@@ -221,8 +225,17 @@ def fit_shrinkage(prior, lam_pen):
         return float(value), grad
 
     res = minimize(objective, x0, jac=True, method="L-BFGS-B", options={"maxiter": 300})
-    info = {"success": bool(res.success), "status": int(res.status),
-            "nit": int(res.nit), "message": str(res.message)}
+    final_gradient = np.asarray(res.jac, dtype=float)
+    if final_gradient.shape != res.x.shape or not np.all(np.isfinite(final_gradient)):
+        raise RuntimeError("L-BFGS-B returned an invalid final gradient")
+    info = {
+        "success": bool(res.success), "status": int(res.status),
+        "nit": int(res.nit), "message": str(res.message),
+        "optimizerFit": True,
+        "maxAbsGradient": float(np.max(np.abs(final_gradient))),
+        "gradientL2": float(np.linalg.norm(final_gradient)),
+        "gradientDimension": int(final_gradient.size),
+    }
     if not res.success:
         raise RuntimeError("L-BFGS-B failed: " + str(info))
     return res.x, idx, info
@@ -297,10 +310,16 @@ def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagno
     records = []
     date_metrics = []
     fit_count = 0
+    optimizer_fits = []
+    fallback_date_count = 0
     for date in dates_to_score:
         prior = select_training(h2025, h2026, date, window)
         params, idx, info = fit_shrinkage(prior, lam_pen)
         fit_count += 1
+        if info.get("optimizerFit"):
+            optimizer_fits.append(info)
+        else:
+            fallback_date_count += 1
         targets = [m for m in h2026 if m["date"] == date]
         date_records = []
         for m in targets:
@@ -310,12 +329,35 @@ def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagno
         if collect_diagnostics:
             date_metrics.append({"date": date, **score(date_records)})
     result = score(records)
-    # A failed fit raises immediately, so every recorded fit is successful.
+    # A failed fit raises immediately. SciPy success and the stricter gradient
+    # gate are reported separately; the gate is diagnostic, not a filter.
     result["fitCount"] = fit_count
     result["fitFailureCount"] = 0
+    result["optimizerDiagnostics"] = {
+        "optimizerFitCount": len(optimizer_fits),
+        "fallbackDateFitCount": fallback_date_count,
+        "withinGradientGate1eMinus6": sum(x["maxAbsGradient"] <= 1e-6 for x in optimizer_fits),
+        "aboveGradientGate1eMinus6": sum(x["maxAbsGradient"] > 1e-6 for x in optimizer_fits),
+        "maxAbsGradient": max((x["maxAbsGradient"] for x in optimizer_fits), default=None),
+        "maxGradientL2": max((x["gradientL2"] for x in optimizer_fits), default=None),
+        "maxIterations": max((x["nit"] for x in optimizer_fits), default=0),
+    }
     if collect_diagnostics:
         result["dateMetrics"] = date_metrics
     return result
+
+def aggregate_optimizer_diagnostics(evaluations):
+    diagnostics = [x["optimizerDiagnostics"] for x in evaluations]
+    return {
+        "optimizerFitCount": sum(x["optimizerFitCount"] for x in diagnostics),
+        "fallbackDateFitCount": sum(x["fallbackDateFitCount"] for x in diagnostics),
+        "withinGradientGate1eMinus6": sum(x["withinGradientGate1eMinus6"] for x in diagnostics),
+        "aboveGradientGate1eMinus6": sum(x["aboveGradientGate1eMinus6"] for x in diagnostics),
+        "maxAbsGradient": max((x["maxAbsGradient"] for x in diagnostics if x["maxAbsGradient"] is not None), default=None),
+        "maxGradientL2": max((x["maxGradientL2"] for x in diagnostics if x["maxGradientL2"] is not None), default=None),
+        "maxIterations": max((x["maxIterations"] for x in diagnostics), default=0),
+    }
+
 
 def choose_configuration(h2025, h2026, all_dates, outer_start_idx):
     inner_start = int(len(all_dates) * INNER_START_FRACTION)
@@ -410,6 +452,28 @@ def main():
     if len(outer) < 2:
         raise ValueError("Nested validation produced fewer than two outer folds")
     input_provenance = build_input_provenance(args.history2026, args.aliases, args.csv2025)
+    inner_evaluations = [
+        fold
+        for outer_fold in outer
+        for candidate in outer_fold["innerCandidates"]
+        for fold in candidate["innerFolds"]
+    ]
+    selected_outer_evaluations = [
+        outer_fold["outerMetrics"]["shrinkageMLE"] for outer_fold in outer
+    ]
+    outer_candidate_evaluations = [
+        candidate["metrics"]
+        for outer_fold in outer
+        for candidate in outer_fold["outerCandidateDiagnosticsNotForSelection"]
+    ]
+    inner_optimizer_diagnostics = aggregate_optimizer_diagnostics(inner_evaluations)
+    selected_outer_optimizer_diagnostics = aggregate_optimizer_diagnostics(selected_outer_evaluations)
+    outer_candidate_optimizer_diagnostics = aggregate_optimizer_diagnostics(outer_candidate_evaluations)
+    all_optimizer_diagnostics = [
+        inner_optimizer_diagnostics,
+        selected_outer_optimizer_diagnostics,
+        outer_candidate_optimizer_diagnostics,
+    ]
     result = {
         "method": "nested expanding-window time-series validation",
         "selectionRule": "lowest pooled inner Brier; tie-break Log Loss, Accuracy, lower lambda",
@@ -422,17 +486,23 @@ def main():
         "history2026DateRange": [h2026[0]["date"], h2026[-1]["date"]],
         "outerFolds": outer,
         "optimizerDiagnostics": {
-            "innerFitCountAcrossAllCandidatesAndOuterFolds": sum(
-                fold["fitCount"]
-                for outer_fold in outer
-                for candidate in outer_fold["innerCandidates"]
-                for fold in candidate["innerFolds"]
+            "innerFitCountAcrossAllCandidatesAndOuterFolds": inner_optimizer_diagnostics["optimizerFitCount"],
+            "innerGradientGate": inner_optimizer_diagnostics,
+            "outerSelectedFitCount": selected_outer_optimizer_diagnostics["optimizerFitCount"],
+            "outerSelectedGradientGate": selected_outer_optimizer_diagnostics,
+            "outerCandidateDiagnosticFitCountNotForSelection": outer_candidate_optimizer_diagnostics["optimizerFitCount"],
+            "outerCandidateDiagnosticGradientGate": outer_candidate_optimizer_diagnostics,
+            "totalOptimizerFitCount": sum(x["optimizerFitCount"] for x in all_optimizer_diagnostics),
+            "totalFitsWithinGradientGate1eMinus6": sum(x["withinGradientGate1eMinus6"] for x in all_optimizer_diagnostics),
+            "totalFitsAboveGradientGate1eMinus6": sum(x["aboveGradientGate1eMinus6"] for x in all_optimizer_diagnostics),
+            "maximumObservedMaxAbsGradient": max(
+                (x["maxAbsGradient"] for x in all_optimizer_diagnostics if x["maxAbsGradient"] is not None),
+                default=None,
             ),
-            "outerSelectedFitCount": sum(
-                fold["outerMetrics"]["shrinkageMLE"]["fitCount"] for fold in outer
-            ),
+            "strictGradientGateThreshold": 1e-6,
+            "strictGradientGateRole": "diagnostic only; it does not exclude fits or change inner selection/outer scoring",
             "failureCount": 0,
-            "failureHandling": "any failed optimizer fit aborts the run; no failed fit is silently scored",
+            "failureHandling": "any SciPy unsuccessful optimizer fit aborts the run; gradient-gate exceedances are separately reported and are not silently called converged",
         },
         "inputProvenance": input_provenance,
         "warning": "Outer-fold results are rolling-origin estimates, not a guarantee of future performance. GOAL3 lambda=10 was inherited from 1X2 and was not independently tuned for GOAL3 before this analysis.",
