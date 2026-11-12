@@ -96,12 +96,12 @@ def mean(values: list[float]) -> float:
     return sum(values) / len(values)
 
 
-def percentile_order_statistic_indices(replicates: int) -> tuple[int, int]:
-    """Return zero-based nearest-rank indices for a two-sided 95% interval."""
+def analysis_order_statistic_indices(replicates: int) -> tuple[int, int]:
+    """Match the pinned Claude analysis.py zero-based 95% order-statistic indices."""
     if not isinstance(replicates, int) or isinstance(replicates, bool) or replicates < 1:
         raise ValueError("replicates must be a positive integer")
-    lower = max(0, math.ceil(0.025 * replicates) - 1)
-    upper = min(replicates - 1, math.ceil(0.975 * replicates) - 1)
+    lower = int(0.025 * replicates)
+    upper = int(0.975 * replicates) - 1
     return lower, upper
 
 
@@ -132,7 +132,7 @@ def _bootstrap(
             denominator += cluster_count
         samples.append(numerator / denominator)
     samples.sort()
-    lo_index, hi_index = percentile_order_statistic_indices(replicates)
+    lo_index, hi_index = analysis_order_statistic_indices(replicates)
     return [samples[lo_index], samples[hi_index]], len(keys)
 
 
@@ -393,9 +393,9 @@ def audit_rows(
             "method": "Python random.Random (MT19937), one shared RNG stream across D_brier date/match then D_ll date/match; percentile order statistics",
             "seed": seed,
             "replicates": replicates,
-            "lowerIndex": percentile_order_statistic_indices(replicates)[0],
-            "upperIndex": percentile_order_statistic_indices(replicates)[1],
-            "indexConvention": "zero-based nearest-rank order statistics: ceil(p*n)-1",
+            "lowerIndex": analysis_order_statistic_indices(replicates)[0],
+            "upperIndex": analysis_order_statistic_indices(replicates)[1],
+            "indexConvention": "zero-based indices matching pinned analysis.py: int(0.025*n), int(0.975*n)-1",
             "intervals": bootstrap,
             "allIntervalsContainZero": all(
                 all(values.values()) for values in intervals_include_zero.values()
