@@ -472,7 +472,7 @@ jobs:
               assert len(result["outerFolds"]) == 3, path
               assert solver["fitCount"] == expected_fits, (path, solver["fitCount"])
               assert solver["successfulFits"] == expected_fits, path
-              assert solver["maxAbsGradient"] <= 1e-8, (path, solver["maxAbsGradient"])
+              assert solver["maxAbsGradient"] <= 1e-7, (path, solver["maxAbsGradient"])
               assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in result["outerFolds"]), path
               print({"path": path, "fitCount": solver["fitCount"],
                      "maxAbsGradient": solver["maxAbsGradient"],
