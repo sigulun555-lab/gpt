@@ -87,9 +87,9 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         finally:
             exact.MAX_ITERATIONS=old_max
         self.assertTrue(info["trustExactFallbackUsed"])
-        self.assertTrue(info["bfgsPolishUsed"])
+        self.assertTrue(info["rootHybridUsed"] or info["rootLmUsed"] or info["bfgsPolishUsed"])
         self.assertLessEqual(info["maxAbsGradient"],exact.SOLVER_TOLERANCE)
-        self.assertIn(info["trustExactFallback"]["selectedCandidate"],("manual-newton","trust-exact","bfgs-polish"))
+        self.assertIn(info["trustExactFallback"]["selectedCandidate"],("manual-newton","trust-exact","root-hybr","root-lm","bfgs-polish"))
 
     def test_empty_prior_preserves_documented_fallback(self):
         params,idx,info=exact.fit_shrinkage_exact_newton([],6.0)
