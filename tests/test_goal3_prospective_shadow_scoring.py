@@ -384,6 +384,24 @@ class ProspectiveShadowScoringTests(unittest.TestCase):
         workflow["headCommitMessage"] = "ordinary maintenance"
         self.assertIn("workflow_run_push_marker_missing", scorer.forecast_errors(forecast, 1))
 
+    def test_workflow_dispatch_requires_research_branch(self):
+        forecast = make_forecast(1)
+        workflow = forecast["workflowRun"]
+        workflow.update({
+            "event": "workflow_dispatch",
+            "headBranch": "research/goal3-prospective-shadow-20261104-v2",
+            "headCommitMessage": None,
+        })
+        self.assertNotIn(
+            "workflow_run_dispatch_branch_not_research",
+            scorer.forecast_errors(forecast, 1),
+        )
+        workflow["headBranch"] = "main"
+        self.assertIn(
+            "workflow_run_dispatch_branch_not_research",
+            scorer.forecast_errors(forecast, 1),
+        )
+
     def test_fit_optimizer_options_mismatch_excludes_round(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
