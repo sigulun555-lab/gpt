@@ -57,6 +57,17 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
             numeric[:,j]=(gp-gm)/(2*eps)
         self.assertLess(float(np.max(np.abs(hessian-numeric))),2e-6)
 
+    def test_trust_exact_polishes_manual_iteration_limit(self):
+        old_max = exact.MAX_ITERATIONS
+        exact.MAX_ITERATIONS = 0
+        try:
+            params, idx, info = exact.fit_shrinkage_exact_newton(self.prior, 6.0)
+        finally:
+            exact.MAX_ITERATIONS = old_max
+        self.assertTrue(info["trustExactFallbackUsed"])
+        self.assertLessEqual(info["maxAbsGradient"], exact.SOLVER_TOLERANCE)
+        self.assertEqual(len(params), 2 + 2 * len(idx))
+
     def test_empty_prior_preserves_documented_fallback(self):
         params,idx,info=exact.fit_shrinkage_exact_newton([],6.0)
         self.assertIsNone(params)
