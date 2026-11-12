@@ -177,6 +177,7 @@ class ProspectiveShadowTests(unittest.TestCase):
                 self.assertIn("gradientL2", diagnostic)
                 self.assertIn("gradientDimension", diagnostic)
                 self.assertIn("optimizerStatus", diagnostic)
+                self.assertTrue(diagnostic["optimizerMessage"].strip())
                 self.assertEqual(diagnostic["optimizerName"], "L-BFGS-B")
                 self.assertEqual(diagnostic["optimizerOptions"], evaluation["optimizerDiagnostics"]["optimizerOptions"])
                 self.assertGreater(diagnostic["gradientDimension"], 0)
