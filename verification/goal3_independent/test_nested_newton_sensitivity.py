@@ -69,6 +69,7 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
             exact.MAX_ITERATIONS = old_max
         self.assertTrue(info["trustExactFallbackUsed"])
         self.assertLessEqual(info["maxAbsGradient"], exact.SOLVER_TOLERANCE)
+        self.assertEqual(info["optimizerOptions"]["trustExactMaxIterations"], exact.TRUST_EXACT_MAX_ITERATIONS)
         self.assertEqual(len(params), 2 + 2 * len(idx))
 
     def test_gradient_fallback_polishes_failed_trust_exact_without_relaxing_gradient_gate(self):
@@ -89,6 +90,13 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         self.assertTrue(info["trustExactFallbackUsed"])
         self.assertTrue(info["rootHybridUsed"] or info["rootLmUsed"] or info["bfgsPolishUsed"])
         self.assertLessEqual(info["maxAbsGradient"],exact.SOLVER_TOLERANCE)
+        fallback = info["trustExactFallback"]
+        root_function_evaluations = sum((fallback.get(key) or {}).get("functionEvaluations",0) for key in ("rootHybrid","rootLm"))
+        bfgs_iterations = (fallback.get("bfgsPolish") or {}).get("nit",0)
+        self.assertEqual(info["rootFunctionEvaluations"],root_function_evaluations)
+        self.assertGreater(info["rootFunctionEvaluations"],0)
+        self.assertEqual(info["nit"],info["manualNewtonIterations"]+fallback.get("nit",0)+bfgs_iterations)
+        self.assertEqual(info["totalIterations"],info["nit"])
         self.assertIn(info["trustExactFallback"]["selectedCandidate"],("manual-newton","trust-exact","root-hybr","root-lm","bfgs-polish"))
 
     def test_fallback_summary_distinguishes_optimizer_status_from_gradient_gate(self):
