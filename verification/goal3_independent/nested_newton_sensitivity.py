@@ -218,7 +218,7 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
         )
     manual_iterations = int(iteration)
     trust_iterations = int(fallback_info["nit"]) if fallback_info else 0
-    bfgs_iterations = int((fallback_info or {}).get("bfgsPolish",{}).get("nit",0) or 0)
+    bfgs_iterations = int(((fallback_info or {}).get("bfgsPolish") or {}).get("nit",0) or 0)
     info = {
         "success":True,"status":0,"nit":manual_iterations+trust_iterations+bfgs_iterations,"message":message,"optimizerFit":True,
         "maxAbsGradient":max_abs,"gradientL2":grad_l2,"gradientDimension":int(final_gradient.size),
