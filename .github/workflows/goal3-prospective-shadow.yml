@@ -396,6 +396,22 @@ jobs:
       - name: Enforce independent probability reconstruction tolerance
         run: |
           python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
+      - name: Nested expanding-window validation unit tests
+        run: python -m unittest verification.goal3_independent.test_nested_validation -v
+      - name: Run predeclared nested expanding-window validation
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/nested_validation.py --out artifacts/goal3_nested_validation_results.json
+      - name: Verify nested validation result and leakage guards
+        run: |
+          python -c 'import json,sys; r=json.load(open("artifacts/goal3_nested_validation_results.json")); f=r.get("outerFolds", []); p=r.get("inputProvenance", {}).get("execution", {}); assert len(f) >= 2, "fewer than two outer folds"; assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in f), "leakage guard missing"; assert r.get("optimizerDiagnostics", {}).get("failureCount") == 0, "optimizer failures reported"; assert p.get("githubSha") and p.get("workflowRunId"), "execution provenance missing"; print({"outerFolds":len(f),"history2026DistinctDates":r.get("history2026DistinctDates"),"optimizerDiagnostics":r.get("optimizerDiagnostics"),"execution":p})'
+      - name: Upload nested expanding-window validation result
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-nested-expanding-window-validation-${{ github.run_id }}
+          path: artifacts/goal3_nested_validation_results.json
+          if-no-files-found: error
+          retention-days: 90
 
   shadow:
     needs: static-and-unit-tests
