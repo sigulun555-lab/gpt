@@ -30,9 +30,10 @@ as the Jacobian of the original objective gradient. Full BFGS is a final
 gradient-based polish if root-finding remains above tolerance. The final max
 absolute gradient is always recomputed from the original objective and must be
 at most 1e-6 (the same max-absolute-gradient threshold as the protocol
-diagnostic gate) or the run fails. Trust-exact, root, and BFGS fallback attempts,
-statuses, and selected candidate are recorded per fit; the threshold is not
-relaxed.
+diagnostic gate) or the run fails. Trust-exact, root, and BFGS fallback attempts, statuses, selected candidate,
+and per-method summary counts are recorded separately. A root solver's success
+flag is not conflated with the recomputed original-gradient gate; the threshold
+is not relaxed.
 
 ## Two grids remain separate
 
