@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 import numpy as np
 from scipy.linalg import solve
-from scipy.optimize import minimize
+from scipy.optimize import minimize, root
 from scipy.sparse import coo_matrix
 
 HERE = Path(__file__).resolve().parent
@@ -161,28 +161,79 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
         trust_x = np.asarray(trust_result.x,dtype=np.float64)
         _, trust_gradient, _ = _objective_gradient_hessian(trust_x,design,lam_pen,False)
         trust_max = float(np.max(np.abs(trust_gradient)))
+        root_hybrid_result = None
+        root_hybrid_info = None
+        root_lm_result = None
+        root_lm_info = None
         bfgs_result = None
         bfgs_info = None
+        root_candidates = []
         if trust_max > SOLVER_TOLERANCE:
-            # A failed trust-region model can occur at a clipping kink even when
-            # the iterate is already close to stationarity. Use full BFGS as an
-            # independent gradient-based polish; accept it only after recomputing
-            # the original objective gradient against the unchanged 1e-6 gate.
-            bfgs_result = minimize(
-                trust_fun, trust_x, jac=True, method="BFGS",
-                options={"gtol":SOLVER_TOLERANCE*0.01,"maxiter":2000,"disp":False},
+            # Root-finding acts on the analytic gradient itself, not tiny
+            # objective differences. This helps when objective decrease is
+            # below float64 resolution near a stationary point.
+            root_hybrid_result = root(
+                lambda z: _objective_gradient_hessian(z,design,lam_pen,False)[1],
+                trust_x,
+                jac=lambda z: _objective_gradient_hessian(z,design,lam_pen,True)[2],
+                method="hybr",
+                options={"xtol":1e-12,"maxfev":5000},
             )
-            bfgs_x = np.asarray(bfgs_result.x,dtype=np.float64)
-            bfgs_value, bfgs_gradient, _ = _objective_gradient_hessian(bfgs_x,design,lam_pen,False)
-            bfgs_info = {
-                "successFlag":bool(bfgs_result.success),
-                "status":int(bfgs_result.status),
-                "nit":int(bfgs_result.nit),
-                "message":str(bfgs_result.message),
-                "objective":float(bfgs_value),
-                "maxAbsGradient":float(np.max(np.abs(bfgs_gradient))),
+            root_hybrid_x = np.asarray(root_hybrid_result.x,dtype=np.float64)
+            root_hybrid_value, root_hybrid_gradient, _ = _objective_gradient_hessian(root_hybrid_x,design,lam_pen,False)
+            root_hybrid_max = float(np.max(np.abs(root_hybrid_gradient)))
+            root_hybrid_info = {
+                "successFlag":bool(root_hybrid_result.success),
+                "status":int(root_hybrid_result.status),
+                "functionEvaluations":int(root_hybrid_result.nfev),
+                "message":str(root_hybrid_result.message),
+                "objective":float(root_hybrid_value),
+                "maxAbsGradient":root_hybrid_max,
             }
-        candidates = [("manual-newton",start_x),("trust-exact",trust_x)]
+            root_candidates.append(("root-hybr",root_hybrid_x))
+            if root_hybrid_max > SOLVER_TOLERANCE:
+                root_lm_result = root(
+                    lambda z: _objective_gradient_hessian(z,design,lam_pen,False)[1],
+                    root_hybrid_x,
+                    jac=lambda z: _objective_gradient_hessian(z,design,lam_pen,True)[2],
+                    method="lm",
+                    options={"ftol":1e-14,"xtol":1e-14,"gtol":1e-14,"maxiter":5000},
+                )
+                root_lm_x = np.asarray(root_lm_result.x,dtype=np.float64)
+                root_lm_value, root_lm_gradient, _ = _objective_gradient_hessian(root_lm_x,design,lam_pen,False)
+                root_lm_max = float(np.max(np.abs(root_lm_gradient)))
+                root_lm_info = {
+                    "successFlag":bool(root_lm_result.success),
+                    "status":int(root_lm_result.status),
+                    "functionEvaluations":int(root_lm_result.nfev),
+                    "message":str(root_lm_result.message),
+                    "objective":float(root_lm_value),
+                    "maxAbsGradient":root_lm_max,
+                }
+                root_candidates.append(("root-lm",root_lm_x))
+            best_root = min(
+                root_candidates,
+                key=lambda item:float(np.max(np.abs(_objective_gradient_hessian(item[1],design,lam_pen,False)[1]))),
+            )
+            best_root_gradient = _objective_gradient_hessian(best_root[1],design,lam_pen,False)[1]
+            if float(np.max(np.abs(best_root_gradient))) > SOLVER_TOLERANCE:
+                # Last independent gradient-based polish. The optimizer success
+                # flag is not trusted; the original gradient is always rechecked.
+                bfgs_result = minimize(
+                    trust_fun, best_root[1], jac=True, method="BFGS",
+                    options={"gtol":SOLVER_TOLERANCE*0.01,"maxiter":2000,"disp":False},
+                )
+                bfgs_x = np.asarray(bfgs_result.x,dtype=np.float64)
+                bfgs_value, bfgs_gradient, _ = _objective_gradient_hessian(bfgs_x,design,lam_pen,False)
+                bfgs_info = {
+                    "successFlag":bool(bfgs_result.success),
+                    "status":int(bfgs_result.status),
+                    "nit":int(bfgs_result.nit),
+                    "message":str(bfgs_result.message),
+                    "objective":float(bfgs_value),
+                    "maxAbsGradient":float(np.max(np.abs(bfgs_gradient))),
+                }
+        candidates = [("manual-newton",start_x),("trust-exact",trust_x),*root_candidates]
         if bfgs_result is not None:
             candidates.append(("bfgs-polish",np.asarray(bfgs_result.x,dtype=np.float64)))
         scored = []
@@ -201,6 +252,8 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
             "message":str(trust_result.message),
             "initialGradient":current_max,
             "fallbackReason":fallback_reason,
+            "rootHybrid":root_hybrid_info,
+            "rootLm":root_lm_info,
             "bfgsPolish":bfgs_info,
             "selectedCandidate":selected_name,
             "selectedObjective":selected_value,
@@ -219,21 +272,25 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
     manual_iterations = int(iteration)
     trust_iterations = int(fallback_info["nit"]) if fallback_info else 0
     bfgs_iterations = int(((fallback_info or {}).get("bfgsPolish") or {}).get("nit",0) or 0)
+    root_iterations = sum(int((fallback_info or {}).get(key,{}).get("functionEvaluations",0) or 0) for key in ("rootHybrid","rootLm") if (fallback_info or {}).get(key))
     info = {
-        "success":True,"status":0,"nit":manual_iterations+trust_iterations+bfgs_iterations,"message":message,"optimizerFit":True,
+        "success":True,"status":0,"nit":manual_iterations+trust_iterations+root_iterations+bfgs_iterations,"message":message,"optimizerFit":True,
         "maxAbsGradient":max_abs,"gradientL2":grad_l2,"gradientDimension":int(final_gradient.size),
-        "optimizerName":"independent exact-Hessian Newton with Armijo, trust-exact, and BFGS polish",
+        "optimizerName":"independent exact-Hessian Newton with Armijo, trust-exact, gradient-root, and BFGS polish",
         "optimizerOptions":{
             "manualMaxIterations":MAX_ITERATIONS,"trustExactMaxIterations":500,
             "maxAbsGradientTolerance":SOLVER_TOLERANCE,
             "dampingSchedule":[0.0,1e-12,1e-10,1e-8,1e-6,1e-4],
             "armijoConstant":1e-4,"maxBacktrackingSteps":60,
             "trustExactMethod":"SciPy trust-exact with the same analytic Hessian",
+            "gradientRootMethods":"SciPy root hybr then lm with the analytic Hessian as the Jacobian of the original objective gradient",
             "bfgsPolishMethod":"SciPy full BFGS with the same analytic objective gradient; final original-objective gradient is rechecked",
         },
         "objective":final_value,"acceptedNewtonSteps":accepted_steps,"maximumDampingUsed":damping_used,
         "manualNewtonIterations":manual_iterations,
         "trustExactFallbackUsed":fallback_info is not None,
+        "rootHybridUsed":bool(fallback_info and fallback_info.get("rootHybrid") is not None),
+        "rootLmUsed":bool(fallback_info and fallback_info.get("rootLm") is not None),
         "bfgsPolishUsed":bool(fallback_info and fallback_info.get("bfgsPolish") is not None),
         "trustExactFallback":fallback_info,
     }
