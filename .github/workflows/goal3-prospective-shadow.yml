@@ -398,18 +398,51 @@ jobs:
           python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
       - name: Nested expanding-window validation unit tests
         run: python -m unittest verification.goal3_independent.test_nested_validation -v
-      - name: Run predeclared nested expanding-window validation
+      - name: Run original predeclared five-value nested validation
         run: |
           mkdir -p artifacts
-          python verification/goal3_independent/nested_validation.py --out artifacts/goal3_nested_validation_results.json
-      - name: Verify nested validation result and leakage guards
+          python verification/goal3_independent/nested_validation.py \
+            --lambda-grid 1,3,10,30,100 \
+            --out artifacts/goal3_nested_validation_predeclared_5lambda.json
+      - name: Run expanded 16-value nested-grid sensitivity
         run: |
-          python -c 'import json,sys; r=json.load(open("artifacts/goal3_nested_validation_results.json")); f=r.get("outerFolds", []); p=r.get("inputProvenance", {}).get("execution", {}); assert len(f) >= 2, "fewer than two outer folds"; assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in f), "leakage guard missing"; assert r.get("optimizerDiagnostics", {}).get("failureCount") == 0, "optimizer failures reported"; assert p.get("githubSha") and p.get("workflowRunId"), "execution provenance missing"; print({"outerFolds":len(f),"history2026DistinctDates":r.get("history2026DistinctDates"),"optimizerDiagnostics":r.get("optimizerDiagnostics"),"execution":p})'
-      - name: Upload nested expanding-window validation result
+          python verification/goal3_independent/nested_validation.py \
+            --out artifacts/goal3_nested_validation_expanded_16lambda.json
+      - name: Verify nested validation grids, provenance, and leakage guards
+        run: |
+          python - <<'PY'
+          import json
+          cases = {
+              "artifacts/goal3_nested_validation_predeclared_5lambda.json": [1.0, 3.0, 10.0, 30.0, 100.0],
+              "artifacts/goal3_nested_validation_expanded_16lambda.json": [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0],
+          }
+          for path, expected_grid in cases.items():
+              with open(path, encoding="utf-8") as f:
+                  result = json.load(f)
+              folds = result.get("outerFolds", [])
+              execution = result.get("inputProvenance", {}).get("execution", {})
+              assert result.get("lambdaCandidates") == expected_grid, (path, result.get("lambdaCandidates"))
+              assert len(folds) == 3, (path, len(folds))
+              assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in folds), path
+              assert result.get("optimizerDiagnostics", {}).get("failureCount") == 0, path
+              assert result.get("history2026DistinctDates", 0) >= 20, path
+              assert execution.get("githubSha") and execution.get("workflowRunId"), path
+              print({"path": path, "lambdaCandidates": expected_grid, "outerFolds": len(folds),
+                     "history2026DistinctDates": result["history2026DistinctDates"],
+                     "optimizerDiagnostics": result["optimizerDiagnostics"], "execution": execution})
+          PY
+      - name: Upload original predeclared five-value nested validation
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-nested-expanding-window-validation-${{ github.run_id }}
-          path: artifacts/goal3_nested_validation_results.json
+          name: goal3-nested-validation-predeclared-5lambda-${{ github.run_id }}
+          path: artifacts/goal3_nested_validation_predeclared_5lambda.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload expanded 16-value nested-grid sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-nested-validation-expanded-16lambda-${{ github.run_id }}
+          path: artifacts/goal3_nested_validation_expanded_16lambda.json
           if-no-files-found: error
           retention-days: 90
 
