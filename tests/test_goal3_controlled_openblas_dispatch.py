@@ -63,6 +63,9 @@ class ControlledOpenBLASDispatchTests(unittest.TestCase):
         self.assertAlmostEqual(result["maximumParameterAbsoluteDifference"], 0.1)
         self.assertAlmostEqual(result["maximumProbabilityAbsoluteDifference"], 1e-9)
         self.assertEqual(result["probabilityCellDifferenceCount"], 1)
+        self.assertEqual(result["perK"]["6"]["gradientGateFlipCount"], 1)
+        self.assertEqual(result["perK"]["10"]["gradientGateFlipCount"], 0)
+        self.assertEqual(result["perK"]["6"]["probabilityCellDifferenceCount"], 1)
         self.assertTrue(result["inputSha256Match"])
         self.assertTrue(result["runtimeVersionAndLibraryMatch"])
 

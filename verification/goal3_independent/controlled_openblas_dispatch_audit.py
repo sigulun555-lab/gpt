@@ -78,6 +78,19 @@ def summarize_pair(left, right):
     for key in ("openblasVersions", "openblasThreadCounts"):
         if sorted(left_runtime.get(key, [])) != sorted(right_runtime.get(key, [])):
             raise ValueError(f"controlled workers used different OpenBLAS {key}")
+
+    per_k = {}
+    def bucket(k):
+        label = format(float(k), ".15g")
+        return per_k.setdefault(label, {
+            "fitCount": 0, "gradientGateFlipCount": 0,
+            "maximumGradientAbsoluteDifference": 0.0,
+            "maximumParameterAbsoluteDifference": 0.0,
+            "exactParameterHashMatches": 0,
+            "probabilityCellCount": 0, "probabilityCellDifferenceCount": 0,
+            "maximumProbabilityAbsoluteDifference": 0.0,
+        })
+
     lf = {(x["date"], float(x["k"])): x for x in left.get("fitDiagnostics", [])}
     rf = {(x["date"], float(x["k"])): x for x in right.get("fitDiagnostics", [])}
     common = sorted(set(lf) & set(rf))
@@ -85,16 +98,29 @@ def summarize_pair(left, right):
     param_equal = msg_changes = iter_changes = status_changes = success_changes = 0
     for key in common:
         a, b = lf[key], rf[key]
+        slot = bucket(key[1])
+        slot["fitCount"] += 1
         ga, gb = float(a["maxAbsGradient"]), float(b["maxAbsGradient"])
-        max_g = max(max_g, abs(ga - gb))
+        gradient_delta = abs(ga - gb)
+        max_g = max(max_g, gradient_delta)
+        slot["maximumGradientAbsoluteDifference"] = max(
+            slot["maximumGradientAbsoluteDifference"], gradient_delta
+        )
         if (ga <= GATE) != (gb <= GATE):
             flips.append({"date": key[0], "k": key[1], "leftGradient": ga, "rightGradient": gb})
+            slot["gradientGateFlipCount"] += 1
         pa, pb = a["parameters"], b["parameters"]
         if len(pa) != len(pb):
             raise ValueError(f"parameter dimension mismatch at {key}")
         if pa:
-            max_parameter = max(max_parameter, max(abs(float(x) - float(y)) for x, y in zip(pa, pb)))
-        param_equal += int(a["parameterSha256"] == b["parameterSha256"])
+            delta = max(abs(float(x) - float(y)) for x, y in zip(pa, pb))
+            max_parameter = max(max_parameter, delta)
+            slot["maximumParameterAbsoluteDifference"] = max(
+                slot["maximumParameterAbsoluteDifference"], delta
+            )
+        same_hash = a["parameterSha256"] == b["parameterSha256"]
+        param_equal += int(same_hash)
+        slot["exactParameterHashMatches"] += int(same_hash)
         msg_changes += int(a["message"] != b["message"])
         iter_changes += int(a["iterations"] != b["iterations"])
         status_changes += int(a["status"] != b["status"])
@@ -105,6 +131,7 @@ def summarize_pair(left, right):
     common_pred = sorted(set(lp) & set(rp))
     cells = differing = 0
     for key in common_pred:
+        slot = bucket(key[1])
         for side in ("home", "away"):
             av, bv = lp[key][side], rp[key][side]
             if len(av) != 4 or len(bv) != 4:
@@ -114,6 +141,11 @@ def summarize_pair(left, right):
                 cells += 1
                 differing += int(delta > 0.0)
                 max_probability = max(max_probability, delta)
+                slot["probabilityCellCount"] += 1
+                slot["probabilityCellDifferenceCount"] += int(delta > 0.0)
+                slot["maximumProbabilityAbsoluteDifference"] = max(
+                    slot["maximumProbabilityAbsoluteDifference"], delta
+                )
     return {
         "leftMode": left.get("mode"), "rightMode": right.get("mode"),
         "commonFitCount": len(common), "commonPredictionMatchKCount": len(common_pred),
@@ -121,16 +153,15 @@ def summarize_pair(left, right):
         "maximumGradientAbsoluteDifference": max_g,
         "maximumParameterAbsoluteDifference": max_parameter,
         "maximumProbabilityAbsoluteDifference": max_probability,
-        "inputSha256Match": True,
-        "runtimeVersionAndLibraryMatch": True,
+        "inputSha256Match": True, "runtimeVersionAndLibraryMatch": True,
         "exactParameterHashMatches": param_equal,
         "optimizerMessageChangeCount": msg_changes,
         "iterationCountChangeCount": iter_changes,
         "optimizerStatusChangeCount": status_changes,
         "optimizerSuccessChangeCount": success_changes,
         "probabilityCellCount": cells, "probabilityCellDifferenceCount": differing,
+        "perK": {key: per_k[key] for key in sorted(per_k, key=float)},
     }
-
 
 def worker(args):
     # Keep all numerical imports below process startup: core type is selected
