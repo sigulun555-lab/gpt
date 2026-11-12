@@ -50,6 +50,21 @@ exploratory.
   strictly earlier than the target date. Same-day fixtures are excluded from
   that day's fit, including fixtures with earlier kickoff times.
 
+## Optimizer diagnostics
+
+The nested protocol retains its original L-BFGS-B `maxiter=300` fit and does
+not silently replace it with the separate strict-optimizer sensitivity.
+For every successful fit, the runner records the final gradient infinity norm,
+gradient L2 norm, and iteration count. It reports the number of fits above the
+separate `1e-6` gradient gate for inner tuning, selected outer scoring, and
+outer candidate diagnostics.
+
+The `1e-6` gate is **diagnostic only** in this nested study: no fit is dropped,
+reweighted, or used to retune its own outer block because of the diagnostic.
+A SciPy `success=True` / zero failure count does not imply every fit meets the
+strict gradient gate. Any gradient-gate exceedance must be reported alongside
+the nested metrics; the independent strict-optimizer audit remains separate.
+
 ## Interpretation cautions
 
 This is a nested rolling-origin estimate, not proof of future performance.
