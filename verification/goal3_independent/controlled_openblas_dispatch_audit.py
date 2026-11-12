@@ -69,10 +69,19 @@ def architecture_matches(threadpools, requested):
 
 
 def summarize_pair(left, right):
+    if left.get("sourceSha256") != right.get("sourceSha256"):
+        raise ValueError("controlled workers used different input SHA-256 values")
+    left_runtime, right_runtime = left.get("runtime", {}), right.get("runtime", {})
+    for key in ("python", "numpy", "scipy", "threadpoolctl"):
+        if left_runtime.get(key) != right_runtime.get(key):
+            raise ValueError(f"controlled workers used different {key} versions")
+    for key in ("openblasVersions", "openblasThreadCounts"):
+        if sorted(left_runtime.get(key, [])) != sorted(right_runtime.get(key, [])):
+            raise ValueError(f"controlled workers used different OpenBLAS {key}")
     lf = {(x["date"], float(x["k"])): x for x in left.get("fitDiagnostics", [])}
     rf = {(x["date"], float(x["k"])): x for x in right.get("fitDiagnostics", [])}
     common = sorted(set(lf) & set(rf))
-    flips, max_g, max_p = [], 0.0, 0.0
+    flips, max_g, max_parameter, max_probability = [], 0.0, 0.0, 0.0
     param_equal = msg_changes = iter_changes = status_changes = success_changes = 0
     for key in common:
         a, b = lf[key], rf[key]
@@ -84,7 +93,7 @@ def summarize_pair(left, right):
         if len(pa) != len(pb):
             raise ValueError(f"parameter dimension mismatch at {key}")
         if pa:
-            max_p = max(max_p, max(abs(float(x) - float(y)) for x, y in zip(pa, pb)))
+            max_parameter = max(max_parameter, max(abs(float(x) - float(y)) for x, y in zip(pa, pb)))
         param_equal += int(a["parameterSha256"] == b["parameterSha256"])
         msg_changes += int(a["message"] != b["message"])
         iter_changes += int(a["iterations"] != b["iterations"])
@@ -104,13 +113,16 @@ def summarize_pair(left, right):
                 delta = abs(float(x) - float(y))
                 cells += 1
                 differing += int(delta > 0.0)
-                max_p = max(max_p, delta)
+                max_probability = max(max_probability, delta)
     return {
         "leftMode": left.get("mode"), "rightMode": right.get("mode"),
         "commonFitCount": len(common), "commonPredictionMatchKCount": len(common_pred),
         "gradientGateFlipCount": len(flips), "gradientGateFlips": flips,
         "maximumGradientAbsoluteDifference": max_g,
-        "maximumParameterOrProbabilityAbsoluteDifference": max_p,
+        "maximumParameterAbsoluteDifference": max_parameter,
+        "maximumProbabilityAbsoluteDifference": max_probability,
+        "inputSha256Match": True,
+        "runtimeVersionAndLibraryMatch": True,
         "exactParameterHashMatches": param_equal,
         "optimizerMessageChangeCount": msg_changes,
         "iterationCountChangeCount": iter_changes,
@@ -298,7 +310,7 @@ def parent_run(args):
             summaries[name] = {k: item.get(k) for k in (
                 "status", "fitCount", "fitSuccessCount", "withinGradientGateCount",
                 "maximumGradient", "predictionMatchKCount", "requestedCoreType",
-                "environmentCoreType", "runtime", "missingRequiredCpuFlags",
+                "environmentCoreType", "runtime", "sourceSha256", "missingRequiredCpuFlags",
                 "reason", "returnCode", "stderrTail"
             ) if k in item}
         return {
