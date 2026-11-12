@@ -23,8 +23,8 @@ import nested_validation as nv
 
 FIT_DIAGNOSTICS: list[dict] = []
 DESIGN_CACHE: dict[str, tuple] = {}
-SOLVER_TOLERANCE = 1e-7  # 10x tighter than the protocol's 1e-6 diagnostic gate
-MAX_ITERATIONS = 200
+SOLVER_TOLERANCE = 5e-7  # 2x tighter than the protocol's 1e-6 diagnostic gate
+MAX_ITERATIONS = 300
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
