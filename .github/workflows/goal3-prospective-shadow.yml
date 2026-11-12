@@ -497,14 +497,14 @@ jobs:
       - name: Upload exact-Newton predeclared nested validation sensitivity
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-nested-newton-predeclared-5lambda-\${{ github.run_id }}
+          name: goal3-nested-newton-predeclared-5lambda-${{ github.run_id }}
           path: artifacts/nested-newton/goal3_nested_newton_predeclared_5lambda.json
           if-no-files-found: error
           retention-days: 90
       - name: Upload exact-Newton expanded nested validation sensitivity
         uses: actions/upload-artifact@v4
         with:
-          name: goal3-nested-newton-expanded-16lambda-\${{ github.run_id }}
+          name: goal3-nested-newton-expanded-16lambda-${{ github.run_id }}
           path: artifacts/nested-newton/goal3_nested_newton_expanded_16lambda.json
           if-no-files-found: error
           retention-days: 90
