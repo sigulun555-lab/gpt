@@ -24,8 +24,7 @@ by the reference gradient. Its Hessian is computed analytically as
 \(X^T W X + 2\lambda I\) on attack/defense parameters. A damped linear solve
 and Armijo backtracking are used first. If the manual Newton path stalls or reaches
 its iteration limit, SciPy `trust-exact` polishes the same objective using the
-same analytic Hessian. The final max absolute gradient must be at most 5e-7
-(twice as tight as the protocol's 1e-6 diagnostic gate) or the run fails; any
+same analytic Hessian. The final max absolute gradient must be at most 1e-6 (the same max-absolute-gradient threshold as the protocol diagnostic gate) or the run fails; any
 trust-exact fallback is counted and recorded per fit.
 
 ## Two grids remain separate
