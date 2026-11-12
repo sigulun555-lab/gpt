@@ -25,12 +25,14 @@ by the reference gradient. Its Hessian is computed analytically as
 and Armijo backtracking are used first. If the manual Newton path stalls or reaches
 its iteration limit, SciPy `trust-exact` polishes the same objective using the
 same analytic Hessian. If the trust-region model cannot improve (for example at
-a clipping kink), full BFGS may polish the same objective using its analytic
-gradient. The final max absolute gradient is always recomputed from the original
-objective and must be at most 1e-6 (the same max-absolute-gradient threshold as
-the protocol diagnostic gate) or the run fails. Trust-exact and BFGS fallback
-attempts, statuses, and selected candidate are recorded per fit; the threshold
-is not relaxed.
+a clipping kink), a gradient-root solve (hybr, then Levenberg-Marquardt) uses the analytic Hessian
+as the Jacobian of the original objective gradient. Full BFGS is a final
+gradient-based polish if root-finding remains above tolerance. The final max
+absolute gradient is always recomputed from the original objective and must be
+at most 1e-6 (the same max-absolute-gradient threshold as the protocol
+diagnostic gate) or the run fails. Trust-exact, root, and BFGS fallback attempts,
+statuses, and selected candidate are recorded per fit; the threshold is not
+relaxed.
 
 ## Two grids remain separate
 
