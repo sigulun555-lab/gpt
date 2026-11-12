@@ -314,6 +314,29 @@ def _comparison(exact: dict, baseline: dict) -> dict:
             "interpretation":"Solver sensitivity only; neither solver output is prospective evidence.",
             "folds":folds,"selectedConfigurationMatchesAllFolds":all(x["selectedConfigurationMatches"] for x in folds)}
 
+def _fallback_summary(fit_diagnostics: list[dict]) -> dict:
+    def fallback(item):
+        return item.get("trustExactFallback") or {}
+    def nested(item, key):
+        return fallback(item).get(key) or {}
+    return {
+        "trustExactFallbackFitCount":sum(bool(x.get("trustExactFallbackUsed")) for x in fit_diagnostics),
+        "gradientRootHybridFitCount":sum(bool(x.get("rootHybridUsed")) for x in fit_diagnostics),
+        "gradientRootHybridOptimizerSuccessCount":sum(bool(nested(x,"rootHybrid").get("successFlag")) for x in fit_diagnostics),
+        "gradientRootHybridGradientGatePassCount":sum(
+            bool(nested(x,"rootHybrid")) and float(nested(x,"rootHybrid").get("maxAbsGradient",float("inf"))) <= SOLVER_TOLERANCE
+            for x in fit_diagnostics
+        ),
+        "gradientRootLmFitCount":sum(bool(x.get("rootLmUsed")) for x in fit_diagnostics),
+        "gradientRootLmOptimizerSuccessCount":sum(bool(nested(x,"rootLm").get("successFlag")) for x in fit_diagnostics),
+        "gradientRootLmGradientGatePassCount":sum(
+            bool(nested(x,"rootLm")) and float(nested(x,"rootLm").get("maxAbsGradient",float("inf"))) <= SOLVER_TOLERANCE
+            for x in fit_diagnostics
+        ),
+        "bfgsPolishFitCount":sum(bool(x.get("bfgsPolishUsed")) for x in fit_diagnostics),
+    }
+
+
 def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Path,
              history_path: Path, aliases_path: Path, csv2025_path: Path) -> dict:
     global FIT_DIAGNOSTICS
@@ -336,7 +359,7 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
     if any(not x["success"] or x["maxAbsGradient"]>SOLVER_TOLERANCE for x in FIT_DIAGNOSTICS):
         raise AssertionError(f"{label}: exact Newton fit failed {SOLVER_TOLERANCE:g} gradient tolerance")
     result["solverSensitivity"]={
-        "solver":"independent exact-Hessian Newton with Armijo and trust-exact polish",
+        "solver":"independent exact-Hessian Newton with Armijo, trust-exact, analytic-gradient root (hybr/lm), and optional BFGS polish",
         "gridLabel":label,"fitCount":len(FIT_DIAGNOSTICS),
         "successfulFits":sum(x["success"] for x in FIT_DIAGNOSTICS),
         "maxAbsGradient":max(x["maxAbsGradient"] for x in FIT_DIAGNOSTICS),
@@ -344,7 +367,7 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
         "maxIterations":max(x["nit"] for x in FIT_DIAGNOSTICS),
         "totalAcceptedNewtonSteps":sum(x["acceptedNewtonSteps"] for x in FIT_DIAGNOSTICS),
         "maxDampingUsed":max(x["maximumDampingUsed"] for x in FIT_DIAGNOSTICS),
-        "trustExactFallbackFitCount":sum(x["trustExactFallbackUsed"] for x in FIT_DIAGNOSTICS),
+        **_fallback_summary(FIT_DIAGNOSTICS),
         "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"same 1e-6 max-absolute-gradient threshold as the protocol diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
         "solverScriptSha256":sha256_file(Path(__file__).resolve()),
         "comparisonToOriginalSciPy":_comparison(result,baseline),
