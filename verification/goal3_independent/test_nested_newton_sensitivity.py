@@ -71,7 +71,7 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         self.assertLessEqual(info["maxAbsGradient"], exact.SOLVER_TOLERANCE)
         self.assertEqual(len(params), 2 + 2 * len(idx))
 
-    def test_bfgs_polishes_failed_trust_exact_without_relaxing_gradient_gate(self):
+    def test_gradient_fallback_polishes_failed_trust_exact_without_relaxing_gradient_gate(self):
         old_max = exact.MAX_ITERATIONS
         exact.MAX_ITERATIONS = 0
         def controlled_minimize(fun, x0, jac=None, hess=None, method=None, options=None):
@@ -90,6 +90,26 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         self.assertTrue(info["rootHybridUsed"] or info["rootLmUsed"] or info["bfgsPolishUsed"])
         self.assertLessEqual(info["maxAbsGradient"],exact.SOLVER_TOLERANCE)
         self.assertIn(info["trustExactFallback"]["selectedCandidate"],("manual-newton","trust-exact","root-hybr","root-lm","bfgs-polish"))
+
+    def test_fallback_summary_distinguishes_optimizer_status_from_gradient_gate(self):
+        fits=[
+            {"trustExactFallbackUsed":True,"rootHybridUsed":True,"rootLmUsed":False,"bfgsPolishUsed":False,
+             "trustExactFallback":{"rootHybrid":{"successFlag":False,"maxAbsGradient":1e-14}}},
+            {"trustExactFallbackUsed":True,"rootHybridUsed":True,"rootLmUsed":True,"bfgsPolishUsed":False,
+             "trustExactFallback":{"rootHybrid":{"successFlag":False,"maxAbsGradient":2e-6},
+                                   "rootLm":{"successFlag":True,"maxAbsGradient":5e-7}}},
+            {"trustExactFallbackUsed":False,"rootHybridUsed":False,"rootLmUsed":False,"bfgsPolishUsed":False,
+             "trustExactFallback":None},
+        ]
+        summary=exact._fallback_summary(fits)
+        self.assertEqual(summary["trustExactFallbackFitCount"],2)
+        self.assertEqual(summary["gradientRootHybridFitCount"],2)
+        self.assertEqual(summary["gradientRootHybridOptimizerSuccessCount"],0)
+        self.assertEqual(summary["gradientRootHybridGradientGatePassCount"],1)
+        self.assertEqual(summary["gradientRootLmFitCount"],1)
+        self.assertEqual(summary["gradientRootLmOptimizerSuccessCount"],1)
+        self.assertEqual(summary["gradientRootLmGradientGatePassCount"],1)
+        self.assertEqual(summary["bfgsPolishFitCount"],0)
 
     def test_empty_prior_preserves_documented_fallback(self):
         params,idx,info=exact.fit_shrinkage_exact_newton([],6.0)
