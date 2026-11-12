@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from verification.goal3_independent.nested_validation import (
     date_blocks, select_training, score, fit_shrinkage, predict_shrinkage,
-    build_input_provenance, sha256_file,
+    build_input_provenance, sha256_file, parse_lambda_grid,
 )
 from verification.goal3_independent.optimizer_gradient import (
     STRICT_LBFGSB_OPTIONS, fit_shrinkage_strict,
@@ -26,6 +26,24 @@ class NestedValidationTests(unittest.TestCase):
             {"date": "2026-08-01", "home": "B", "away": "A", "hg": 0, "ag": 1, "year": 2026},
             {"date": "2026-08-08", "home": "A", "away": "B", "hg": 2, "ag": 0, "year": 2026},
         ]
+
+    def test_lambda_grid_defaults_and_explicit_original_protocol(self):
+        self.assertEqual(
+            parse_lambda_grid(None),
+            [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0,
+             15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0],
+        )
+        self.assertEqual(
+            parse_lambda_grid("1,3,10,30,100"),
+            [1.0, 3.0, 10.0, 30.0, 100.0],
+        )
+
+    def test_lambda_grid_rejects_invalid_values_and_order(self):
+        for raw in ("", "1,,3", "1,0,3", "1,-2,3", "1,1,3",
+                    "3,1,10", "1,nan,3", "1,inf,3"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValueError):
+                    parse_lambda_grid(raw)
 
     def test_training_cutoff_excludes_same_day_and_future(self):
         prior = select_training(self.h2025, self.h2026, "2026-08-08", "2025_plus_2026")
