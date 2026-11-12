@@ -24,6 +24,7 @@ on:
       - "verification/goal3_independent/league_date_paired_difference_audit.py"
       - "tests/test_goal3_prospective_shadow.py"
       - "tests/test_goal3_prospective_shadow_scoring.py"
+      - "tests/test_live_official.js"
       - "tests/test_goal3_independent_optimizer.py"
       - "tests/test_goal3_poisson_residual_cluster.py"
       - "tests/test_goal3_league_k6_k10_audit.py"
@@ -92,6 +93,8 @@ jobs:
           node --check scripts/auto_pipeline.js
       - name: Existing tests
         run: npm test
+      - name: Live official-page parser regression (read-only; transport skips are explicit)
+        run: node tests/test_live_official.js
       - name: Shadow runner unit test
         run: python tests/test_goal3_prospective_shadow.py -v
       - name: Prospective shadow scoring unit tests
