@@ -206,6 +206,7 @@ def main() -> None:
                 "optimizerName": info["optimizerName"],
                 "optimizerOptions": info["optimizerOptions"],
                 "optimizerIterations": int(info["nit"]),
+                "optimizerMessage": str(info["message"]),
                 "maxAbsGradient": gradient_info["maxAbsGradient"],
                 "gradientL2": gradient_info["gradientL2"],
                 "gradientDimension": gradient_info["gradientDimension"],
