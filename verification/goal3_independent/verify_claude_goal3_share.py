@@ -151,8 +151,8 @@ def mean_metrics(rows: list[dict], k: str, indices: list[int] | None = None) -> 
 
 def percentile_pair(values: list[float]) -> list[float]:
     ordered = sorted(values)
-    # Match analyze.py's explicit 10,000-replicate order-statistic indices.
-    return [ordered[249], ordered[9749]]
+    # Match pinned analysis.py: zero-based indices int(.025*B), int(.975*B)-1.
+    return [ordered[250], ordered[9749]]
 
 
 def main() -> None:
@@ -717,12 +717,13 @@ def main() -> None:
             "team_side_loo": {**team_side_loo, "n_omissions": len(teams), "definition": "remove only target rows whose predicted team is the omitted team"},
         },
         "fixed_k6_minus_k10_bootstrap": {
+            "method": "Python random.Random MT19937; seed=1; separate RNG streams for date and match cluster designs; shared sampled clusters for Brier/LogLoss within each design; order-statistic indices [250,9749]",
             "reps": 10_000,
             "seed": 1,
-            "date_cluster_percentile_indices": [249, 9749],
+            "date_cluster_percentile_indices": [250, 9749],
             "date_cluster_brier_95": percentile_pair(date_b),
             "date_cluster_logloss_95": percentile_pair(date_l),
-            "match_cluster_percentile_indices": [249, 9749],
+            "match_cluster_percentile_indices": [250, 9749],
             "match_cluster_brier_95": percentile_pair(match_b),
             "match_cluster_logloss_95": percentile_pair(match_l),
             "sign_convention": "negative k6-k10 means k=6 lower loss",
