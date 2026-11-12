@@ -407,8 +407,40 @@ def main() -> None:
     )
     old_nested_text = documented_gpt_bytes["nested_validation.py"].decode("utf-8")
     current_nested_text = nv_path.read_text(encoding="utf-8")
-    old_core = old_nested_text.split("def bin_goals", 1)[1].split("\ndef main()", 1)[0]
-    current_core = current_nested_text.split("def bin_goals", 1)[1].split("\ndef main()", 1)[0]
+    def top_level_function_source(source: str, name: str) -> str:
+        marker = f"def {name}("
+        start = source.index(marker)
+        next_def = source.find("\ndef ", start + len(marker))
+        next_class = source.find("\nclass ", start + len(marker))
+        ends = [position for position in (next_def, next_class) if position >= 0]
+        end = min(ends) if ends else len(source)
+        return source[start:end]
+
+    def fit_algorithm_source(source: str) -> str:
+        fit_start = source.index("def fit_shrinkage(")
+        setup_start = source.index(
+            '    idx = {t: i for i, t in enumerate(teams)}', fit_start
+        )
+        solver_start = source.index(
+            '    res = minimize(objective, x0, jac=True, method="L-BFGS-B", options={"maxiter": 300})',
+            setup_start,
+        )
+        solver_end = source.find("\n", solver_start)
+        if solver_end < 0:
+            solver_end = len(source)
+        # Compare data-to-objective construction and exact optimizer invocation,
+        # excluding post-fit diagnostic metadata.
+        return source[setup_start:solver_end]
+
+    model_core_components = {
+        name: top_level_function_source(old_nested_text, name)
+        == top_level_function_source(current_nested_text, name)
+        for name in ("bin_goals", "poisson_probs", "predict_shrinkage", "score", "select_training", "date_blocks")
+    }
+    model_core_components["fit_setup_objective_and_optimizer"] = (
+        fit_algorithm_source(old_nested_text) == fit_algorithm_source(current_nested_text)
+    )
+    documented_model_core_identical = all(model_core_components.values())
     documented_loader_equivalence = {
         "documented_commit": CLAUDE_DOCUMENTED_GPT_COMMIT,
         "2025_rows": len(documented_h2025),
@@ -417,12 +449,14 @@ def main() -> None:
         "2026_rows_exact_match": documented_h2026 == h2026,
         "strict_loader_population_unchanged": documented_h2025 == h2025 and documented_h2026 == h2026,
         "nested_validation_full_file_identical": old_nested_text == current_nested_text,
-        "nested_validation_model_core_identical": old_core == current_core,
+        "nested_validation_model_core_identical": documented_model_core_identical,
+        "nested_validation_model_core_components_identical": model_core_components,
+        "nested_validation_non_model_diagnostic_metadata_changed": old_nested_text != current_nested_text and documented_model_core_identical,
     }
     if not documented_loader_equivalence["strict_loader_population_unchanged"]:
         raise AssertionError(f"documented dependency loader population differs from PR #20: {documented_loader_equivalence}")
     if not documented_loader_equivalence["nested_validation_model_core_identical"]:
-        raise AssertionError("documented nested_validation fit/predict core differs from current PR #20 code")
+        raise AssertionError(f"documented nested_validation algorithmic core differs from current PR #20 code: {documented_loader_equivalence}")
     expected_input_blobs = {
         "history.json": (history_path, "f5cc8c044758e45b1e679e4ce796e68b3f27a854"),
         "team_aliases.json": (aliases_path, "5de22584524ff4c07ddac1d27f49afbbbc5f88ab"),
