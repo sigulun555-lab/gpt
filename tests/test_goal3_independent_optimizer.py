@@ -321,12 +321,17 @@ class IndependentOptimizerAuditTests(unittest.TestCase):
 
         def capture_minimize(fun, x0, jac, method, options):
             captured_objectives.append(fun)
+            x = np.asarray(x0, dtype=float).copy()
+            # SciPy OptimizeResult exposes the final Jacobian as jac.
+            # This test double preserves that contract because the nested
+            # runner records the optimizer's final gradient norm.
             return SimpleNamespace(
-                x=np.asarray(x0, dtype=float).copy(),
+                x=x,
                 success=True,
                 status=0,
                 nit=0,
                 message="objective captured for parity test",
+                jac=np.asarray(fun(x)[1], dtype=float),
             )
 
         nested_validation.minimize = capture_minimize
