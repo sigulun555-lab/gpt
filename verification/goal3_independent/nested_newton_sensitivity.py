@@ -246,7 +246,7 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
         "totalAcceptedNewtonSteps":sum(x["acceptedNewtonSteps"] for x in FIT_DIAGNOSTICS),
         "maxDampingUsed":max(x["maximumDampingUsed"] for x in FIT_DIAGNOSTICS),
         "trustExactFallbackFitCount":sum(x["trustExactFallbackUsed"] for x in FIT_DIAGNOSTICS),
-        "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"5e-7 is 2x tighter than the protocol 1e-6 diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
+        "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"same 1e-6 max-absolute-gradient threshold as the protocol diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
         "solverScriptSha256":sha256_file(Path(__file__).resolve()),
         "comparisonToOriginalSciPy":_comparison(result,baseline),
         "scope":"research-only nested solver sensitivity; protocol, data, windows, dates, selection rule and scoring unchanged",
