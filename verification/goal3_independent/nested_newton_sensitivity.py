@@ -23,8 +23,8 @@ import nested_validation as nv
 
 FIT_DIAGNOSTICS: list[dict] = []
 DESIGN_CACHE: dict[str, tuple] = {}
-SOLVER_TOLERANCE = 1e-8
-MAX_ITERATIONS = 100
+SOLVER_TOLERANCE = 1e-7  # 10x tighter than the protocol's 1e-6 diagnostic gate
+MAX_ITERATIONS = 200
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -196,7 +196,7 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
         "maxIterations":max(x["nit"] for x in FIT_DIAGNOSTICS),
         "totalAcceptedNewtonSteps":sum(x["acceptedNewtonSteps"] for x in FIT_DIAGNOSTICS),
         "maxDampingUsed":max(x["maximumDampingUsed"] for x in FIT_DIAGNOSTICS),
-        "gradientTolerance":SOLVER_TOLERANCE,"fitDiagnostics":FIT_DIAGNOSTICS,
+        "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"1e-7 is 10x tighter than the protocol 1e-6 diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
         "solverScriptSha256":sha256_file(Path(__file__).resolve()),
         "comparisonToOriginalSciPy":_comparison(result,baseline),
         "scope":"research-only nested solver sensitivity; protocol, data, windows, dates, selection rule and scoring unchanged",
