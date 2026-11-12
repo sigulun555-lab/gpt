@@ -38,7 +38,7 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         exact_obj,exact_grad,_=exact._objective_gradient_hessian(exact_params,design,10.0,False)
         lbfgs_obj,_,_=exact._objective_gradient_hessian(lbfgs_params,design,10.0,False)
         self.assertLessEqual(exact_obj,lbfgs_obj+1e-10)
-        self.assertLessEqual(float(abs(exact_grad).max()),1e-8)
+        self.assertLessEqual(float(abs(exact_grad).max()),exact.SOLVER_TOLERANCE)
 
     def test_analytic_hessian_matches_finite_difference_gradient(self):
         design=exact._design(self.prior)
