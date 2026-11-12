@@ -8,7 +8,10 @@ on:
       - "verification/goal3_independent/prospective_shadow.py"
       - "verification/goal3_independent/score_prospective_shadow.py"
       - "verification/goal3_independent/nested_validation.py"
+      - "verification/goal3_independent/nested_newton_sensitivity.py"
+      - "verification/goal3_independent/NESTED_NEWTON_SENSITIVITY.md"
       - "tests/test_nested_validation.py"
+      - "verification/goal3_independent/test_nested_newton_sensitivity.py"
       - "verification/goal3_independent/NESTED_VALIDATION.md"
       - "verification/goal3_independent/independent_optimizer_audit.py"
       - "verification/goal3_independent/controlled_openblas_dispatch_audit.py"
@@ -71,7 +74,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/research/goal3-prospective-shadow-20261104-v2')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,7 +87,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy scipy threadpoolctl
       - name: Syntax checks
         run: |
-          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/optimizer_gradient.py verification/goal3_independent/strict_optimizer_sensitivity_audit.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py tests/test_goal3_reproduce_allk_provenance.py verification/goal3_independent/controlled_openblas_dispatch_audit.py tests/test_goal3_controlled_openblas_dispatch.py
+          python -m py_compile verification/goal3_independent/prospective_shadow.py verification/goal3_independent/nested_validation.py verification/goal3_independent/nested_newton_sensitivity.py verification/goal3_independent/test_nested_newton_sensitivity.py verification/goal3_independent/optimizer_gradient.py verification/goal3_independent/strict_optimizer_sensitivity_audit.py verification/goal3_independent/reproduce_allk_outer.py verification/goal3_independent/independent_optimizer_audit.py verification/goal3_independent/poisson_residual_cluster_audit.py verification/goal3_independent/league_k6_k10_audit.py verification/goal3_independent/k_stability_influence_audit.py verification/goal3_independent/selection_calibration_bootstrap_audit.py tests/test_goal3_prospective_shadow.py verification/goal3_independent/score_prospective_shadow.py tests/test_goal3_prospective_shadow_scoring.py tests/test_goal3_independent_optimizer.py tests/test_goal3_poisson_residual_cluster.py tests/test_goal3_league_k6_k10_audit.py tests/test_goal3_selection_calibration_bootstrap.py verification/goal3_independent/calibration_reliability_audit.py tests/test_goal3_calibration_reliability_audit.py verification/goal3_independent/calibration_team_aware_bootstrap_audit.py tests/test_goal3_calibration_team_aware_bootstrap.py tests/test_goal3_two_way_cluster_bootstrap.py verification/goal3_independent/two_way_cluster_bootstrap_audit.py verification/goal3_independent/pair_preserving_date_team_bootstrap_audit.py tests/test_goal3_pair_preserving_bootstrap.py verification/goal3_independent/stratified_pair_preserving_date_team_bootstrap_audit.py  tests/test_goal3_stratified_pair_preserving_bootstrap.py tests/test_goal3_league_date_paired_difference_audit.py verification/goal3_independent/league_date_paired_difference_audit.py verification/goal3_independent/calendar_week_cluster_bootstrap_audit.py tests/test_goal3_calendar_week_cluster_bootstrap.py tests/test_goal3_reproduce_allk_provenance.py verification/goal3_independent/controlled_openblas_dispatch_audit.py tests/test_goal3_controlled_openblas_dispatch.py
           node --check model.js
           node --check scripts/auto_pipeline.js
       - name: Existing tests
@@ -400,6 +403,8 @@ jobs:
           python -c 'import json,sys; r=json.load(open("artifacts/goal3_independent_optimizer_audit.json")); print(r["reconstructionCheck"]); sys.exit(0 if r["reconstructionCheck"]["passed"] else 1)'
       - name: Nested expanding-window validation unit tests
         run: python -m unittest verification.goal3_independent.test_nested_validation -v
+      - name: Independent exact-Newton nested solver unit tests
+        run: python -m unittest verification.goal3_independent.test_nested_newton_sensitivity -v
       - name: Run original predeclared five-value nested validation
         run: |
           mkdir -p artifacts
@@ -445,6 +450,35 @@ jobs:
                      "history2026DistinctDates": result["history2026DistinctDates"],
                      "optimizerDiagnostics": opt, "execution": execution})
           PY
+      - name: Independent exact-Newton nested solver sensitivity (5-value and 16-value grids)
+        run: |
+          python verification/goal3_independent/nested_newton_sensitivity.py \
+            --predeclared-baseline artifacts/goal3_nested_validation_predeclared_5lambda.json \
+            --expanded-baseline artifacts/goal3_nested_validation_expanded_16lambda.json \
+            --out-dir artifacts/nested-newton
+      - name: Verify exact-Newton nested solver sensitivity
+        run: |
+          python - <<'PY'
+          import json
+          cases = {
+              "artifacts/nested-newton/goal3_nested_newton_predeclared_5lambda.json": (5, 527),
+              "artifacts/nested-newton/goal3_nested_newton_expanded_16lambda.json": (16, 1649),
+          }
+          for path, (grid_size, expected_fits) in cases.items():
+              with open(path, encoding="utf-8") as f:
+                  result = json.load(f)
+              solver = result["solverSensitivity"]
+              assert len(result["lambdaCandidates"]) == grid_size, path
+              assert len(result["outerFolds"]) == 3, path
+              assert solver["fitCount"] == expected_fits, (path, solver["fitCount"])
+              assert solver["successfulFits"] == expected_fits, path
+              assert solver["maxAbsGradient"] <= 1e-8, (path, solver["maxAbsGradient"])
+              assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in result["outerFolds"]), path
+              print({"path": path, "fitCount": solver["fitCount"],
+                     "maxAbsGradient": solver["maxAbsGradient"],
+                     "maxIterations": solver["maxIterations"],
+                     "selectionVsLBFGSB": solver["comparisonToOriginalSciPy"]["folds"]})
+          PY
       - name: Upload original predeclared five-value nested validation
         uses: actions/upload-artifact@v4
         with:
@@ -457,6 +491,21 @@ jobs:
         with:
           name: goal3-nested-validation-expanded-16lambda-${{ github.run_id }}
           path: artifacts/goal3_nested_validation_expanded_16lambda.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload exact-Newton predeclared nested validation sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-nested-newton-predeclared-5lambda-\${{ github.run_id }}
+          path: artifacts/nested-newton/goal3_nested_newton_predeclared_5lambda.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload exact-Newton expanded nested validation sensitivity
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-nested-newton-expanded-16lambda-\${{ github.run_id }}
+          path: artifacts/nested-newton/goal3_nested_newton_expanded_16lambda.json
           if-no-files-found: error
           retention-days: 90
 
