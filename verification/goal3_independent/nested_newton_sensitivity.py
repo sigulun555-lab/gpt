@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 import numpy as np
 from scipy.linalg import solve
+from scipy.optimize import minimize
 from scipy.sparse import coo_matrix
 
 HERE = Path(__file__).resolve().parent
@@ -82,7 +83,7 @@ def _objective_gradient_hessian(x: np.ndarray, design, lam_pen: float, need_hess
     return value, gradient, (hessian+hessian.T)*0.5
 
 def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
-    """Fit the same objective with exact Hessian Newton and Armijo backtracking."""
+    """Fit the same objective with exact Hessian Newton and trust-exact polishing."""
     design = _design(prior)
     if design is None:
         return None, {}, {"success":True,"status":0,"nit":0,"message":"empty prior fallback",
@@ -91,6 +92,9 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
     x = np.zeros(2+2*n, dtype=np.float64)
     x[0] = np.log(1.3)
     damping_used, accepted_steps, message = 0.0, 0, ""
+    fallback_reason = None
+    fallback_info = None
+
     for iteration in range(MAX_ITERATIONS+1):
         value, gradient, hessian = _objective_gradient_hessian(x, design, lam_pen, True)
         max_abs = float(np.max(np.abs(gradient)))
@@ -98,7 +102,9 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
             message = f"exact Newton converged: max_abs_gradient<={SOLVER_TOLERANCE:g}"
             break
         if iteration == MAX_ITERATIONS:
-            raise RuntimeError(f"exact Newton did not converge for lambda={lam_pen:g}; maxAbsGradient={max_abs:.12g}")
+            fallback_reason = f"manual Newton iteration limit reached at gradient {max_abs:.12g}"
+            break
+
         direction, last_error = None, None
         for damping in (0.0,1e-12,1e-10,1e-8,1e-6,1e-4):
             try:
@@ -111,7 +117,9 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
             except Exception as exc:
                 last_error = repr(exc)
         if direction is None:
-            raise RuntimeError(f"exact Newton could not find descent direction; lambda={lam_pen:g}; gradient={max_abs:.12g}; {last_error}")
+            fallback_reason = f"manual Newton could not find descent direction: {last_error}"
+            break
+
         slope = float(np.dot(gradient,direction))
         step, accepted = 1.0, False
         for _ in range(60):
@@ -129,22 +137,63 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
             if final_max <= SOLVER_TOLERANCE:
                 message = f"exact Newton converged after line-search stagnation: {final_max:.12g}"
                 break
-            raise RuntimeError(f"exact Newton line search failed; lambda={lam_pen:g}; gradient={final_max:.12g}; objective={final_value:.12g}")
+            fallback_reason = f"manual Newton Armijo line search stagnated at gradient {final_max:.12g}, objective {final_value:.12g}"
+            break
     else:
-        raise RuntimeError("unreachable exact Newton termination")
+        fallback_reason = "manual Newton loop ended without convergence"
+
+    _, current_gradient, _ = _objective_gradient_hessian(x,design,lam_pen,False)
+    current_max = float(np.max(np.abs(current_gradient)))
+    if current_max > SOLVER_TOLERANCE:
+        start_x = x.copy()
+
+        def trust_fun(z):
+            value, grad, _ = _objective_gradient_hessian(z,design,lam_pen,False)
+            return value, grad
+
+        def trust_hess(z):
+            return _objective_gradient_hessian(z,design,lam_pen,True)[2]
+
+        trust_result = minimize(
+            trust_fun, start_x, jac=True, hess=trust_hess, method="trust-exact",
+            options={"gtol":SOLVER_TOLERANCE,"maxiter":500},
+        )
+        x = np.asarray(trust_result.x,dtype=np.float64)
+        fallback_info = {
+            "successFlag":bool(trust_result.success),
+            "status":int(trust_result.status),
+            "nit":int(trust_result.nit),
+            "message":str(trust_result.message),
+            "initialGradient":current_max,
+            "fallbackReason":fallback_reason,
+        }
+        message = f"trust-exact polish after {fallback_reason}: {trust_result.message}"
+
     final_value, final_gradient, _ = _objective_gradient_hessian(x,design,lam_pen,False)
     max_abs = float(np.max(np.abs(final_gradient)))
     grad_l2 = float(np.linalg.norm(final_gradient))
     if not np.isfinite(x).all() or not np.isfinite(final_value) or max_abs > SOLVER_TOLERANCE:
-        raise RuntimeError(f"exact Newton final validation failed; lambda={lam_pen:g}; objective={final_value}; gradient={max_abs}")
+        raise RuntimeError(
+            f"exact-Hessian solver final validation failed; lambda={lam_pen:g}; "
+            f"objective={final_value}; gradient={max_abs}; trustExact={fallback_info}"
+        )
+    manual_iterations = int(iteration)
+    trust_iterations = int(fallback_info["nit"]) if fallback_info else 0
     info = {
-        "success":True,"status":0,"nit":int(iteration),"message":message,"optimizerFit":True,
+        "success":True,"status":0,"nit":manual_iterations+trust_iterations,"message":message,"optimizerFit":True,
         "maxAbsGradient":max_abs,"gradientL2":grad_l2,"gradientDimension":int(final_gradient.size),
-        "optimizerName":"independent exact-Newton with analytic Hessian and Armijo backtracking",
-        "optimizerOptions":{"maxIterations":MAX_ITERATIONS,"maxAbsGradientTolerance":SOLVER_TOLERANCE,
-                            "dampingSchedule":[0.0,1e-12,1e-10,1e-8,1e-6,1e-4],
-                            "armijoConstant":1e-4,"maxBacktrackingSteps":60},
+        "optimizerName":"independent exact-Hessian Newton with Armijo and trust-exact polish",
+        "optimizerOptions":{
+            "manualMaxIterations":MAX_ITERATIONS,"trustExactMaxIterations":500,
+            "maxAbsGradientTolerance":SOLVER_TOLERANCE,
+            "dampingSchedule":[0.0,1e-12,1e-10,1e-8,1e-6,1e-4],
+            "armijoConstant":1e-4,"maxBacktrackingSteps":60,
+            "trustExactMethod":"SciPy trust-exact with the same analytic Hessian",
+        },
         "objective":final_value,"acceptedNewtonSteps":accepted_steps,"maximumDampingUsed":damping_used,
+        "manualNewtonIterations":manual_iterations,
+        "trustExactFallbackUsed":fallback_info is not None,
+        "trustExactFallback":fallback_info,
     }
     FIT_DIAGNOSTICS.append({"lambda":float(lam_pen),**info})
     return x,idx,info
@@ -188,7 +237,7 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
     if any(not x["success"] or x["maxAbsGradient"]>SOLVER_TOLERANCE for x in FIT_DIAGNOSTICS):
         raise AssertionError(f"{label}: exact Newton fit failed {SOLVER_TOLERANCE:g} gradient tolerance")
     result["solverSensitivity"]={
-        "solver":"independent exact-Newton with analytic Hessian and Armijo backtracking",
+        "solver":"independent exact-Hessian Newton with Armijo and trust-exact polish",
         "gridLabel":label,"fitCount":len(FIT_DIAGNOSTICS),
         "successfulFits":sum(x["success"] for x in FIT_DIAGNOSTICS),
         "maxAbsGradient":max(x["maxAbsGradient"] for x in FIT_DIAGNOSTICS),
@@ -196,7 +245,8 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
         "maxIterations":max(x["nit"] for x in FIT_DIAGNOSTICS),
         "totalAcceptedNewtonSteps":sum(x["acceptedNewtonSteps"] for x in FIT_DIAGNOSTICS),
         "maxDampingUsed":max(x["maximumDampingUsed"] for x in FIT_DIAGNOSTICS),
-        "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"1e-7 is 10x tighter than the protocol 1e-6 diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
+        "trustExactFallbackFitCount":sum(x["trustExactFallbackUsed"] for x in FIT_DIAGNOSTICS),
+        "gradientTolerance":SOLVER_TOLERANCE,"strictGateComparison":"5e-7 is 2x tighter than the protocol 1e-6 diagnostic gate","fitDiagnostics":FIT_DIAGNOSTICS,
         "solverScriptSha256":sha256_file(Path(__file__).resolve()),
         "comparisonToOriginalSciPy":_comparison(result,baseline),
         "scope":"research-only nested solver sensitivity; protocol, data, windows, dates, selection rule and scoring unchanged",
