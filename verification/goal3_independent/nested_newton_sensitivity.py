@@ -26,6 +26,7 @@ FIT_DIAGNOSTICS: list[dict] = []
 DESIGN_CACHE: dict[str, tuple] = {}
 SOLVER_TOLERANCE = 1e-6  # Match the protocol's strict gradient diagnostic gate
 MAX_ITERATIONS = 300
+TRUST_EXACT_MAX_ITERATIONS = 1000
 
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -156,7 +157,7 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
 
         trust_result = minimize(
             trust_fun, start_x, jac=True, hess=trust_hess, method="trust-exact",
-            options={"gtol":SOLVER_TOLERANCE*0.1,"maxiter":1000},
+            options={"gtol":SOLVER_TOLERANCE*0.1,"maxiter":TRUST_EXACT_MAX_ITERATIONS},
         )
         trust_x = np.asarray(trust_result.x,dtype=np.float64)
         _, trust_gradient, _ = _objective_gradient_hessian(trust_x,design,lam_pen,False)
@@ -272,13 +273,21 @@ def fit_shrinkage_exact_newton(prior: list[dict], lam_pen: float):
     manual_iterations = int(iteration)
     trust_iterations = int(fallback_info["nit"]) if fallback_info else 0
     bfgs_iterations = int(((fallback_info or {}).get("bfgsPolish") or {}).get("nit",0) or 0)
-    root_iterations = sum(int((fallback_info or {}).get(key,{}).get("functionEvaluations",0) or 0) for key in ("rootHybrid","rootLm") if (fallback_info or {}).get(key))
+    root_function_evaluations = sum(
+        int((fallback_info or {}).get(key,{}).get("functionEvaluations",0) or 0)
+        for key in ("rootHybrid","rootLm") if (fallback_info or {}).get(key)
+    )
+    # SciPy root reports function evaluations (nfev), not iterations (nit).
+    # Keep these diagnostics separate rather than adding unlike units.
+    total_iterations = manual_iterations + trust_iterations + bfgs_iterations
     info = {
-        "success":True,"status":0,"nit":manual_iterations+trust_iterations+root_iterations+bfgs_iterations,"message":message,"optimizerFit":True,
+        "success":True,"status":0,"nit":total_iterations,"totalIterations":total_iterations,
+        "rootFunctionEvaluations":root_function_evaluations,
+        "message":message,"optimizerFit":True,
         "maxAbsGradient":max_abs,"gradientL2":grad_l2,"gradientDimension":int(final_gradient.size),
         "optimizerName":"independent exact-Hessian Newton with Armijo, trust-exact, gradient-root, and BFGS polish",
         "optimizerOptions":{
-            "manualMaxIterations":MAX_ITERATIONS,"trustExactMaxIterations":500,
+            "manualMaxIterations":MAX_ITERATIONS,"trustExactMaxIterations":TRUST_EXACT_MAX_ITERATIONS,
             "maxAbsGradientTolerance":SOLVER_TOLERANCE,
             "dampingSchedule":[0.0,1e-12,1e-10,1e-8,1e-6,1e-4],
             "armijoConstant":1e-4,"maxBacktrackingSteps":60,
@@ -365,6 +374,9 @@ def run_grid(grid: list[float], label: str, baseline_path: Path, output_path: Pa
         "maxAbsGradient":max(x["maxAbsGradient"] for x in FIT_DIAGNOSTICS),
         "maxGradientL2":max(x["gradientL2"] for x in FIT_DIAGNOSTICS),
         "maxIterations":max(x["nit"] for x in FIT_DIAGNOSTICS),
+        "maxRootFunctionEvaluations":max(x.get("rootFunctionEvaluations",0) for x in FIT_DIAGNOSTICS),
+        "totalRootFunctionEvaluations":sum(x.get("rootFunctionEvaluations",0) for x in FIT_DIAGNOSTICS),
+        "iterationCountDefinition":"manual Newton + trust-exact + BFGS iterations; SciPy root function evaluations are reported separately",
         "totalAcceptedNewtonSteps":sum(x["acceptedNewtonSteps"] for x in FIT_DIAGNOSTICS),
         "maxDampingUsed":max(x["maximumDampingUsed"] for x in FIT_DIAGNOSTICS),
         **_fallback_summary(FIT_DIAGNOSTICS),
