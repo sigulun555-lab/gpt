@@ -2,6 +2,9 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+import numpy as np
+from scipy.optimize import OptimizeResult, minimize as scipy_minimize
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
 import nested_newton_sensitivity as exact
@@ -67,6 +70,26 @@ class ExactNewtonNestedSensitivityTests(unittest.TestCase):
         self.assertTrue(info["trustExactFallbackUsed"])
         self.assertLessEqual(info["maxAbsGradient"], exact.SOLVER_TOLERANCE)
         self.assertEqual(len(params), 2 + 2 * len(idx))
+
+    def test_bfgs_polishes_failed_trust_exact_without_relaxing_gradient_gate(self):
+        old_max = exact.MAX_ITERATIONS
+        exact.MAX_ITERATIONS = 0
+        def controlled_minimize(fun, x0, jac=None, hess=None, method=None, options=None):
+            if method == "trust-exact":
+                return OptimizeResult(x=np.asarray(x0,dtype=float),success=False,status=2,nit=0,
+                                      message="forced trust-exact model failure")
+            if method == "BFGS":
+                return scipy_minimize(fun,x0,jac=jac,method="BFGS",options=options)
+            raise AssertionError(f"unexpected optimizer method: {method}")
+        try:
+            with patch.object(exact,"minimize",side_effect=controlled_minimize):
+                params,idx,info=exact.fit_shrinkage_exact_newton(self.prior,6.0)
+        finally:
+            exact.MAX_ITERATIONS=old_max
+        self.assertTrue(info["trustExactFallbackUsed"])
+        self.assertTrue(info["bfgsPolishUsed"])
+        self.assertLessEqual(info["maxAbsGradient"],exact.SOLVER_TOLERANCE)
+        self.assertIn(info["trustExactFallback"]["selectedCandidate"],("manual-newton","trust-exact","bfgs-polish"))
 
     def test_empty_prior_preserves_documented_fallback(self):
         params,idx,info=exact.fit_shrinkage_exact_newton([],6.0)
