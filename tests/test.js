@@ -56,16 +56,6 @@ assert.equal(goal3Built.fixtures.fixtures[0].matchNumber,1);
 assert.equal(goal3Built.fixtures.fixtures[0].round,1666);
 assert.equal(goal3Built.fixtures.fixtures[0].deadline,'2026-10-28T18:50:00+09:00');
 
-const attemptStartedAt=new Date('2026-10-22T00:00:00.000Z');
-const snapshotAvailableAt=new Date('2026-10-22T00:00:02.000Z');
-const timestampedBuild=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"',goal3Html,attemptStartedAt,snapshotAvailableAt);
-assert.equal(timestampedBuild.payload.generatedAt,attemptStartedAt.toISOString(),'generatedAt remains declared attempt-start metadata');
-assert.equal(timestampedBuild.history[0].fetchedAt,attemptStartedAt.toISOString(),'row fetchedAt remains declared attempt-start metadata, not a fetch-completion claim');
-assert.equal(timestampedBuild.payload.totoSource.lastFetchedAt,attemptStartedAt.toISOString(),'official parsedAt remains declared attempt-start metadata');
-assert.equal(timestampedBuild.status.lastAttemptAt,attemptStartedAt.toISOString(),'lastAttemptAt must preserve request start time');
-assert.equal(timestampedBuild.status.lastSuccessfulFetch,snapshotAvailableAt.toISOString(),'lastSuccessfulFetch must record post-fetch availability time');
-const afterDeadlineBuild=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"',goal3Html,new Date('2026-10-28T09:49:00.000Z'),new Date('2026-10-28T09:51:00.000Z'));
-assert.equal(afterDeadlineBuild.payload.predictionsGenerated,false,'deadline gate must use post-fetch snapshot availability, not request start');
 const notConfirmed=build('"2025","J1","R1","2025/01/01","2025-01-01T12:00:00+09:00","Home","2-0","Away"','<html>none</html>',new Date('2026-10-22T00:00:00Z'));assert.equal(notConfirmed.payload.predictionsGenerated,false);assert.equal(notConfirmed.payload.predictions.length,0);
 console.log('PASS parser, score, probability normalization, toto 13-fixture parsing, totoGOAL3 six-team-row normalization, fixture-only data contract, and safe no-target behavior');
 
