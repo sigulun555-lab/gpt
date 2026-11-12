@@ -408,7 +408,7 @@ jobs:
         run: |
           python verification/goal3_independent/nested_validation.py \
             --out artifacts/goal3_nested_validation_expanded_16lambda.json
-      - name: Verify nested validation grids, provenance, and leakage guards
+      - name: Verify nested validation grids, provenance, leakage, and optimizer diagnostics
         run: |
           python - <<'PY'
           import json
@@ -416,20 +416,32 @@ jobs:
               "artifacts/goal3_nested_validation_predeclared_5lambda.json": [1.0, 3.0, 10.0, 30.0, 100.0],
               "artifacts/goal3_nested_validation_expanded_16lambda.json": [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0],
           }
+          stages = ("innerGradientGate", "outerSelectedGradientGate", "outerCandidateDiagnosticGradientGate")
           for path, expected_grid in cases.items():
               with open(path, encoding="utf-8") as f:
                   result = json.load(f)
               folds = result.get("outerFolds", [])
               execution = result.get("inputProvenance", {}).get("execution", {})
+              opt = result.get("optimizerDiagnostics", {})
               assert result.get("lambdaCandidates") == expected_grid, (path, result.get("lambdaCandidates"))
               assert len(folds) == 3, (path, len(folds))
               assert all(str(x.get("leakageCheck", "")).startswith("passed:") for x in folds), path
-              assert result.get("optimizerDiagnostics", {}).get("failureCount") == 0, path
+              assert opt.get("failureCount") == 0, path
+              assert opt.get("strictGradientGateThreshold") == 1e-6, path
+              assert str(opt.get("strictGradientGateRole", "")).startswith("diagnostic only"), path
+              for stage in stages:
+                  d = opt[stage]
+                  assert d["withinGradientGate1eMinus6"] + d["aboveGradientGate1eMinus6"] == d["optimizerFitCount"], (path, stage, d)
+              assert opt["innerFitCountAcrossAllCandidatesAndOuterFolds"] == opt["innerGradientGate"]["optimizerFitCount"], path
+              assert opt["outerSelectedFitCount"] == opt["outerSelectedGradientGate"]["optimizerFitCount"], path
+              assert opt["outerCandidateDiagnosticFitCountNotForSelection"] == opt["outerCandidateDiagnosticGradientGate"]["optimizerFitCount"], path
+              assert opt["totalOptimizerFitCount"] == sum(opt[x]["optimizerFitCount"] for x in stages), path
+              assert opt["totalFitsWithinGradientGate1eMinus6"] + opt["totalFitsAboveGradientGate1eMinus6"] == opt["totalOptimizerFitCount"], path
               assert result.get("history2026DistinctDates", 0) >= 20, path
               assert execution.get("githubSha") and execution.get("workflowRunId"), path
               print({"path": path, "lambdaCandidates": expected_grid, "outerFolds": len(folds),
                      "history2026DistinctDates": result["history2026DistinctDates"],
-                     "optimizerDiagnostics": result["optimizerDiagnostics"], "execution": execution})
+                     "optimizerDiagnostics": opt, "execution": execution})
           PY
       - name: Upload original predeclared five-value nested validation
         uses: actions/upload-artifact@v4
