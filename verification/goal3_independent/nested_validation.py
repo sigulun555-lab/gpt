@@ -22,10 +22,29 @@ from scipy.optimize import minimize
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HERE = os.path.dirname(__file__)
-LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
+DEFAULT_LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
+LAMBDAS = list(DEFAULT_LAMBDAS)
 WINDOWS = ["2026_only", "2025_plus_2026"]
 OUTER_START_FRACTIONS = [0.55, 0.70, 0.85]
 INNER_START_FRACTION = 0.40
+
+
+def parse_lambda_grid(value):
+    """Parse an explicit, strictly increasing positive lambda grid."""
+    if value is None:
+        return list(DEFAULT_LAMBDAS)
+    parts = [part.strip() for part in value.split(",")]
+    if not parts or any(not part for part in parts):
+        raise ValueError("lambda grid must be a comma-separated list of positive numbers")
+    try:
+        values = [float(part) for part in parts]
+    except ValueError as exc:
+        raise ValueError("lambda grid contains a non-numeric value") from exc
+    if any(not math.isfinite(x) or x <= 0 for x in values):
+        raise ValueError("lambda grid values must be finite and positive")
+    if any(a >= b for a, b in zip(values, values[1:])):
+        raise ValueError("lambda grid must be strictly increasing with no duplicates")
+    return values
 
 
 def sha256_file(path):
@@ -332,7 +351,13 @@ def main():
     ap.add_argument("--aliases", default=os.path.join(ROOT, "data", "team_aliases.json"))
     ap.add_argument("--csv2025", default=os.path.join(HERE, "2025.csv"))
     ap.add_argument("--out", default=os.path.join(HERE, "nested_results.json"))
+    ap.add_argument(
+        "--lambda-grid", default=None,
+        help="comma-separated, strictly increasing positive lambda candidates; default is the expanded 16-value research grid",
+    )
     args = ap.parse_args()
+    global LAMBDAS
+    LAMBDAS = parse_lambda_grid(args.lambda_grid)
     h2025, h2026 = load_data(args.history2026, args.aliases, args.csv2025)
     dates = sorted({m["date"] for m in h2026})
     if len(dates) < 20:
