@@ -35,7 +35,7 @@ EXPECTED_SOURCE_PROVENANCE = {
     "aliasesSha256": "92e6377068df8dd63935e0c003adfd7b355e7adac23f7aace4f947be4f5f027e",
     "history2025CsvSha256": "6175674bc28d4311b219eed5ea2aa5e478fe0f17b8e6b8653f37718057da4288",
     "nestedValidationPySha256": "c0ee7a72eabba5b203766abe915a9c0ab6a3a336ae9e9a2397939b58f5244d04",
-    "nestedValidationPyGitBlobSha": "60cc0a47fd7bb94bd8bc69a35aa2891c59346943",
+    "nestedValidationPyGitBlobSha": "f84a97aeda80a4820f97fb9f21f5c55cf74f8d17",
     "pr19NestedValidationPyGitBlobSha": "5f73df9e6fdb43d5cf333c04036f87ae16c20d1f",
 }
 EXPECTED_TEAM_COUNTS = {"J1": 20, "J2": 20, "J3": 20}
