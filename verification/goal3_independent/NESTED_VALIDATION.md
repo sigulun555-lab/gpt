@@ -22,6 +22,24 @@ It does not modify production prediction code or prediction logs.
 - Candidate penalty strengths: lambda = 1, 3, 10, 30, 100.
 - Candidate training windows: 2026 history only; or all 2025 history plus 2026
   matches dated strictly before the target date.
+
+## Grid history and interpretation
+
+The original pre-declared grid above is **[1, 3, 10, 30, 100]**. On
+2026-11-04, commit
+`c85e45d8a3b9f50a0cad1ddd82516f80dd539a0f` expanded the script's default
+research sweep to **[0.5, 1, 2, 3, 4, 6, 8, 10, 15, 20, 30, 50, 75, 100,
+150, 200]**, but the documentation was not updated at that time. The expanded
+grid is therefore treated as a **separate exploratory sensitivity**, not as a
+silent replacement for the original pre-declared five-value protocol.
+
+The runner accepts `--lambda-grid 1,3,10,30,100` to execute the original
+five-value grid. Omitting the option retains the expanded 16-value grid.
+CI stores the two outputs separately and verifies the lambda list embedded in
+each result. Do not pool, substitute, or select between these outputs after
+viewing outer-fold scores; the original five-value result remains the
+protocol-conforming nested validation, while the 16-value result is labelled
+exploratory.
 - Selection rule: lowest pooled inner Brier score, then lower Log Loss, then
   higher Accuracy, then lower lambda. This rule is fixed before viewing outer
   fold results.
