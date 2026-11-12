@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from verification.goal3_independent.nested_validation import (
     date_blocks, select_training, score, fit_shrinkage, predict_shrinkage,
-    build_input_provenance, sha256_file, parse_lambda_grid,
+    build_input_provenance, sha256_file, parse_lambda_grid, evaluate_dates,
 )
 from verification.goal3_independent.optimizer_gradient import (
     STRICT_LBFGSB_OPTIONS, fit_shrinkage_strict,
@@ -143,9 +143,28 @@ class NestedValidationTests(unittest.TestCase):
             self.assertEqual(provenance["execution"]["workflowRunId"], "12345")
             self.assertEqual(provenance["execution"]["workflowRunAttempt"], "2")
 
+    def test_evaluate_dates_reports_gradient_gate_without_filtering_fits(self):
+        result = evaluate_dates(
+            ["2026-08-01"], self.h2025, self.h2026, "2025_plus_2026", 10.0
+        )
+        diagnostics = result["optimizerDiagnostics"]
+        self.assertEqual(result["fitCount"], 1)
+        self.assertEqual(result["fitFailureCount"], 0)
+        self.assertEqual(diagnostics["optimizerFitCount"], 1)
+        self.assertEqual(
+            diagnostics["withinGradientGate1eMinus6"]
+            + diagnostics["aboveGradientGate1eMinus6"],
+            1,
+        )
+        self.assertIsInstance(diagnostics["maxAbsGradient"], float)
+
     def test_fit_returns_normalized_distributions(self):
         params, idx, info = fit_shrinkage(self.h2025 + self.h2026, 10.0)
         self.assertTrue(info["success"])
+        self.assertTrue(info["optimizerFit"])
+        self.assertEqual(info["gradientDimension"], len(params))
+        self.assertGreaterEqual(info["maxAbsGradient"], 0.0)
+        self.assertGreaterEqual(info["gradientL2"], 0.0)
         diagnostics = gradient_diagnostics(self.h2025 + self.h2026, params, idx, 10.0)
         self.assertIsInstance(diagnostics["maxAbsGradient"], float)
         self.assertIsInstance(diagnostics["gradientL2"], float)
