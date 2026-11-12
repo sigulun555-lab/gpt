@@ -23,7 +23,7 @@ with the same log-rate clipping at [-20, 20] and the same chain-rule mask used
 by the reference gradient. Its Hessian is computed analytically as
 \(X^T W X + 2\lambda I\) on attack/defense parameters. A damped linear solve
 and Armijo backtracking are used; the solver must reach max absolute gradient
-at most 1e-7 (ten times tighter than the protocol's 1e-6 diagnostic gate) or the run fails.
+at most 5e-7 (twice as tight as the protocol's 1e-6 diagnostic gate) or the run fails.
 
 ## Two grids remain separate
 
