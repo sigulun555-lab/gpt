@@ -217,20 +217,11 @@ def reconstruct_strict_predictions(
                 ph, pa = predict_shrinkage(params, fit_team_index, home, away)
                 strict_probabilities[2 * match_index, k_index] = ph
                 strict_probabilities[2 * match_index + 1, k_index] = pa
-            fit_diagnostics.append({
-                "date": date,
-                "k": k,
-                "trainingRows": len(prior),
-                "teamCount": len(fit_team_index),
-                "fitSuccess": bool(info["success"]),
-                "optimizerStatus": int(info["status"]),
-                "optimizerName": info["optimizerName"],
-                "optimizerOptions": info["optimizerOptions"],
-                "optimizerIterations": int(info["nit"]),
-                "maxAbsGradient": max_gradient,
-                "gradientL2": float(info["gradientL2"]),
-                "gradientDimension": int(info["gradientDimension"]),
-            })
+            fit_diagnostics.append(
+                build_fit_diagnostic(
+                    date, k, len(prior), len(fit_team_index), info, max_gradient
+                )
+            )
 
     if not np.isfinite(strict_probabilities).all():
         raise ValueError("strict probability tensor contains non-finite values")
@@ -351,6 +342,29 @@ def point_metrics(data: dict) -> dict:
             "accuracy": float(data["accuracy"][:, i].mean()),
         }
         for i, k in enumerate(K_VALUES)
+    }
+
+
+def build_fit_diagnostic(date, k, training_rows, team_count, info, max_abs_gradient=None):
+    """Serialize optimizer termination details without conflating success and stationarity."""
+    message = info.get("message")
+    if not isinstance(message, str) or not message.strip():
+        raise ValueError("strict optimizer result is missing a termination message")
+    gradient = info.get("maxAbsGradient") if max_abs_gradient is None else max_abs_gradient
+    return {
+        "date": date,
+        "k": k,
+        "trainingRows": training_rows,
+        "teamCount": team_count,
+        "fitSuccess": bool(info["success"]),
+        "optimizerStatus": int(info["status"]),
+        "optimizerName": info["optimizerName"],
+        "optimizerOptions": info["optimizerOptions"],
+        "optimizerIterations": int(info["nit"]),
+        "optimizerMessage": message,
+        "maxAbsGradient": float(gradient),
+        "gradientL2": float(info["gradientL2"]),
+        "gradientDimension": int(info["gradientDimension"]),
     }
 
 
