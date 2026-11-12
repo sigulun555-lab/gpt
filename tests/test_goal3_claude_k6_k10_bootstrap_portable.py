@@ -50,6 +50,17 @@ def fixture_rows():
 
 
 class ClaudeGoal3K6K10PortableTests(unittest.TestCase):
+    def test_percentile_indices_match_zero_based_nearest_rank(self):
+        self.assertEqual(MODULE.percentile_order_statistic_indices(10000), (249, 9749))
+        self.assertEqual(MODULE.percentile_order_statistic_indices(200), (4, 194))
+        report = MODULE.audit_rows(fixture_rows(), seed=1, replicates=200)
+        self.assertEqual(report["bootstrap"]["lowerIndex"], 4)
+        self.assertEqual(report["bootstrap"]["upperIndex"], 194)
+        self.assertEqual(
+            report["bootstrap"]["indexConvention"],
+            "zero-based nearest-rank order statistics: ceil(p*n)-1",
+        )
+
     def test_valid_paired_rows_are_recomputed(self):
         report = MODULE.audit_rows(fixture_rows(), seed=1, replicates=200)
         self.assertEqual(report["cohort"]["teamSideTargets"], 4)
