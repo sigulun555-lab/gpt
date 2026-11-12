@@ -13,6 +13,12 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(MODULE)
 
+SHARE_SCRIPT = ROOT / "verification" / "goal3_independent" / "verify_claude_goal3_share.py"
+SHARE_SPEC = importlib.util.spec_from_file_location("goal3_claude_share_audit", SHARE_SCRIPT)
+SHARE_MODULE = importlib.util.module_from_spec(SHARE_SPEC)
+assert SHARE_SPEC and SHARE_SPEC.loader
+SHARE_SPEC.loader.exec_module(SHARE_MODULE)
+
 
 def make_row(date, match, side, actual, p6, p10, cutoff):
     b6, ll6, _ = MODULE.score(p6, actual)
@@ -50,15 +56,19 @@ def fixture_rows():
 
 
 class ClaudeGoal3K6K10PortableTests(unittest.TestCase):
-    def test_percentile_indices_match_zero_based_nearest_rank(self):
-        self.assertEqual(MODULE.percentile_order_statistic_indices(10000), (249, 9749))
-        self.assertEqual(MODULE.percentile_order_statistic_indices(200), (4, 194))
+    def test_bootstrap_indices_match_pinned_claude_analysis(self):
+        self.assertEqual(MODULE.analysis_order_statistic_indices(10000), (250, 9749))
+        self.assertEqual(MODULE.analysis_order_statistic_indices(200), (5, 194))
         report = MODULE.audit_rows(fixture_rows(), seed=1, replicates=200)
-        self.assertEqual(report["bootstrap"]["lowerIndex"], 4)
+        self.assertEqual(report["bootstrap"]["lowerIndex"], 5)
         self.assertEqual(report["bootstrap"]["upperIndex"], 194)
         self.assertEqual(
             report["bootstrap"]["indexConvention"],
-            "zero-based nearest-rank order statistics: ceil(p*n)-1",
+            "zero-based indices matching pinned analysis.py: int(0.025*n), int(0.975*n)-1",
+        )
+        self.assertEqual(
+            SHARE_MODULE.percentile_pair(list(range(10000))),
+            [250, 9749],
         )
 
     def test_valid_paired_rows_are_recomputed(self):
