@@ -35,6 +35,10 @@ and per-method summary counts are recorded separately. A root solver's success
 flag is not conflated with the recomputed original-gradient gate; the threshold
 is not relaxed.
 
+## Diagnostic counter semantics
+
+`nit` / `maxIterations` count manual Newton, trust-exact, and BFGS iterations only. SciPy root methods expose function evaluations (`nfev`) rather than a comparable iteration count, so these are reported separately as `rootFunctionEvaluations`, `maxRootFunctionEvaluations`, and `totalRootFunctionEvaluations`. The trust-exact `maxiter` is 1000 and the same constant is used in both execution and recorded options.
+
 ## Two grids remain separate
 
 - Predeclared protocol: [1, 3, 10, 30, 100].
