@@ -17,10 +17,42 @@ from verification.goal3_independent.optimizer_gradient import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "verification" / "goal3_independent"))
+from prospective_shadow import extract_goal3_deadline
+
 RUNNER = ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"
 
 
+def sales_terms_fixture(round_no, deadline_iso):
+    deadline_dt = datetime.fromisoformat(deadline_iso.replace("Z", "+00:00"))
+    deadline_jst = deadline_dt.astimezone(timezone(timedelta(hours=9)))
+    date_text = f"{deadline_jst.year}年{deadline_jst.month}月{deadline_jst.day}日"
+    goal3_time = f"{deadline_jst.hour}:{deadline_jst.minute:02d}"
+    return f"""<html><body>
+      <section><h2>第{round_no}回 totoくじ情報</h2>
+        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
+      <section><h2>第{round_no}回 mini toto-A組 くじ情報</h2>
+        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
+      <section><h2>第{round_no}回 mini toto-B組 くじ情報</h2>
+        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
+      <section><h2>第{round_no}回 totoGOAL3 くじ情報</h2>
+        <p>販売終了日 {date_text}（当サイト(ネット決済) {goal3_time}）</p></section>
+    </body></html>"""
+
+
 class ProspectiveShadowTests(unittest.TestCase):
+    def test_product_specific_deadline_uses_goal3_block_not_first_product(self):
+        html = sales_terms_fixture(1670, "2026-11-07T13:50:00+09:00")
+        self.assertEqual(
+            extract_goal3_deadline(html, 1670),
+            "2026-11-07T13:50:00+09:00",
+        )
+
+    def test_missing_goal3_sales_block_fails_closed(self):
+        html = "<html><body><h2>第1670回 totoくじ情報</h2>販売終了日 2026年11月7日 当サイト(ネット決済) 12:50</body></html>"
+        with self.assertRaisesRegex(ValueError, "Expected exactly one official totoGOAL3 sales block"):
+            extract_goal3_deadline(html, 1670)
+
     def test_v15_optimizer_gradient_matches_central_finite_difference(self):
         matches = [
             {"home": "A", "away": "B", "hg": 1, "ag": 0},
@@ -87,7 +119,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             tmp = Path(tmp)
             now = datetime.now(timezone.utc).replace(microsecond=0)
             as_of = now.isoformat()
-            deadline = (now + timedelta(days=2)).isoformat()
+            deadline = (now + timedelta(days=2)).replace(second=0, microsecond=0).isoformat()
             target_date = (now + timedelta(days=1)).date().isoformat()
             history = []
             teams = ["A", "B", "C", "D"]
@@ -119,6 +151,8 @@ class ProspectiveShadowTests(unittest.TestCase):
                 ],
             }
             aliases = {"aliases": {team: team for team in teams}}
+            sales_terms_path = tmp / "official_sales_terms.html"
+            sales_terms_path.write_text(sales_terms_fixture(9999, deadline), encoding="utf-8")
             files = {
                 "history.json": {"history": history},
                 "predictions.json": predictions,
@@ -145,13 +179,14 @@ class ProspectiveShadowTests(unittest.TestCase):
                 "--history", str(tmp / "history.json"),
                 "--predictions", str(tmp / "predictions.json"),
                 "--aliases", str(tmp / "aliases.json"),
+                "--sales-terms-html", str(sales_terms_path),
                 "--out", str(out),
             ]
             subprocess.run(command, check=True, capture_output=True, text=True, env=env)
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.5")
+            self.assertEqual(evaluation["protocolVersion"], "1.6")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
@@ -207,11 +242,17 @@ class ProspectiveShadowTests(unittest.TestCase):
             })
             snapshot_dir = tmp / "shadow-inputs"
             self.assertTrue(snapshot_dir.is_dir())
+            self.assertEqual(record["officialDeadlineVerification"]["status"], "verified")
+            self.assertEqual(record["officialDeadlineVerification"]["marketType"], "totoGOAL3")
+            self.assertEqual(record["officialDeadlineVerification"]["round"], 9999)
+            self.assertEqual(record["officialDeadlineVerification"]["deadline"], deadline)
+            self.assertTrue(record["inputs"]["officialSalesTermsSha256"])
             snapshot_files = record["inputSnapshots"]["files"]
             expected_snapshot_bytes = {
                 "history": (tmp / "history.json").read_bytes(),
                 "officialPredictions": (tmp / "predictions.json").read_bytes(),
                 "aliases": (tmp / "aliases.json").read_bytes(),
+                "officialSalesTerms": sales_terms_path.read_bytes(),
             }
             for label, raw in expected_snapshot_bytes.items():
                 entry = snapshot_files[label]
@@ -255,6 +296,7 @@ class ProspectiveShadowTests(unittest.TestCase):
                 "--history", str(mixed_path),
                 "--predictions", str(tmp / "predictions.json"),
                 "--aliases", str(tmp / "aliases.json"),
+                "--sales-terms-html", str(sales_terms_path),
                 "--out", str(mixed_out),
             ]
             mixed_rejected = subprocess.run(mixed_command, capture_output=True, text=True)
@@ -277,6 +319,7 @@ class ProspectiveShadowTests(unittest.TestCase):
                 "--history", str(tmp / "history.json"),
                 "--predictions", str(future_predictions_path),
                 "--aliases", str(tmp / "aliases.json"),
+                "--sales-terms-html", str(sales_terms_path),
                 "--out", str(future_out),
             ]
             future_rejected = subprocess.run(
@@ -286,14 +329,40 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertIn("Pipeline-declared fetchedAt is in the future",
                           future_rejected.stderr)
 
+
+            # A mismatched generic/GOAL3 deadline must fail closed before any shadow is written.
+            mismatch_deadline = (
+                datetime.fromisoformat(deadline) + timedelta(hours=1)
+            ).isoformat()
+            mismatch_sales_path = tmp / "mismatched_official_sales_terms.html"
+            mismatch_sales_path.write_text(
+                sales_terms_fixture(9999, mismatch_deadline), encoding="utf-8"
+            )
+            mismatch_out = tmp / "mismatched_deadline_shadow.json"
+            mismatch_command = list(command)
+            mismatch_command[mismatch_command.index("--sales-terms-html") + 1] = str(mismatch_sales_path)
+            mismatch_command[mismatch_command.index("--out") + 1] = str(mismatch_out)
+            mismatch_result = subprocess.run(
+                mismatch_command, capture_output=True, text=True, env=env
+            )
+            self.assertNotEqual(mismatch_result.returncode, 0)
+            self.assertIn(
+                "does not match independently parsed official totoGOAL3 sales deadline",
+                mismatch_result.stderr,
+            )
+            self.assertFalse(mismatch_out.exists())
+
             # A snapshot read at/after the official deadline must be rejected.
             expired_predictions = dict(predictions)
-            expired_predictions["deadline"] = (
-                now - timedelta(seconds=1)
-            ).isoformat()
+            expired_deadline = (now - timedelta(minutes=1)).replace(second=0, microsecond=0).isoformat()
+            expired_predictions["deadline"] = expired_deadline
             expired_predictions_path = tmp / "expired_predictions.json"
             expired_predictions_path.write_text(
                 json.dumps(expired_predictions), encoding="utf-8"
+            )
+            expired_sales_terms_path = tmp / "expired_official_sales_terms.html"
+            expired_sales_terms_path.write_text(
+                sales_terms_fixture(9999, expired_deadline), encoding="utf-8"
             )
             expired_out = tmp / "expired_shadow.json"
             expired_command = [
@@ -301,6 +370,7 @@ class ProspectiveShadowTests(unittest.TestCase):
                 "--history", str(tmp / "history.json"),
                 "--predictions", str(expired_predictions_path),
                 "--aliases", str(tmp / "aliases.json"),
+                "--sales-terms-html", str(expired_sales_terms_path),
                 "--out", str(expired_out),
             ]
             expired_rejected = subprocess.run(
