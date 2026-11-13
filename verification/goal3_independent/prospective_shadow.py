@@ -11,7 +11,10 @@ import hashlib
 import json
 import math
 import os
+import re
 import sys
+import urllib.request
+import html as html_lib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -38,6 +41,89 @@ def parse_time(value: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+
+OFFICIAL_SALES_TERMS_URL = (
+    "https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/"
+    "PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId={round}"
+)
+
+
+def extract_goal3_deadline(sales_terms_html: str, round_no: int) -> str:
+    """Extract the deadline only from the selected round's totoGOAL3 product block."""
+    plain = html_lib.unescape(re.sub(
+        r"(?is)<script\b.*?</script>|<style\b.*?</style>", " ", sales_terms_html
+    ))
+    plain = re.sub(r"(?s)<[^>]+>", " ", plain)
+    plain = re.sub(r"[\u3000\s]+", " ", plain).strip()
+
+    heading = re.compile(
+        rf"第\s*{int(round_no)}\s*回\s*toto\s*GOAL\s*3\s*くじ情報", re.I
+    )
+    headings = list(heading.finditer(plain))
+    if len(headings) != 1:
+        raise ValueError(
+            f"Expected exactly one official totoGOAL3 sales block for round {round_no}; "
+            f"found {len(headings)}"
+        )
+
+    section = plain[headings[0].end():]
+    next_product = re.search(
+        r"第\s*\d+\s*回\s*(?:toto|mini\s*toto)", section, re.I
+    )
+    if next_product:
+        section = section[:next_product.start()]
+
+    date_match = re.search(
+        r"販売終了日\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日", section
+    )
+    if not date_match:
+        raise ValueError(
+            f"Official totoGOAL3 sales block for round {round_no} has no sale-end date"
+        )
+    time_match = re.search(
+        r"当サイト\s*\(\s*ネット決済\s*\)\s*(\d{1,2})\s*[:：]\s*(\d{2})",
+        section[date_match.end():date_match.end() + 240],
+    )
+    if not time_match:
+        raise ValueError(
+            f"Official totoGOAL3 sales block for round {round_no} has no network deadline"
+        )
+
+    year, month, day = map(int, date_match.groups())
+    hour, minute = map(int, time_match.groups())
+    if not (1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23 and 0 <= minute <= 59):
+        raise ValueError("Official totoGOAL3 deadline contains an invalid date/time")
+    return (
+        f"{year:04d}-{month:02d}-{day:02d}T"
+        f"{hour:02d}:{minute:02d}:00+09:00"
+    )
+
+
+def load_official_sales_terms(round_no: int, fixture_path: str | None = None):
+    if fixture_path:
+        raw_bytes = Path(fixture_path).read_bytes()
+        return (
+            raw_bytes.decode("utf-8-sig"),
+            f"test-fixture://{Path(fixture_path).name}",
+            raw_bytes,
+        )
+
+    url = OFFICIAL_SALES_TERMS_URL.format(round=round_no)
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "text/html,application/xhtml+xml,*/*",
+            "User-Agent": "JLeagueTotoPredictor/0.1 (research-only GOAL3 deadline verification)",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        raw_bytes = response.read()
+        final_url = response.geturl()
+    if len(raw_bytes) < 1000:
+        raise ValueError("Official sales-terms page returned unexpectedly short HTML")
+    return raw_bytes.decode("utf-8-sig"), final_url, raw_bytes
+
+
 def load_json(path: Path):
     raw_bytes = path.read_bytes()
     raw = raw_bytes.decode("utf-8")
@@ -49,6 +135,7 @@ def main() -> None:
     ap.add_argument("--history", default=str(ROOT / "data" / "history.json"))
     ap.add_argument("--predictions", default=str(ROOT / "data" / "predictions.json"))
     ap.add_argument("--aliases", default=str(ROOT / "data" / "team_aliases.json"))
+    ap.add_argument("--sales-terms-html", default=None, help="Test fixture only; production shadow runs fetch the official sales-terms page")
     ap.add_argument("--out", required=True, help="New output JSON path; existing files are never overwritten")
     args = ap.parse_args()
 
@@ -78,6 +165,16 @@ def main() -> None:
         raise ValueError("Missing generatedAt/deadline")
     pipeline_generated_at = parse_time(generated_at)
     deadline_dt = parse_time(deadline)
+    sales_terms_html, sales_terms_url, sales_terms_bytes = load_official_sales_terms(
+        round_no, args.sales_terms_html
+    )
+    official_goal3_deadline = extract_goal3_deadline(sales_terms_html, round_no)
+    official_goal3_deadline_dt = parse_time(official_goal3_deadline)
+    if official_goal3_deadline_dt != deadline_dt:
+        raise ValueError(
+            "Prediction snapshot deadline does not match independently parsed official "
+            f"totoGOAL3 sales deadline: snapshot={deadline}, official={official_goal3_deadline}"
+        )
     source_fetched = predictions.get("totoSource", {}).get("lastFetchedAt")
     if not source_fetched:
         raise ValueError("Missing pipeline-declared official target fetch timestamp")
@@ -155,6 +252,7 @@ def main() -> None:
         ("history", "history.json", history_bytes),
         ("officialPredictions", "official_predictions.json", predictions_bytes),
         ("aliases", "team_aliases.json", aliases_bytes),
+        ("officialSalesTerms", "official_goal3_sales_terms.html", sales_terms_bytes),
     ):
         target = snapshot_dir / filename
         with target.open("xb") as stream:
@@ -274,12 +372,23 @@ def main() -> None:
             "historySha256": hashlib.sha256(history_bytes).hexdigest(),
             "officialPredictionsSha256": hashlib.sha256(predictions_bytes).hexdigest(),
             "aliasesSha256": hashlib.sha256(aliases_bytes).hexdigest(),
+            "officialSalesTermsSha256": hashlib.sha256(sales_terms_bytes).hexdigest(),
+            "officialGoal3Deadline": official_goal3_deadline,
             "historyEligibleRows": len(prepared),
             "historyMaxDeclaredFetchedAt": max(m["sourceFetchedAt"] for m in prepared),
             "snapshotAvailableBy": snapshot_available_by.isoformat(),
         },
+        "officialDeadlineVerification": {
+            "status": "verified",
+            "marketType": "totoGOAL3",
+            "round": round_no,
+            "deadline": official_goal3_deadline,
+            "sourceUrl": sales_terms_url,
+            "sourceSha256": hashlib.sha256(sales_terms_bytes).hexdigest(),
+            "method": "extract sale-end date and network time only inside the matching round totoGOAL3 product block",
+        },
         "inputSnapshots": {
-            "format": "byte-for-byte copies of the raw UTF-8 input files",
+            "format": "byte-for-byte copies of raw history, predictions, aliases, and official sales-terms HTML",
             "files": snapshot_files,
         },
         "code": {
@@ -291,7 +400,7 @@ def main() -> None:
         "fitDiagnostics": fit_diagnostics,
         "fixtures": fixture_results,
         "evaluation": {
-            "protocolVersion": "1.5",
+            "protocolVersion": "1.6",
             "target": "home and away full-time goals categorized as 0,1,2,3+",
             "primaryMetrics": ["brier", "logloss"],
             "optimizerDiagnostics": {
