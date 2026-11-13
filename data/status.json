@@ -5,8 +5,8 @@
   "totoTargetsConfirmed": true,
   "round": 1672,
   "deadline": "2026-11-14T13:50:00+09:00",
-  "lastAttemptAt": "2026-11-13T06:41:58.108Z",
-  "lastSuccessfulFetch": "2026-11-13T06:41:58.108Z",
+  "lastAttemptAt": "2026-11-13T19:39:55.526Z",
+  "lastSuccessfulFetch": "2026-11-13T19:39:55.526Z",
   "lastError": null,
   "source": {
     "name": "k-addtimes/jleague_open_data",
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-11-13T06:41:58.108Z",
+    "lastFetchedAt": "2026-11-13T19:39:55.526Z",
     "marketType": "totoGOAL3",
     "round": 1672,
     "deadline": "2026-11-14T13:50:00+09:00",
