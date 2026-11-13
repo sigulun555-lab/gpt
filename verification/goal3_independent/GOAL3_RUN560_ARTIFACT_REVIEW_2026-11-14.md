@@ -81,6 +81,16 @@ League-level paired target-weighted point differences (k6−k10; positive means 
 
 The league audit does not provide a valid league-level inferential claim; it is not evidence that k=6 is uniformly better.
 
+## k-stability influence audit
+
+The 313 fixed-prediction leave-one-cluster-out checks were also independently read from artifact #14034271874:
+
+- Leave one date: 17 clusters; Brier sign flips 1, LogLoss sign flips 0.
+- Leave one team: 60 clusters; Brier sign flips 2, LogLoss sign flips 0.
+- Leave one match: 236 clusters; Brier sign flips 0, LogLoss sign flips 0.
+
+This is a fixed-prediction influence diagnostic only; no model refit follows an exclusion. It is not a confidence interval or a refit-stability proof.
+
 ## Calibration and Poisson residuals
 
 - Four-category simultaneous calibration family: 32/32 bands contain zero in the saved primary and team-aware sensitivity audits.
@@ -96,7 +106,7 @@ The independent optimizer audit reproduced the frozen k6/k10 probability cells w
 - In the expanded 16-lambda nested run, default L-BFGS-B reported success for 1,649 fits, but 0/1,649 met the diagnostic max-absolute-gradient gate of `1e-6`.
 - The separate exact-Hessian damped Newton sensitivity converged for 1,649/1,649 fits, all within the same gate (maximum max-absolute-gradient approximately `9.79e-7`).
 - Across the three outer folds, the L-BFGS-B and Newton outer Brier/LogLoss values differed by less than `5.6e-7`; no material score reversal was observed.
-- A separate 34-fit strict-stationarity audit converged all 34 Newton fits with maximum gradient infinity norm `7.15e-9`; default L-BFGS-B had 11/34 gradients above `1e-2`.
+- A separate strict optimizer sensitivity artifact covered 272 fits: 248 met the max-absolute-gradient `1e-6` gate and 24 did not (maximum `6.95e-6`). A 34-fit strict-stationarity audit converged all 34 Newton fits with maximum gradient infinity norm `7.15e-9`; default L-BFGS-B had 11/34 gradients above `1e-2`.
 - Controlled OpenBLAS dispatch changed no optimizer success/status and altered probabilities by at most about `1.6e-8`; optimizer message and gradient-gate flags can still vary.
 
 Interpretation: the default solver's `success` should not be described as satisfying a strict gradient tolerance. The independent Newton sensitivity supports numerical stability of the frozen predictions, but the prospective runner should report gradient norms and solver messages explicitly. No post-hoc adoption threshold was changed in this review.
