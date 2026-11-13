@@ -186,7 +186,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             record = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(record["round"], 9999)
             evaluation = record["evaluation"]
-            self.assertEqual(evaluation["protocolVersion"], "1.6")
+            self.assertEqual(evaluation["protocolVersion"], "1.5")
             self.assertEqual(evaluation["minimumEvidence"]["interimDescriptive"], {"rounds": 10, "matches": 30})
             self.assertEqual(evaluation["minimumEvidence"]["adoptionReview"], {"rounds": 20, "matches": 60})
             self.assertEqual(evaluation["bootstrap"]["replicates"], 10000)
