@@ -26,18 +26,17 @@ RUNNER = ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"
 def sales_terms_fixture(round_no, deadline_iso):
     deadline_dt = datetime.fromisoformat(deadline_iso.replace("Z", "+00:00"))
     deadline_jst = deadline_dt.astimezone(timezone(timedelta(hours=9)))
-    date_text = f"{deadline_jst.year}年{deadline_jst.month}月{deadline_jst.day}日"
-    goal3_time = f"{deadline_jst.hour}:{deadline_jst.minute:02d}"
+    start_jst = deadline_jst - timedelta(days=7)
+    start_text = f"{start_jst.year}/{start_jst.month:02d}/{start_jst.day:02d} 08:00"
+    end_text = f"{deadline_jst.year}/{deadline_jst.month:02d}/{deadline_jst.day:02d} {deadline_jst.hour:02d}:{deadline_jst.minute:02d}"
+    standard_end = f"{deadline_jst.year}/{deadline_jst.month:02d}/{deadline_jst.day:02d} 12:50"
     return f"""<html><body>
-      <section><h2>第{round_no}回 totoくじ情報</h2>
-        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
-      <section><h2>第{round_no}回 mini toto-A組 くじ情報</h2>
-        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
-      <section><h2>第{round_no}回 mini toto-B組 くじ情報</h2>
-        <p>販売終了日 {date_text}（当サイト(ネット決済) 12:50）</p></section>
-      <section><h2>第{round_no}回 totoGOAL3 くじ情報</h2>
-        <p>販売終了日 {date_text}（当サイト(ネット決済) {goal3_time}）</p></section>
-    </body></html>"""
+      <h1>第{round_no}回</h1><table>
+      <tr><td><img alt="toto"></td><td>販売中</td><td>{start_text}～{standard_end}</td></tr>
+      <tr><td><img alt="minitotoA"></td><td>販売中</td><td>{start_text}～{standard_end}</td></tr>
+      <tr><td><img alt="minitotoB"></td><td>販売中</td><td>{start_text}～{standard_end}</td></tr>
+      <tr><td><img alt="totogoal3"></td><td>販売中</td><td>{start_text}～{end_text}</td></tr>
+      </table></body></html>"""
 
 
 class ProspectiveShadowTests(unittest.TestCase):
@@ -50,7 +49,7 @@ class ProspectiveShadowTests(unittest.TestCase):
 
     def test_missing_goal3_sales_block_fails_closed(self):
         html = "<html><body><h2>第1670回 totoくじ情報</h2>販売終了日 2026年11月7日 当サイト(ネット決済) 12:50</body></html>"
-        with self.assertRaisesRegex(ValueError, "Expected exactly one official totoGOAL3 sales block"):
+        with self.assertRaisesRegex(ValueError, "Expected exactly one totoGOAL3 product row"):
             extract_goal3_deadline(html, 1670)
 
     def test_v15_optimizer_gradient_matches_central_finite_difference(self):
