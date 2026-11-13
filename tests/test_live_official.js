@@ -9,6 +9,55 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     'selected official round should take precedence over unselected navigation round');
 }
 
+
+function officialPlainText(html) {
+  return String(html)
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(?:tr|td|th|div|p|li|option|h[1-6])\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[\u3000\s]+/g, ' ')
+    .trim();
+}
+
+function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
+  const plain = officialPlainText(html);
+  const heading = new RegExp('第\\s*' + Number(round) + '\\s*回\\s*toto\\s*GOAL\\s*3\\s*くじ情報', 'i');
+  const matches = [...plain.matchAll(new RegExp(heading.source, 'gi'))];
+  if (matches.length !== 1) {
+    throw new Error('Expected exactly one official totoGOAL3 sales block for round ' + round + '; found ' + matches.length);
+  }
+  let section = plain.slice(matches[0].index + matches[0][0].length);
+  const nextProduct = section.search(/第\s*\d+\s*回\s*(?:toto|mini\s*toto)/i);
+  if (nextProduct >= 0) section = section.slice(0, nextProduct);
+  const dateMatch = section.match(/販売終了日\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+  if (!dateMatch) throw new Error('Official totoGOAL3 sales block has no sale-end date for round ' + round);
+  const afterDate = section.slice(dateMatch.index + dateMatch[0].length, dateMatch.index + dateMatch[0].length + 240);
+  const timeMatch = afterDate.match(/当サイト\s*\(\s*ネット決済\s*\)\s*(\d{1,2})\s*[:：]\s*(\d{2})/);
+  if (!timeMatch) throw new Error('Official totoGOAL3 sales block has no network deadline for round ' + round);
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
+  return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0') +
+    'T' + hour.padStart(2, '0') + ':' + minute + ':00+09:00';
+}
+
+// Regression: the GOAL3 deadline must come from its own product block,
+// not the first regular-toto deadline on a multi-product sales page.
+{
+  const fixture = '<section><h2>第1670回 totoくじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
+    '<section><h2>第1670回 mini toto-A組 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
+    '<section><h2>第1670回 mini toto-B組 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
+    '<section><h2>第1670回 totoGOAL3 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 13:50）</section>';
+  assert.equal(extractGoal3DeadlineFromSalesTermsHtml(fixture, 1670), '2026-11-07T13:50:00+09:00');
+}
+
 (async () => {
   const headers = {
     Accept: 'text/html,application/xhtml+xml,*/*',
@@ -93,7 +142,16 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
     'all current GOAL3 fixtures should have distinct non-empty home/away teams');
   assert.equal(new Set(goal3.fixtures.map(f => f.home + '|' + f.away)).size, 3,
     'current GOAL3 fixtures should be unique');
-  console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round + ', future deadline, and all 3 fixtures');
+  const salesTermsUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=' + goal3.round;
+  const salesTermsHtml = await fetchOfficialHtml(salesTermsUrl, 'official product sales-terms page');
+  const independentlyParsedGoal3Deadline = extractGoal3DeadlineFromSalesTermsHtml(salesTermsHtml, goal3.round);
+  assert.equal(
+    goal3.deadline,
+    independentlyParsedGoal3Deadline,
+    'prediction parser deadline must match the independently parsed deadline inside the selected round totoGOAL3 product block'
+  );
+  console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round +
+    ', product-specific deadline ' + independentlyParsedGoal3Deadline + ', and all 3 fixtures');
 })().catch(error => {
   if (error && error.code === 'LIVE_OFFICIAL_UNAVAILABLE') {
     console.warn('SKIP live official HTML assertions: external source transport unavailable; deterministic parser assertions remain active.');
