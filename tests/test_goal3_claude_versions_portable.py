@@ -264,25 +264,25 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
         # At raw logits +21, the objective is locally flat because both logits are clipped at +20.
         # The pinned source omits the chain-rule mask and therefore returns a nonzero gradient.
         clipped = capture_gradient(self.g3, 21.0)
-        self.assertLess(float(np.max(np.abs(clipped["numeric"])), 1e-4)
+        self.assertLess(float(np.max(np.abs(clipped["numeric"]))), 1e-4)
         self.assertGreater(float(np.max(np.abs(clipped["analytic"] - clipped["numeric"]))), 1e8)
 
         # Apply the mathematically required mask to a temporary copy only.
         source = MODULE_PATH.read_text(encoding="utf-8")
         old_logits = (
-            "        lh = np.clip(mu + h + att[hi] - dfn[ai], -20, 20)\\n"
-            "        la = np.clip(mu + att[ai] - dfn[hi], -20, 20)\\n"
+            "        lh = np.clip(mu + h + att[hi] - dfn[ai], -20, 20)\n"
+            "        la = np.clip(mu + att[ai] - dfn[hi], -20, 20)\n"
         )
         new_logits = (
-            "        eta_h_raw = mu + h + att[hi] - dfn[ai]\\n"
-            "        eta_a_raw = mu + att[ai] - dfn[hi]\\n"
-            "        lh = np.clip(eta_h_raw, -20, 20)\\n"
-            "        la = np.clip(eta_a_raw, -20, 20)\\n"
+            "        eta_h_raw = mu + h + att[hi] - dfn[ai]\n"
+            "        eta_a_raw = mu + att[ai] - dfn[hi]\n"
+            "        lh = np.clip(eta_h_raw, -20, 20)\n"
+            "        la = np.clip(eta_a_raw, -20, 20)\n"
         )
-        old_residuals = "        eh, ea = L - yh, R - ya\\n"
+        old_residuals = "        eh, ea = L - yh, R - ya\n"
         new_residuals = (
-            "        eh = (L - yh) * ((eta_h_raw > -20) & (eta_h_raw < 20))\\n"
-            "        ea = (R - ya) * ((eta_a_raw > -20) & (eta_a_raw < 20))\\n"
+            "        eh = (L - yh) * ((eta_h_raw > -20) & (eta_h_raw < 20))\n"
+            "        ea = (R - ya) * ((eta_a_raw > -20) & (eta_a_raw < 20))\n"
         )
         self.assertEqual(source.count(old_logits), 1)
         self.assertEqual(source.count(old_residuals), 1)
