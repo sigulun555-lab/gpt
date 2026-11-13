@@ -1,0 +1,41 @@
+name: GOAL3 ISO-week influence audit
+
+on:
+  pull_request:
+    branches:
+      - research/goal3-k-penalty-sweep-20261104
+    paths:
+      - ".github/workflows/goal3-week-influence-audit.yml"
+      - "verification/goal3_independent/week_influence_audit.py"
+      - "verification/goal3_independent/goal3_outer_matches.csv"
+      - "tests/test_goal3_week_influence_audit.py"
+
+permissions:
+  contents: read
+
+jobs:
+  retrospective-week-influence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research PR
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax check
+        run: python -m py_compile verification/goal3_independent/week_influence_audit.py tests/test_goal3_week_influence_audit.py
+      - name: Unit tests
+        run: python tests/test_goal3_week_influence_audit.py -v
+      - name: Run fixed-cohort leave-one-week-out audit
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/week_influence_audit.py --csv verification/goal3_independent/goal3_outer_matches.csv --out artifacts/goal3_week_influence_audit.json
+      - name: Upload research audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-week-influence-audit-${{ github.run_id }}
+          path: artifacts/goal3_week_influence_audit.json
+          if-no-files-found: error
+          retention-days: 90
