@@ -119,7 +119,7 @@ class ProspectiveShadowTests(unittest.TestCase):
             tmp = Path(tmp)
             now = datetime.now(timezone.utc).replace(microsecond=0)
             as_of = now.isoformat()
-            deadline = (now + timedelta(days=2)).replace(second=0, microsecond=0).isoformat()
+            deadline = (now + timedelta(days=2)).replace(second=0, microsecond=0).astimezone(timezone(timedelta(hours=9))).isoformat()
             target_date = (now + timedelta(days=1)).date().isoformat()
             history = []
             teams = ["A", "B", "C", "D"]
