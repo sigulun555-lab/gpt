@@ -42,57 +42,49 @@ def parse_time(value: str) -> datetime:
 
 
 
-OFFICIAL_SALES_TERMS_URL = (
-    "https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/"
-    "PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId={round}"
+OFFICIAL_SALES_CATALOG_URL = (
+    "https://store.toto-dream.com/dcs/subos/screen/ps01/spsl000/"
+    "PGSPSL00001InitTotoSingle.form"
 )
 
 
-def extract_goal3_deadline(sales_terms_html: str, round_no: int) -> str:
-    """Extract the deadline only from the selected round's totoGOAL3 product block."""
+def extract_goal3_deadline(sales_catalog_html: str, round_no: int) -> str:
+    """Extract the sales-period end only from the totoGOAL3 product row."""
     plain = html_lib.unescape(re.sub(
-        r"(?is)<script\b.*?</script>|<style\b.*?</style>", " ", sales_terms_html
+        r"(?is)<script\b.*?</script>|<style\b.*?</style>", " ", sales_catalog_html
     ))
     plain = re.sub(r"(?s)<[^>]+>", " ", plain)
     plain = re.sub(r"[\u3000\s]+", " ", plain).strip()
+    if not re.search(rf"第\s*{int(round_no)}\s*回", plain):
+        raise ValueError(f"Official product catalog does not identify round {round_no}")
 
-    heading = re.compile(
-        rf"第\s*{int(round_no)}\s*回\s*toto\s*GOAL\s*3\s*くじ情報", re.I
-    )
-    headings = list(heading.finditer(plain))
-    if len(headings) != 1:
-        raise ValueError(
-            f"Expected exactly one official totoGOAL3 sales block for round {round_no}; "
-            f"found {len(headings)}"
+    rows = re.findall(r"<tr\b[^>]*>[\s\S]*?</tr>", sales_catalog_html, re.I)
+    goal3_rows = []
+    for row in rows:
+        if not re.search(r"toto\s*goal\s*3|totogoal3", row, re.I):
+            continue
+        row_plain = html_lib.unescape(re.sub(r"(?s)<[^>]+>", " ", row))
+        row_plain = re.sub(r"[\u3000\s]+", " ", row_plain).strip()
+        slash_dates = re.findall(
+            r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})",
+            row_plain,
         )
-
-    section = plain[headings[0].end():]
-    next_product = re.search(
-        r"第\s*\d+\s*回\s*(?:toto|mini\s*toto)", section, re.I
-    )
-    if next_product:
-        section = section[:next_product.start()]
-
-    date_match = re.search(
-        r"販売終了日\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日", section
-    )
-    if not date_match:
-        raise ValueError(
-            f"Official totoGOAL3 sales block for round {round_no} has no sale-end date"
+        japanese_dates = re.findall(
+            r"(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日\s*(\d{1,2}):(\d{2})",
+            row_plain,
         )
-    time_match = re.search(
-        r"当サイト\s*\(\s*ネット決済\s*\)\s*(\d{1,2})\s*[:：]\s*(\d{2})",
-        section[date_match.end():date_match.end() + 240],
-    )
-    if not time_match:
-        raise ValueError(
-            f"Official totoGOAL3 sales block for round {round_no} has no network deadline"
-        )
+        date_times = slash_dates + japanese_dates
+        if len(date_times) >= 2:
+            goal3_rows.append(date_times[-1])
 
-    year, month, day = map(int, date_match.groups())
-    hour, minute = map(int, time_match.groups())
+    if len(goal3_rows) != 1:
+        raise ValueError(
+            f"Expected exactly one totoGOAL3 product row with a sales period "
+            f"for round {round_no}; found {len(goal3_rows)}"
+        )
+    year, month, day, hour, minute = map(int, goal3_rows[0])
     if not (1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23 and 0 <= minute <= 59):
-        raise ValueError("Official totoGOAL3 deadline contains an invalid date/time")
+        raise ValueError("Official totoGOAL3 product row contains an invalid deadline")
     return (
         f"{year:04d}-{month:02d}-{day:02d}T"
         f"{hour:02d}:{minute:02d}:00+09:00"
@@ -108,7 +100,7 @@ def load_official_sales_terms(round_no: int, fixture_path: str | None = None):
             raw_bytes,
         )
 
-    url = OFFICIAL_SALES_TERMS_URL.format(round=round_no)
+    url = OFFICIAL_SALES_CATALOG_URL
     request = urllib.request.Request(
         url,
         headers={
@@ -120,7 +112,7 @@ def load_official_sales_terms(round_no: int, fixture_path: str | None = None):
         raw_bytes = response.read()
         final_url = response.geturl()
     if len(raw_bytes) < 1000:
-        raise ValueError("Official sales-terms page returned unexpectedly short HTML")
+        raise ValueError("Official product catalog returned unexpectedly short HTML")
     return raw_bytes.decode("utf-8-sig"), final_url, raw_bytes
 
 
@@ -385,7 +377,7 @@ def main() -> None:
             "deadline": official_goal3_deadline,
             "sourceUrl": sales_terms_url,
             "sourceSha256": hashlib.sha256(sales_terms_bytes).hexdigest(),
-            "method": "extract sale-end date and network time only inside the matching round totoGOAL3 product block",
+            "method": "extract the sales-period end only from the official product-catalog row labeled totoGOAL3, after verifying the selected round",
         },
         "inputSnapshots": {
             "format": "byte-for-byte copies of raw history, predictions, aliases, and official sales-terms HTML",
