@@ -95,7 +95,7 @@ The independent optimizer audit reproduced the frozen k6/k10 probability cells w
 
 - In the expanded 16-lambda nested run, default L-BFGS-B reported success for 1,649 fits, but 0/1,649 met the diagnostic max-absolute-gradient gate of `1e-6`.
 - The separate exact-Hessian damped Newton sensitivity converged for 1,649/1,649 fits, all within the same gate (maximum max-absolute-gradient approximately `9.79e-7`).
-- Across the three outer folds, the L-BFGS-B and Newton outer Brier/LogLoss values differed by less than `5.2e-7`; no material score reversal was observed.
+- Across the three outer folds, the L-BFGS-B and Newton outer Brier/LogLoss values differed by less than `5.6e-7`; no material score reversal was observed.
 - A separate 34-fit strict-stationarity audit converged all 34 Newton fits with maximum gradient infinity norm `7.15e-9`; default L-BFGS-B had 11/34 gradients above `1e-2`.
 - Controlled OpenBLAS dispatch changed no optimizer success/status and altered probabilities by at most about `1.6e-8`; optimizer message and gradient-gate flags can still vary.
 
