@@ -217,5 +217,87 @@ class ClaudeGoal3VersionsPortableTests(unittest.TestCase):
             self.assertEqual(len(independent["inputs"][key]["git_blob_sha1"]), 40)
 
 
+    def test_pinned_version_runner_clip_gradient_mismatch_is_detected_and_masked_copy_is_consistent(self):
+        """Keep the upstream clipped-gradient defect visible without editing Claude's source."""
+        import hashlib
+        from types import SimpleNamespace
+        import numpy as np
+
+        self.assertTrue(ORIGINAL_MODULE_PATH.is_file())
+        self.assertTrue(MODULE_PATH.is_file())
+        report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+        version_review = report["version_implementation_review"]
+        pinned_sha256 = version_review["portable_runtime_patch"]["upstream_source_sha256"]
+        self.assertEqual(hashlib.sha256(ORIGINAL_MODULE_PATH.read_bytes()).hexdigest(), pinned_sha256)
+
+        prior = [{"home": "A", "away": "B", "hg": 1, "ag": 0}]
+        n_teams = 2
+
+        def capture_gradient(module, raw_mu):
+            captured = {}
+
+            def fake_minimize(fun, x0, jac, method, options):
+                x = np.zeros_like(x0)
+                x[2 * n_teams] = raw_mu
+                value, analytic = fun(x)
+                eps = 1e-6
+                numeric = np.zeros_like(x)
+                for index in range(len(x)):
+                    plus = x.copy()
+                    minus = x.copy()
+                    plus[index] += eps
+                    minus[index] -= eps
+                    numeric[index] = (fun(plus)[0] - fun(minus)[0]) / (2 * eps)
+                captured["value"] = value
+                captured["analytic"] = analytic.copy()
+                captured["numeric"] = numeric
+                return SimpleNamespace(success=True, status=0, x=x, nit=1, message="synthetic gradient probe")
+
+            with patch.object(module, "minimize", side_effect=fake_minimize):
+                module.fit(prior, 6.0)
+            return captured
+
+        # Inside the unclipped region, the pinned analytic gradient agrees with finite differences.
+        interior = capture_gradient(self.g3, 0.3)
+        self.assertLess(float(np.max(np.abs(interior["analytic"] - interior["numeric"]))), 1e-4)
+
+        # At raw logits +21, the objective is locally flat because both logits are clipped at +20.
+        # The pinned source omits the chain-rule mask and therefore returns a nonzero gradient.
+        clipped = capture_gradient(self.g3, 21.0)
+        self.assertLess(float(np.max(np.abs(clipped["numeric"])), 1e-4)
+        self.assertGreater(float(np.max(np.abs(clipped["analytic"] - clipped["numeric"]))), 1e8)
+
+        # Apply the mathematically required mask to a temporary copy only.
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        old_logits = (
+            "        lh = np.clip(mu + h + att[hi] - dfn[ai], -20, 20)\\n"
+            "        la = np.clip(mu + att[ai] - dfn[hi], -20, 20)\\n"
+        )
+        new_logits = (
+            "        eta_h_raw = mu + h + att[hi] - dfn[ai]\\n"
+            "        eta_a_raw = mu + att[ai] - dfn[hi]\\n"
+            "        lh = np.clip(eta_h_raw, -20, 20)\\n"
+            "        la = np.clip(eta_a_raw, -20, 20)\\n"
+        )
+        old_residuals = "        eh, ea = L - yh, R - ya\\n"
+        new_residuals = (
+            "        eh = (L - yh) * ((eta_h_raw > -20) & (eta_h_raw < 20))\\n"
+            "        ea = (R - ya) * ((eta_a_raw > -20) & (eta_a_raw < 20))\\n"
+        )
+        self.assertEqual(source.count(old_logits), 1)
+        self.assertEqual(source.count(old_residuals), 1)
+        corrected_source = source.replace(old_logits, new_logits, 1).replace(old_residuals, new_residuals, 1)
+        corrected_path = self.root / "claude_goal3_versions_gradient_masked.py"
+        corrected_path.write_text(corrected_source, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("claude_goal3_versions_gradient_masked_test", corrected_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        corrected_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(corrected_module)
+
+        corrected = capture_gradient(corrected_module, 21.0)
+        self.assertLess(float(np.max(np.abs(corrected["analytic"] - corrected["numeric"]))), 1e-4)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
