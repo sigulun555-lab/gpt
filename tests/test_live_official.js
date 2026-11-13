@@ -29,32 +29,37 @@ function officialPlainText(html) {
 
 function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
   const plain = officialPlainText(html);
-  const heading = new RegExp('第\\s*' + Number(round) + '\\s*回\\s*toto\\s*GOAL\\s*3\\s*くじ情報', 'i');
-  const matches = [...plain.matchAll(new RegExp(heading.source, 'gi'))];
-  if (matches.length !== 1) {
-    throw new Error('Expected exactly one official totoGOAL3 sales block for round ' + round + '; found ' + matches.length);
+  if (!new RegExp('第\\s*' + Number(round) + '\\s*回').test(plain)) {
+    throw new Error('Official product catalog does not identify round ' + round);
   }
-  let section = plain.slice(matches[0].index + matches[0][0].length);
-  const nextProduct = section.search(/第\s*\d+\s*回\s*(?:toto|mini\s*toto)/i);
-  if (nextProduct >= 0) section = section.slice(0, nextProduct);
-  const dateMatch = section.match(/販売終了日\s*(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/);
-  if (!dateMatch) throw new Error('Official totoGOAL3 sales block has no sale-end date for round ' + round);
-  const afterDate = section.slice(dateMatch.index + dateMatch[0].length, dateMatch.index + dateMatch[0].length + 240);
-  const timeMatch = afterDate.match(/当サイト\s*\(\s*ネット決済\s*\)\s*(\d{1,2})\s*[:：]\s*(\d{2})/);
-  if (!timeMatch) throw new Error('Official totoGOAL3 sales block has no network deadline for round ' + round);
-  const [, year, month, day] = dateMatch;
-  const [, hour, minute] = timeMatch;
-  return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0') +
-    'T' + hour.padStart(2, '0') + ':' + minute + ':00+09:00';
+  const rows = [...String(html).matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi)].map(m => m[0]);
+  const goal3Deadlines = [];
+  for (const row of rows) {
+    if (!/toto\s*goal\s*3|totogoal3/i.test(row)) continue;
+    const rowPlain = officialPlainText(row);
+    const slashDates = [...rowPlain.matchAll(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})/g)].map(m => m.slice(1));
+    const japaneseDates = [...rowPlain.matchAll(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日\s*(\d{1,2}):(\d{2})/g)].map(m => m.slice(1));
+    const dates = slashDates.concat(japaneseDates);
+    if (dates.length >= 2) goal3Deadlines.push(dates[dates.length - 1]);
+  }
+  if (goal3Deadlines.length !== 1) {
+    throw new Error('Expected exactly one totoGOAL3 product row with a sales period for round ' + round +
+      '; found ' + goal3Deadlines.length);
+  }
+  const [year, month, day, hour, minute] = goal3Deadlines[0].map(Number);
+  return String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' +
+    String(day).padStart(2, '0') + 'T' + String(hour).padStart(2, '0') + ':' +
+    String(minute).padStart(2, '0') + ':00+09:00';
 }
 
-// Regression: the GOAL3 deadline must come from its own product block,
-// not the first regular-toto deadline on a multi-product sales page.
+// Regression: select the totoGOAL3 row rather than the first regular-toto row.
 {
-  const fixture = '<section><h2>第1670回 totoくじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
-    '<section><h2>第1670回 mini toto-A組 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
-    '<section><h2>第1670回 mini toto-B組 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 12:50）</section>' +
-    '<section><h2>第1670回 totoGOAL3 くじ情報</h2>販売終了日 2026年11月7日（当サイト(ネット決済) 13:50）</section>';
+  const fixture = '<h1>第1670回</h1><table>' +
+    '<tr><td><img alt="toto"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
+    '<tr><td><img alt="minitotoA"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
+    '<tr><td><img alt="minitotoB"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
+    '<tr><td><img alt="totogoal3"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 13:50</td></tr>' +
+    '</table>';
   assert.equal(extractGoal3DeadlineFromSalesTermsHtml(fixture, 1670), '2026-11-07T13:50:00+09:00');
 }
 
@@ -142,7 +147,7 @@ function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
     'all current GOAL3 fixtures should have distinct non-empty home/away teams');
   assert.equal(new Set(goal3.fixtures.map(f => f.home + '|' + f.away)).size, 3,
     'current GOAL3 fixtures should be unique');
-  const salesTermsUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=' + goal3.round;
+  const salesTermsUrl = 'https://store.toto-dream.com/dcs/subos/screen/ps01/spsl000/PGSPSL00001InitTotoSingle.form';
   const salesTermsHtml = await fetchOfficialHtml(salesTermsUrl, 'official product sales-terms page');
   const independentlyParsedGoal3Deadline = extractGoal3DeadlineFromSalesTermsHtml(salesTermsHtml, goal3.round);
   assert.equal(
