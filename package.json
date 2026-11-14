@@ -4,7 +4,8 @@
   "private": true,
   "description": "iPhone-first J.League toto auto forecast",
   "scripts": {
-    "test": "node tests/test.js",
+    "test": "node tests/test.js && node --test tests/toto13-shadow.test.js",
+    "test:shadow": "node --test tests/toto13-shadow.test.js",
     "update": "node scripts/auto_pipeline.js"
   }
 }
