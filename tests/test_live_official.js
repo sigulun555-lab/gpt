@@ -1,5 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { parseToto } = require('../scripts/auto_pipeline.js');
 
 // Regression: the selected round must win over a newer round listed in navigation.
@@ -16,7 +18,7 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   };
   const options = { headers, signal: AbortSignal.timeout(20000) };
 
-  // Standard toto remains supported and must be distinguished from GOAL3.
+  // Standard toto remains supported and is intentionally pinned to a historical round.
   const totoUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
   const totoResponse = await fetch(totoUrl, options);
   assert.equal(totoResponse.ok, true, 'official standard-toto page should return HTTP success');
@@ -36,24 +38,35 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   assert.equal(toto.fixtures.length, 13, 'all 13 standard-toto fixtures should be parsed');
   assert.deepEqual(toto.fixtures.map(f => [f.home, f.away]), expectedToto,
     'standard-toto home/away pairs should match in order');
-  console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
+  console.log('PASS live official toto HTML: historical round 1668, deadline, and all 13 fixtures');
 
-  // Explicitly choose commodityId=02 (totoGOAL3) while allowing the official page
-  // to supply its current round; do not rely on the page's default commodityId=01.
+  // Explicitly choose commodityId=02. Compare with the repository's current fixture
+  // snapshot instead of freezing a round number that becomes stale as sales advance.
   const goal3Url = 'https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1';
   const goal3Response = await fetch(goal3Url, options);
   assert.equal(goal3Response.ok, true, 'official GOAL3 selection page should return HTTP success');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
-  const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  assert.equal(goal3.round, 1668, 'current official GOAL3 round should be parsed from the selected form');
+  const goal3 = parseToto(goal3Html, new Date('2026-11-08T00:00:00+09:00'));
+  const fixtureSnapshot = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'data', 'fixtures.json'), 'utf8'));
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
-  assert.equal(goal3.deadline, '2026-10-31T13:50:00+09:00', 'official GOAL3 online deadline should be parsed');
+  assert.ok(Number.isInteger(goal3.round) && goal3.round > 0, 'current official GOAL3 round should be parsed');
+  assert.ok(Number.isFinite(Date.parse(goal3.deadline)), 'official GOAL3 online deadline should be parsed');
   assert.equal(goal3.fixtures.length, 3, 'GOAL3 should normalize six team rows to three matches');
-  assert.deepEqual(goal3.fixtures.map(f => [f.home, f.away]), [
-    ['岡山', 'FC東京'], ['神戸', '名古屋'], ['柏', '浦和']
-  ], 'official GOAL3 home/away pairs should match in order');
-  console.log('PASS live official totoGOAL3 HTML: round 1668, deadline, and all 3 fixtures');
+  assert.ok(goal3.fixtures.every(f => f.home && f.away && f.date),
+    'all current GOAL3 fixture rows should include teams and date');
+  if (fixtureSnapshot.fixtures?.[0]?.round === goal3.round) {
+    assert.equal(fixtureSnapshot.fixtures[0].deadline, goal3.deadline,
+      'current official GOAL3 deadline should match the checked-in fixture snapshot');
+    assert.deepEqual(goal3.fixtures.map(f => [f.home, f.away]),
+      fixtureSnapshot.fixtures.map(f => [f.home, f.away]),
+      'current official GOAL3 home/away pairs should match the checked-in fixture snapshot');
+  } else {
+    console.log('NOTICE live GOAL3 round differs from checked-in fixture snapshot; exact snapshot comparison skipped');
+  }
+  console.log('PASS live official totoGOAL3 HTML: current round ' + goal3.round +
+    ', deadline, and all 3 fixture rows');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
