@@ -1,0 +1,298 @@
+name: GOAL3 Prospective Shadow Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      research_ref:
+        description: Research branch whose HEAD must match the pinned commit
+        required: true
+        type: choice
+        options:
+          - research/goal3-prospective-shadow-20261104-v2
+      attested_fixture_snapshot:
+        description: Paste exact JSON reviewed on the official GOAL3 page; reviewedAt must be within 10 minutes. See workflow documentation in the PR.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goal3-prospective-shadow-dispatch
+  cancel-in-progress: false
+
+env:
+  APPROVED_RESEARCH_REF: research/goal3-prospective-shadow-20261104-v2
+  APPROVED_RESEARCH_COMMIT: d5f48314159ffff2f8980738fa02d33ddf2a188b
+  APPROVED_CODE_LOCK_REF: research/goal3-scoring-provenance-guard-20261105
+  APPROVED_CODE_LOCK_COMMIT: 752412c08e1497c948b95cd951f29c774dffbad9
+  APPROVED_CODE_LOCK_SOURCE_COMMIT: e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d
+  APPROVED_CODE_LOCK_FILE_SHA256: 11b0a10982b991cb005734820cde7f5c77be21391d9c9c3d096caaa7e313f207
+  APPROVED_CODE_LOCK_REVIEWED_AT: 2026-11-05T19:12:33Z
+  APPROVED_RUNNER_SHA256: c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a
+  APPROVED_MODEL_SHA256: cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d
+  APPROVED_SNAPSHOT_PIPELINE_SHA256: 6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe
+  APPROVED_SCORER_SHA256: fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5
+  APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: 1912475245d071bbfd52ba3bb37897e678726411
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate dispatch attestation and selected research ref
+        shell: bash
+        env:
+          REQUESTED_RESEARCH_REF: ${{ inputs.research_ref }}
+        run: |
+          set -euo pipefail
+          test "$REQUESTED_RESEARCH_REF" = "$APPROVED_RESEARCH_REF"
+
+      - name: Checkout exact approved research commit
+        uses: actions/checkout@v4
+        with:
+          ref: d5f48314159ffff2f8980738fa02d33ddf2a188b
+          fetch-depth: 0
+
+      - name: Checkout dispatch validator from the workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: dispatch-source
+          fetch-depth: 1
+
+      - name: Verify pinned dispatch validator source
+        shell: bash
+        run: |
+          set -euo pipefail
+          DISPATCH_SOURCE_SHA="$(git -C dispatch-source rev-parse HEAD)"
+          test "$DISPATCH_SOURCE_SHA" = "$GITHUB_SHA"
+          ACTUAL_VALIDATOR_BLOB="$(git -C dispatch-source rev-parse HEAD:verification/goal3_independent/validate_dispatch_attestation.py)"
+          test "$ACTUAL_VALIDATOR_BLOB" = "$APPROVED_DISPATCH_VALIDATOR_BLOB_SHA"
+
+      - name: Verify immutable branch head and approved generation hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          REMOTE_SHA="$(git ls-remote origin "refs/heads/$APPROVED_RESEARCH_REF" | awk '{print $1}')"
+          test "$CHECKED_OUT_SHA" = "$APPROVED_RESEARCH_COMMIT"
+          test "$REMOTE_SHA" = "$APPROVED_RESEARCH_COMMIT"
+          git fetch --no-tags origin "refs/heads/$APPROVED_CODE_LOCK_REF:refs/remotes/origin/$APPROVED_CODE_LOCK_REF"
+          git cat-file -e "$APPROVED_CODE_LOCK_COMMIT^{commit}"
+          git merge-base --is-ancestor "$APPROVED_CODE_LOCK_COMMIT" "refs/remotes/origin/$APPROVED_CODE_LOCK_REF"
+
+          test "$(sha256sum verification/goal3_independent/prospective_shadow.py | awk '{print $1}')" = "$APPROVED_RUNNER_SHA256"
+          test "$(sha256sum verification/goal3_independent/nested_validation.py | awk '{print $1}')" = "$APPROVED_MODEL_SHA256"
+          test "$(sha256sum scripts/auto_pipeline.js | awk '{print $1}')" = "$APPROVED_SNAPSHOT_PIPELINE_SHA256"
+
+          LOCK_PATH="verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
+          LOCK_COMMIT_AT="$(git show -s --format=%cI "$APPROVED_CODE_LOCK_COMMIT")"
+          test "$(git log -1 --format=%H "$APPROVED_CODE_LOCK_COMMIT" -- "$LOCK_PATH")" = "$APPROVED_CODE_LOCK_COMMIT"
+          test "$(git show "$APPROVED_CODE_LOCK_COMMIT:$LOCK_PATH" | sha256sum | awk '{print $1}')" = "$APPROVED_CODE_LOCK_FILE_SHA256"
+          export LOCK_COMMIT_AT
+          echo "LOCK_COMMIT_AT=$LOCK_COMMIT_AT" >> "$GITHUB_ENV"
+          python - <<'PY'
+          import hashlib, json, os, subprocess
+          from datetime import datetime
+
+          lock_path = "verification/goal3_independent/REVIEWER_APPROVED_CODE_HASHES_2026-11-06.json"
+          lock = json.loads(subprocess.check_output(
+              ["git", "show", f"{os.environ['APPROVED_CODE_LOCK_COMMIT']}:{lock_path}"],
+              text=True,
+          ))
+          expected = {
+              "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
+              "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
+              "snapshotPipelineSha256": os.environ["APPROVED_SNAPSHOT_PIPELINE_SHA256"],
+              "scorerSha256": os.environ["APPROVED_SCORER_SHA256"],
+          }
+          if lock.get("approvedCodeHashes") != expected:
+              raise SystemExit("reviewer lock code hashes do not match dispatch pins")
+          if lock.get("codeHashSourceCommit") != os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]:
+              raise SystemExit("reviewer lock source commit does not match dispatch pin")
+          if lock.get("schemaVersion") != 1 or lock.get("protocolVersion") != "1.2":
+              raise SystemExit("reviewer lock schema/protocol does not match dispatch protocol")
+          if lock.get("experiment") != "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10":
+              raise SystemExit("reviewer lock experiment mismatch")
+          if lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]:
+              raise SystemExit("reviewer lock generation source does not match approved research commit")
+          source_files = lock.get("sourceFiles")
+          paths = {
+              "runnerSha256": "verification/goal3_independent/prospective_shadow.py",
+              "modelSha256": "verification/goal3_independent/nested_validation.py",
+              "snapshotPipelineSha256": "scripts/auto_pipeline.js",
+              "scorerSha256": "verification/goal3_independent/score_prospective_shadow.py",
+          }
+          if not isinstance(source_files, dict) or set(source_files) != set(paths):
+              raise SystemExit("reviewer lock source file inventory mismatch")
+          source_commit = os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]
+          generation_commit = os.environ["APPROVED_RESEARCH_COMMIT"]
+          generation_keys = {"runnerSha256", "modelSha256", "snapshotPipelineSha256"}
+          for key, path in paths.items():
+              entry = source_files.get(key)
+              if not isinstance(entry, dict) or entry.get("path") != path:
+                  raise SystemExit(f"reviewer lock source path mismatch: {key}")
+              raw = subprocess.check_output(["git", "show", f"{source_commit}:{path}"])
+              blob = hashlib.sha1(f"blob {len(raw)}\0".encode("ascii") + raw).hexdigest()
+              git_blob = subprocess.check_output(["git", "rev-parse", f"{source_commit}:{path}"], text=True).strip()
+              if (hashlib.sha256(raw).hexdigest() != expected[key]
+                  or len(raw) != entry.get("bytes")
+                  or blob != entry.get("gitBlobSha1")
+                  or git_blob != entry.get("gitBlobSha1")):
+                  raise SystemExit(f"reviewer lock source bytes/blob mismatch: {key}")
+              if key in generation_keys:
+                  generation_raw = subprocess.check_output(["git", "show", f"{generation_commit}:{path}"])
+                  if hashlib.sha256(generation_raw).hexdigest() != expected[key]:
+                      raise SystemExit(f"generation source bytes mismatch: {key}")
+          reviewed = datetime.fromisoformat(lock["reviewedAt"].replace("Z", "+00:00"))
+          committed = datetime.fromisoformat(os.environ["LOCK_COMMIT_AT"].replace("Z", "+00:00"))
+          source_committed = datetime.fromisoformat(subprocess.check_output(
+              ["git", "show", "-s", "--format=%cI", os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]],
+              text=True,
+          ).strip().replace("Z", "+00:00"))
+          if reviewed.isoformat() != os.environ["APPROVED_CODE_LOCK_REVIEWED_AT"].replace("Z", "+00:00"):
+              raise SystemExit("reviewedAt does not match dispatch pin")
+          if reviewed < source_committed:
+              raise SystemExit("reviewer lock review predates the code hash source commit")
+          if reviewed > committed:
+              raise SystemExit("reviewer lock was not reviewed before its commit")
+          for ancestor in (os.environ["APPROVED_RESEARCH_COMMIT"], os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"]):
+              check = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", ancestor, os.environ["APPROVED_CODE_LOCK_COMMIT"]]
+              )
+              if check.returncode:
+                  raise SystemExit("reviewer source commit is not an ancestor of the lock commit")
+          PY
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+
+      - name: Fetch one official GOAL3 and history snapshot into ephemeral runner
+        run: node scripts/auto_pipeline.js
+
+      - name: Bind human-reviewed fixtures to the fetched official snapshot
+        env:
+          ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}
+        run: |
+          python dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py \
+            --predictions data/predictions.json \
+            --out artifacts/fixture-attestation.json
+
+      - name: Create paired k=6 and k=10 shadow forecast
+        run: |
+          mkdir -p artifacts
+          python verification/goal3_independent/prospective_shadow.py \
+            --history data/history.json \
+            --predictions data/predictions.json \
+            --aliases data/team_aliases.json \
+            --out artifacts/goal3-prospective-shadow.json
+
+      - name: Write immutable dispatch provenance sidecar
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as stream:
+                  for chunk in iter(lambda: stream.read(1 << 20), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          forecast_path = Path("artifacts/goal3-prospective-shadow.json")
+          forecast = json.loads(forecast_path.read_text(encoding="utf-8"))
+          fixture_attestation_path = Path("artifacts/fixture-attestation.json")
+          fixture_attestation = json.loads(fixture_attestation_path.read_text(encoding="utf-8"))
+          record = {
+              "schemaVersion": 1,
+              "experiment": "GOAL3_PROSPECTIVE_SHADOW_K6_VS_K10",
+              "recordedAt": datetime.now(timezone.utc).isoformat(),
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowCommitSha": os.environ["GITHUB_SHA"],
+              "workflowRef": os.environ["GITHUB_REF"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "requestedResearchRef": os.environ["APPROVED_RESEARCH_REF"],
+              "checkedOutResearchCommitSha": subprocess.check_output(
+                  ["git", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "approvedResearchCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
+              "approvedCodeLockCommitSha": os.environ["APPROVED_CODE_LOCK_COMMIT"],
+              "approvedCodeLockCommitAt": os.environ["LOCK_COMMIT_AT"],
+              "approvedCodeLockReviewedAt": os.environ["APPROVED_CODE_LOCK_REVIEWED_AT"],
+              "approvedCodeLockFileSha256": os.environ["APPROVED_CODE_LOCK_FILE_SHA256"],
+              "approvedCodeLockSourceCommitSha": os.environ["APPROVED_CODE_LOCK_SOURCE_COMMIT"],
+              "approvedCodeLockGenerationSourceCommitSha": os.environ["APPROVED_RESEARCH_COMMIT"],
+              "approvedCodeLockRef": os.environ["APPROVED_CODE_LOCK_REF"],
+              "dispatchValidatorCommitSha": subprocess.check_output(
+                  ["git", "-C", "dispatch-source", "rev-parse", "HEAD"], text=True
+              ).strip(),
+              "approvedDispatchValidatorBlobSha": os.environ["APPROVED_DISPATCH_VALIDATOR_BLOB_SHA"],
+              "dispatchValidatorSha256": sha("dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py"),
+              "approvedCodeHashes": {
+                  "runnerSha256": os.environ["APPROVED_RUNNER_SHA256"],
+                  "modelSha256": os.environ["APPROVED_MODEL_SHA256"],
+                  "snapshotPipelineSha256": os.environ["APPROVED_SNAPSHOT_PIPELINE_SHA256"],
+                  "scorerSha256": os.environ["APPROVED_SCORER_SHA256"],
+              },
+              "checkedOutGenerationCodeHashes": {
+                  "runnerSha256": sha("verification/goal3_independent/prospective_shadow.py"),
+                  "modelSha256": sha("verification/goal3_independent/nested_validation.py"),
+                  "snapshotPipelineSha256": sha("scripts/auto_pipeline.js"),
+              },
+              "fixtureAttestationSha256": sha(fixture_attestation_path),
+              "fixtureSnapshotFingerprintSha256": fixture_attestation["snapshotFingerprintSha256"],
+              "fixtureAttestation": fixture_attestation,
+              "forecastSha256": sha(forecast_path),
+              "forecastRound": forecast.get("round"),
+              "forecastTiming": {
+                  key: forecast.get(key)
+                  for key in ("snapshotAvailableBy", "forecastAsOf", "deadline")
+              },
+              "forecastInputHashes": forecast.get("inputs", {}),
+              "forecastCodeHashes": forecast.get("code", {}),
+              "productionImpact": "none",
+          }
+          if record["checkedOutResearchCommitSha"] != record["approvedResearchCommitSha"]:
+              raise SystemExit("checked-out research commit does not match approved commit")
+          if record["checkedOutGenerationCodeHashes"] != {
+              key: record["approvedCodeHashes"][key]
+              for key in ("runnerSha256", "modelSha256", "snapshotPipelineSha256")
+          }:
+              raise SystemExit("checked-out generation code hashes do not match approved lock")
+          Path("artifacts/dispatch-provenance.json").write_text(
+              json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Name artifact by round and run
+        id: meta
+        run: |
+          ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])")
+          echo "round=$ROUND" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable research-only artifact and provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}
+          path: |
+            artifacts/goal3-prospective-shadow.json
+            artifacts/fixture-attestation.json
+            artifacts/dispatch-provenance.json
+          if-no-files-found: error
+          retention-days: 90

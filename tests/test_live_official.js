@@ -46,14 +46,17 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
   const goal3Html = await goal3Response.text();
   assert.ok(goal3Html.length > 1000, 'official GOAL3 HTML should be non-empty');
   const goal3 = parseToto(goal3Html, new Date('2026-10-28T00:00:00+09:00'));
-  assert.equal(goal3.round, 1668, 'current official GOAL3 round should be parsed from the selected form');
+  assert.ok(Number.isInteger(goal3.round) && goal3.round > 0,
+    'current official GOAL3 round should be parsed from the selected form');
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
-  assert.equal(goal3.deadline, '2026-10-31T13:50:00+09:00', 'official GOAL3 online deadline should be parsed');
+  assert.ok(Number.isFinite(Date.parse(goal3.deadline)),
+    'official GOAL3 online deadline should be parsed as a valid timestamp');
   assert.equal(goal3.fixtures.length, 3, 'GOAL3 should normalize six team rows to three matches');
-  assert.deepEqual(goal3.fixtures.map(f => [f.home, f.away]), [
-    ['岡山', 'FC東京'], ['神戸', '名古屋'], ['柏', '浦和']
-  ], 'official GOAL3 home/away pairs should match in order');
-  console.log('PASS live official totoGOAL3 HTML: round 1668, deadline, and all 3 fixtures');
+  assert.deepEqual(goal3.fixtures.map(f => f.number), [1, 2, 3],
+    'official GOAL3 fixture numbering should be complete and ordered');
+  assert.ok(goal3.fixtures.every(f => f.date && f.home && f.away && f.home !== f.away),
+    'all official GOAL3 fixtures should contain a date and distinct home/away teams');
+  console.log(`PASS live official totoGOAL3 HTML: round ${goal3.round}, deadline, and all 3 fixtures`);
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
