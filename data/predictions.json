@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T06:26:42.691Z",
+  "generatedAt": "2026-11-15T18:49:33.391Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-11-15T06:26:42.691Z",
+    "lastFetchedAt": "2026-11-15T18:49:33.391Z",
     "marketType": "totoGOAL3",
     "round": 1673,
     "deadline": "2026-11-21T13:50:00+09:00",
@@ -25,7 +25,7 @@
   },
   "counts": {
     "scheduleRows": 1140,
-    "historyMatches": 468,
+    "historyMatches": 480,
     "totoFixtures": 3,
     "predictions": 3
   },
@@ -47,24 +47,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.16069252342237444,
-          "1": 0.7579276126573743,
-          "2": 0.08137986392025127
+          "0": 0.16110685064688168,
+          "1": 0.7571195493834452,
+          "2": 0.08177359996967312
         },
         "homeGoalProbabilities": [
-          0.0983026450072689,
-          0.22803307271796142,
-          0.26448465475852684,
-          0.40917962751624276
+          0.09863150713183058,
+          0.22846652401651008,
+          0.26460587551612835,
+          0.40829609333553096
         ],
         "awayGoalProbabilities": [
-          0.5407242346985653,
-          0.3324620585273467,
-          0.102206460583238,
-          0.024607246190849932
+          0.5401013466777669,
+          0.3327016075194825,
+          0.10247184193014745,
+          0.024725203872603144
         ],
-        "homeExpectedGoals": 2.319704344690824,
-        "awayExpectedGoals": 0.6148458626284479,
+        "homeExpectedGoals": 2.3163645234695887,
+        "awayExpectedGoals": 0.6159984780004217,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "FC町田ゼルビア",
@@ -86,24 +86,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.25891330269102597,
-          "1": 0.5704650227074036,
-          "2": 0.17062167460157046
+          "0": 0.2592228392215477,
+          "1": 0.5695455320386851,
+          "2": 0.1712316287397671
         },
         "homeGoalProbabilities": [
-          0.2189626667378486,
-          0.33257232993604996,
-          0.2525644126619838,
-          0.19590059066411764
+          0.21944201553119086,
+          0.3328205176837049,
+          0.2523889892350739,
+          0.19534847755003026
         ],
         "awayGoalProbabilities": [
-          0.49816431280849754,
-          0.3471335021913751,
-          0.12094570530785115,
-          0.03375647969227613
+          0.4975139869031611,
+          0.34733023987843825,
+          0.12124110950622899,
+          0.033914663712171694
         ],
-        "homeExpectedGoals": 1.51885403521423,
-        "awayExpectedGoals": 0.6968253109789077,
+        "homeExpectedGoals": 1.5166672475098495,
+        "awayExpectedGoals": 0.698131608400478,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "サンフレッチェ広島",
@@ -125,24 +125,24 @@
       "totoTargetConfirmed": true,
       "prediction": {
         "probabilities": {
-          "0": 0.2705127548867704,
-          "1": 0.3503864832776572,
-          "2": 0.3791007618355724
+          "0": 0.2704504716044555,
+          "1": 0.34943154202055177,
+          "2": 0.38011798637499267
         },
         "homeGoalProbabilities": [
-          0.2966853206897403,
-          0.3604973572147519,
-          0.21901714627587665,
-          0.12380017581963115
+          0.2972048052072757,
+          0.36060863508833585,
+          0.21876932240308403,
+          0.12341723730130436
         ],
         "awayGoalProbabilities": [
-          0.27936506850282133,
-          0.35625635428832847,
-          0.22715543974591304,
-          0.1372231374629372
+          0.27869801332324684,
+          0.3560719597635643,
+          0.2274634810238343,
+          0.13776654588935455
         ],
-        "homeExpectedGoals": 1.215083228171384,
-        "awayExpectedGoals": 1.2752358632293737,
+        "homeExpectedGoals": 1.2133337980078795,
+        "awayExpectedGoals": 1.277626472889764,
         "historyHomeMatches": 12,
         "historyAwayMatches": 12,
         "canonicalHome": "ガンバ大阪",
