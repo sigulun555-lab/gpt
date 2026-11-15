@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import json
+import sys
 import unittest
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from verification.goal3_independent.date_cluster_bootstrap import (
     flatten_matches, percentile_linear, score,
