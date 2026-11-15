@@ -61,7 +61,7 @@ jobs:
       - name: Reproduce agreed 17-date paired bootstrap
         run: |
           python verification/goal3_independent/date_cluster_bootstrap.py \
-            --input /tmp/goal3-run569/goal3_outer_allk_reproduction.json \
+            --input /tmp/goal3-run569/goal3-all-k-outer-reconstruction-43527604151/goal3_outer_allk_reproduction.json \
             --expected verification/goal3_independent/results/date_cluster_bootstrap_2026-11-16.json \
             --replicates 10000 --seed 1
       - name: Test date-cluster bootstrap and 472-target projection
