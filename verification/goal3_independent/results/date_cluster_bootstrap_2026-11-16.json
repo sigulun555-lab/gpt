@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "artifactId": 14085113748,
+    "workflowRunId": 43527604151,
+    "artifactZipSha256": "1793be8afbe023e43c9bb5997df7760bb212e23f76d127bb9b4c5650c5c7b512",
+    "artifactInnerJsonSha256": "ed2829dfd1cc767c2a51ec935db5174f329351c404be85bf8377f7b2dd5f1a8c",
+    "experiment": "GPT reconstruction of fixed-2026-only all-k outer diagnostics using nested_validation.py fit/predict functions"
+  },
+  "cohort": {
+    "matches": 236,
+    "teamSideTargets": 472,
+    "dates": 17,
+    "dateRange": [
+      "2026-09-19",
+      "2026-11-03"
+    ],
+    "dateClusterSizes": {
+      "2026-09-19": 40,
+      "2026-09-20": 14,
+      "2026-09-26": 40,
+      "2026-10-02": 2,
+      "2026-10-03": 24,
+      "2026-10-04": 14,
+      "2026-10-09": 8,
+      "2026-10-10": 28,
+      "2026-10-11": 24,
+      "2026-10-17": 46,
+      "2026-10-18": 14,
+      "2026-10-21": 60,
+      "2026-10-24": 22,
+      "2026-10-25": 38,
+      "2026-10-31": 52,
+      "2026-11-01": 8,
+      "2026-11-03": 38
+    }
+  },
+  "pointEstimates": {
+    "k6": {
+      "brier": 0.7162482341217808,
+      "logLoss": 1.3103988552522545,
+      "accuracy": 0.375,
+      "n": 472
+    },
+    "k10": {
+      "brier": 0.7168649024420994,
+      "logLoss": 1.312557642693785,
+      "accuracy": 0.3665254237288136,
+      "n": 472
+    },
+    "differenceK6MinusK10": {
+      "brier": -0.0006166683203185919,
+      "logLoss": -0.0021587874415305297,
+      "accuracy": 0.008474576271186418
+    }
+  },
+  "bootstrap": {
+    "resamplingUnit": "date cluster",
+    "clustersPerReplicate": 17,
+    "replicates": 10000,
+    "seed": 1,
+    "rng": "Python random.Random (MT19937); random.Random(seed).choices(sorted_dates, k=17)",
+    "pairing": "k=6 and k=10 use the same sampled date clusters in every replicate",
+    "clusterPreservation": "all matches and both team-side rows for each sampled date are retained together",
+    "statistic": "D = score(k=6) - score(k=10); D < 0 favors k=6",
+    "brierDefinition": "mean over team-side targets of the sum of four squared one-hot probability errors",
+    "logLossDefinition": "mean negative log probability of the observed 0/1/2/3+ category; probability floor 1e-12",
+    "confidenceInterval": "95% percentile interval with linear interpolation",
+    "differenceIntervals": {
+      "brier": [
+        -0.0036798730424359603,
+        0.002427220957260728
+      ],
+      "logLoss": [
+        -0.008482506994460215,
+        0.0037774027313711156
+      ],
+      "accuracy": [
+        -0.01581094736465577,
+        0.029816513761467878
+      ]
+    }
+  },
+  "interpretation": {
+    "brierIntervalIncludesZero": true,
+    "logLossIntervalIncludesZero": true,
+    "accuracyIntervalIncludesZero": true,
+    "conclusion": "No statistically established superiority of k=6 over k=10 in this retrospective 17-date cluster sensitivity analysis.",
+    "deploymentDecision": "Do not change production model or market weights; k=10 remains the research baseline and k=6 remains a candidate.",
+    "scope": "Retrospective date-cluster sensitivity only; not the prospective round-level primary analysis."
+  },
+  "limitations": [
+    "The 17 target dates do not carry official toto round IDs, so a round-cluster primary analysis is not computed here.",
+    "The source history snapshot contains 429 rows with one shared fetchedAt timestamp; this is not match-specific first-observed provenance.",
+    "The team alias map was last updated 2026-10-22; 12 of the 17 target dates precede that alias-map update.",
+    "The result evaluates frozen predictions from the pinned all-k artifact; it does not regenerate the nested model or establish prospective performance."
+  ]
+}
