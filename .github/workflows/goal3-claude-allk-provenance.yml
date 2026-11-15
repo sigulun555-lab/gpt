@@ -13,11 +13,17 @@ on:
       - "verification/goal3_independent/goal3_outer_matches.csv"
       - "verification/goal3_independent/nested_validation.py"
       - "verification/goal3_independent/2025.csv"
+      - "verification/goal3_independent/goal3_outer_matches.json"
+      - "verification/goal3_independent/date_cluster_bootstrap.py"
+      - "verification/goal3_independent/results/date_cluster_bootstrap_2026-11-16.json"
+      - "tests/test_goal3_date_cluster_bootstrap.py"
+      - "verification/goal3_independent/DATE_CLUSTER_BOOTSTRAP_2026-11-16.md"
       - "data/history.json"
       - "data/team_aliases.json"
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   audit:
@@ -44,6 +50,22 @@ jobs:
             --out verification/goal3_independent/results/claude_k6_k10_bootstrap_audit.json
       - name: Portable Claude k6/k10 artifact and bootstrap tests
         run: python tests/test_goal3_claude_k6_k10_bootstrap_portable.py -v
+      - name: Download pinned Run #569 all-k artifact
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: "14085113748"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: sigulun555-lab/gpt
+          run-id: "43527604151"
+          path: /tmp/goal3-run569
+      - name: Reproduce agreed 17-date paired bootstrap
+        run: |
+          python verification/goal3_independent/date_cluster_bootstrap.py \
+            --input /tmp/goal3-run569/goal3_outer_allk_reproduction.json \
+            --expected verification/goal3_independent/results/date_cluster_bootstrap_2026-11-16.json \
+            --replicates 10000 --seed 1
+      - name: Test date-cluster bootstrap and 472-target projection
+        run: python tests/test_goal3_date_cluster_bootstrap.py -v
       - name: Upload independent all-k audit report
         uses: actions/upload-artifact@v4
         with:
