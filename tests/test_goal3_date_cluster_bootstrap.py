@@ -54,5 +54,16 @@ class DateClusterBootstrapTests(unittest.TestCase):
             for arm in ("k6", "k10"):
                 self.assertAlmostEqual(sum(row["probabilities"][arm]), 1.0, delta=2e-6)
 
+
+    def test_run569_run582_bootstrap_reproduction_agrees(self):
+        results_dir = ROOT / "verification" / "goal3_independent" / "results"
+        old = json.loads((results_dir / "date_cluster_bootstrap_2026-11-16.json").read_text(encoding="utf-8"))
+        new = json.loads((results_dir / "date_cluster_bootstrap_run582_2026-11-16.json").read_text(encoding="utf-8"))
+        self.assertEqual(old["cohort"], new["cohort"])
+        self.assertNotEqual(old["source"]["artifactInnerJsonSha256"], new["source"]["artifactInnerJsonSha256"])
+        for metric in ("brier", "logLoss", "accuracy"):
+            for a, b in zip(old["bootstrap"]["differenceIntervals"][metric], new["bootstrap"]["differenceIntervals"][metric]):
+                self.assertLess(abs(a - b), 1e-10)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
