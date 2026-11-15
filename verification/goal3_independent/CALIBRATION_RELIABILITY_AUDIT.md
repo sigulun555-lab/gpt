@@ -98,3 +98,41 @@ This supplements, but does not replace, the separate 32-family
 marginal-calibration audit. All results remain exploratory because the cohort
 contains only 17 retrospective target dates and repeated teams are not
 separately clustered in this date-only calibration analysis.
+
+
+## Run #593 re-audit on the regenerated Run #582 cohort (2026-11-16)
+
+The current PR head was revalidated by GOAL3 Prospective Shadow Run #593
+(`43766237639`), with the fixed all-k artifact downloaded as artifact
+`14182800249`. Its inner JSON SHA-256 is
+`3baf2baa9b6dc9fe948acd0588777245de05982cc29d3d759124073342faa477`, byte-identical
+to the pinned Run #582 reconstruction. The calibration artifact is
+`14182740505`; its recorded input SHA matches that inner JSON.
+
+- Cohort: 236 matches, 472 team-side targets, 17 dates.
+- Bootstrap: 5,000 NumPy PCG64 date-cluster replicates, seed 20261112.
+- Fixed bins: 56 total; 23 non-empty bins with n>=20; 10 non-empty sparse bins
+  with n<20; 23 empty bins. All 23 eligible simultaneous max-|t| 95% bands
+  contain zero (critical value 2.9845353653).
+- All 8 one-vs-rest logistic fits converged; 5,000/5,000 bootstrap replicates
+  valid for each fit.
+- All 16 absolute simultaneous bands (intercept and slope for k=6/k=10 and
+  categories 0/1/2/3+) contain the ideal intercept 0 and slope 1.
+- The paired k=6 minus k=10 simultaneous bands exclude zero for category 0
+  intercept and slope, and category 3+ intercept and slope. Category 1 and 2
+  contrasts include zero. Directions are mixed across categories; these are
+  relative parameter differences, not evidence of global calibration
+  superiority or absolute miscalibration.
+
+Point estimates (intercept, slope):
+
+| Category | k=6 | k=10 |
+|---|---:|---:|
+| 0 | (-0.14535, 0.84613) | (0.06258, 1.02450) |
+| 1 | (0.11825, 1.09389) | (0.30964, 1.40649) |
+| 2 | (-0.91002, 0.25938) | (-0.78843, 0.36783) |
+| 3+ | (0.14759, 1.16439) | (0.57794, 1.44213) |
+
+The wide uncertainty for categories 1 and 2, 17-date clustering, repeated teams,
+and absence of prospective completed-round outcomes remain material limitations.
+No recalibration or production adoption is justified.
