@@ -5,9 +5,9 @@
 
 ## 1. First eligible round and no-backfill rule
 
-- First eligible round: **1674**, subject to verification of its official toto13 card and deadline.
+- First eligible round: **1674**. Its official 13-match toto13 card and deadline were directly re-opened and verified on 2026-11-18 18:37 JST.
 - Round **1673 is not the Window-20 start**. The recorded user decision is to start the separate arm from the next window, without retroactive additions.
-- Generate only after the official round/card/deadline are confirmed and the dedicated runner, tests, CI, and immutable artifact upload are ready before the official deadline.
+- Round 1674 official network-settlement deadline: **2026-11-25 18:50 JST**. Generate only if the dedicated runner, tests, CI, and immutable artifact upload are ready before that cutoff.
 - If round 1674 cannot pass all gates before its deadline, move to the next not-yet-expired ordinary-toto13 round after official verification. **Never backfill an expired round.**
 - Existing round-1673 V1/V2 submissions (PRs #115/#116) are independent prediction submissions, not shadow observations.
 
@@ -49,7 +49,7 @@ Only the team-history window cap changes:
 - If a team has **20 or more**, use the latest 20 and set `partial_window=false`.
 - If a team has **fewer than 12**, mark that side as missing; do not emit a neutral fallback or automatically substitute another window. A fixture enters the paired W20-vs-V1 score only when both sides meet the minimum. Report eligible fixtures, missing sides, and coverage explicitly; do not silently drop them.
 - The existing runner's positive pooled-baseline precondition remains in force.
-- As a current data-availability check only (not a forecast), the 26 team-sides on round 1673 have 14 or 17 appearances in the 480-row history. That indicates the 12-match floor is currently reachable, but it does not establish round-1674 counts. Recompute counts from the exact frozen history at round-1674 generation time.
+- As a current data-availability check only (not a forecast), the 26 team-sides on the official round-1674 card have 14 or 17 appearances in the 480-row history (J1 sides 14; J2 sides 17). They all meet the 12-match floor, but none has 20. Round 1674 would currently be a partial window for every team. Round 1673 results may enter history before round-1674 generation, so recompute all counts from the exact frozen history at execution time.
 
 ## 4. Input freeze and provenance
 
@@ -58,7 +58,7 @@ Audit references currently available (not permission to reuse round-1673 probabi
 - GPT `data/history.json` blob SHA: `487d45e9c1b5063d96c17d7b718ec3375651f959`; 480 rows, latest match date 2026-11-15, `updatedAt=2026-11-18T07:25:01.354Z`. All rows currently share `fetchedAt=2026-11-18T07:25:01.354Z`.
 - Source: `k-addtimes/jleague_open_data` community mirror, not an official toto feed.
 - GPT `data/team_aliases.json` blob SHA: `5de22584524ff4c07ddac1d27f49afbbbc5f88ab`, `updatedAt=2026-10-22`.
-- The round-1673 official schedule is a separate 13-match toto13 card; its schedule blob is `43011d91c2cee4e74014a3105e62db3705bd8208`. Round-1674 must have its own official schedule and deadline verification; do not infer them from round 1673.
+- Round 1674 official source: `https://store.toto-dream.com/dcs/subos/screen/pi01/spin000/PGSPIN00001DisptotoLotInfo.form?holdCntId=1674`, re-opened at 2026-11-18 18:37 JST. It lists 13 fixtures on 2026-11-25; 12 kick off at 19:00 and Urawa–Cerezo (No.7) at 19:30. Network settlement closes 18:50 JST; convenience 17:00, sports-kiosk 11:30, retail 12:00. The immutable schedule snapshot is in toto-lab PR #129, branch `data/round-1674-official-schedule-20261118`, commit `0749e19b210ea97a612284eb77e233ee385db724`, file blob `2d7226d17512b97b07ce630a22212e3bc9d71265`. PR #129 is OPEN / UNMERGED; the file is not yet on toto-lab main. Do not infer round-1674 data from round 1673.
 - The round-1674 execution must pin the exact history, alias, fixture, and runner hashes used at generation time. If any input changes, record the new digest; never rewrite an earlier snapshot.
 
 Each round artifact must record product `toto13`, round, all 13 fixtures, official deadline, actual generation timestamp, per-team prior-match counts and `partial_window` flags, exact input/code hashes and source URLs, arm IDs and probability vectors, workflow run ID/attempt/event/branch/commit, PR head SHA, artifact ID/digest, and artifact upload completion time.
