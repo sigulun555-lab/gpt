@@ -10,7 +10,7 @@
 - Official card source: toto-lab `data/schedule/round_1673.json`, blob `43011d91c2cee4e74014a3105e62db3705bd8208`; official sales-term URL is recorded in that file.
 - Round 1673 may enter this arm only if the dedicated runner, tests, and CI are ready and the immutable forecast artifact is uploaded before the deadline.
 - If those gates are not met before the deadline, the first eligible round becomes the next not-yet-expired ordinary toto13 round (expected round 1674, subject to official card verification). **Do not backfill round 1673 or any expired round.**
-- Existing ordinary-toto13 V1/V2 records for round 1673 (PRs #115/#116) are production-submission records, not Window-20 shadow observations, and must not be counted as such.
+- Existing ordinary-toto13 V1/V2 records for round 1673 (PRs #115/#116) are independent V1/V2 submission records, not Window-20 shadow observations, and must not be counted as such.
 
 ## 2. Existing prospective toto13 shadow inventory
 
