@@ -5,79 +5,75 @@
 
 ## 1. First eligible round and no-backfill rule
 
-- Intended first round: **1673**, scheduled for 2026-11-21.
-- Official deadline: **2026-11-21 13:50 JST**.
-- Official card source: toto-lab `data/schedule/round_1673.json`, blob `43011d91c2cee4e74014a3105e62db3705bd8208`; official sales-term URL is recorded in that file.
-- Round 1673 may enter this arm only if the dedicated runner, tests, and CI are ready and the immutable forecast artifact is uploaded before the deadline.
-- If those gates are not met before the deadline, the first eligible round becomes the next not-yet-expired ordinary toto13 round (expected round 1674, subject to official card verification). **Do not backfill round 1673 or any expired round.**
-- Existing ordinary-toto13 V1/V2 records for round 1673 (PRs #115/#116) are independent V1/V2 submission records, not Window-20 shadow observations, and must not be counted as such.
+- First eligible round: **1674**, subject to verification of its official toto13 card and deadline.
+- Round **1673 is not the Window-20 start**. The recorded user decision is to start the separate arm from the next window, without retroactive additions.
+- Generate only after the official round/card/deadline are confirmed and the dedicated runner, tests, CI, and immutable artifact upload are ready before the official deadline.
+- If round 1674 cannot pass all gates before its deadline, move to the next not-yet-expired ordinary-toto13 round after official verification. **Never backfill an expired round.**
+- Existing round-1673 V1/V2 submissions (PRs #115/#116) are independent prediction submissions, not shadow observations.
 
-## 2. Existing prospective toto13 shadow inventory
+## 2. Existing toto13 shadow inventory
 
-The accessible GPT repository evidence currently contains one toto13 shadow round:
+The accessible GPT PR #18 shadow branch/run artifact evidence contains one pre-deadline toto13 snapshot:
 
 - Round **1670**, 13 fixtures.
-- GitHub Actions run **#145 / ID 41765040138**, branch `shadow/toto13-k6-v0-k10-v1-20261104`, head `c08b0e8ffaf315ff9a5d154fad73e45857683bf6`.
-- Three arms were present for all 13 fixtures: `V0_k6_window12`, `V1_k10_window12`, and `baseline_k0_window12` — 13 forecast vectors per arm, 39 arm/fixture vectors total.
+- GitHub Actions run **#145 / ID 41765040138**, event `pull_request`, branch `shadow/toto13-k6-v0-k10-v1-20261104`, head `c08b0e8ffaf315ff9a5d154fad73e45857683bf6`.
+- All 13 fixtures contain the three existing arms: `V0_k6_window12`, `V1_k10_window12`, and `baseline_k0_window12` — 13 vectors per arm, 39 arm/fixture vectors total.
 - Artifact ID **13292201239**, ZIP SHA-256 `a51002c5581db181c9dd94d342df969a45ffd478457b6f5d9d42ce8e39ba9f1e`.
 - Artifact JSON SHA-256 `34cdac1a7187220f1e1ffe46168e8657550868a12670419ef8835a4225d97077`.
-- JSON `createdAt`: `2026-11-04T03:06:55.015Z` (2026-11-04 12:06:55.015 JST). The Actions log confirms the artifact upload completed at 03:06:56Z. Official deadline was `2026-11-07T12:50:00+09:00`, so the artifact was available before the deadline.
-- The artifact JSON itself does not contain the `execution` object, so run/branch/head linkage is evidenced by GitHub's run and artifact metadata, not by embedded JSON fields. Preserve this limitation in any scoring report.
-- The round-1670 artifact is historical and is not a current-round forecast. No other toto13 shadow round was found in the accessible GPT shadow branch/PR/artifact records checked for this audit.
+- JSON `createdAt`: `2026-11-04T03:06:55.015Z` (2026-11-04 12:06:55.015 JST). Actions logs show upload finalized at 03:06:56Z. Official deadline was `2026-11-07T12:50:00+09:00`; the artifact was uploaded about 3 days 43 minutes before deadline.
+- **Classification:** 1 pre-deadline saved snapshot / 13 matches. However, the run event is `pull_request`, not a dedicated prospective dispatch, and the artifact JSON lacks the embedded `execution` object. Run/branch/head linkage is available from GitHub run/artifact metadata, but the snapshot is **not yet accepted as strict prospective adoption/scoring evidence**. Official-result scoring and an official result URL manifest have not been completed.
+- No other toto13 shadow round was found in the accessible PR #18 shadow branch/run artifact records checked for this audit.
 
-Inventory count for the existing k6/k10/k0 window12 shadow: **1 round / 13 matches**. This is not the 310-match retrospective T1 study (PRs #127/#128), and not the GOAL3 k6/k10 research (PR #125).
+This inventory is separate from the 310-match retrospective toto13 T1 study (PRs #127/#128), the GOAL3 4-category research (PR #125), and the round-1673 V1/V2 submission rows.
 
 ## 3. Window-20 arm definition
 
-Primary new arm ID: `W20_k6_window20_cap`.
+Primary new arm ID: `W20_k10_window20_cap`.
 
-Paired control: existing `V0_k6_window12`.
+Paired control: existing `V1_k10_window12`.
 
 Only the team-history window cap changes:
 
-- Shrinkage remains **k=6**.
-- Team-history cap changes from the V0 control's 12 to **up to 20** prior matches per team.
-- Use the latest `min(20, available_prior_matches)` matches for each team, with the same team-normalization and prediction implementation as the isolated toto13 shadow runner.
+- Shrinkage remains **k=10** in both arms.
+- Team-history cap changes from 12 to **up to 20** prior matches per team.
+- Use the latest `min(20, available_prior_matches)` matches for each team, with the same team normalization and T1 Poisson 1X2 implementation as the isolated toto13 shadow runner.
 - Strict chronological cutoff: only history rows with `match.date < fixture.date`; same-day and future results are excluded.
 - Keep the same shared pooled home/away scoring baseline used by the existing runner. Do **not** add a league-specific baseline in this arm. A league-specific baseline is a separate future experiment, not part of the Window-20 contrast.
-- Keep the 0..10 goal grid and the existing Poisson 1X2 mapping. No Dixon-Coles correction, draw boost, market blend, injury/news coefficient, or manual lineup adjustment.
-- The k10/window12 candidate and k0/window12 baseline remain unchanged contextual references; they are not the primary Window-20 comparison.
+- Keep the existing 0..10 goal grid and 1X2 probability mapping. No Dixon-Coles correction, draw boost, market blend, injury/news coefficient, or manual lineup adjustment.
+- Existing V0 k=6/window12 and baseline k=0/window12 remain unchanged contextual arms; they are not the primary Window-20 contrast.
 
-### Minimum training count and round-level fail-closed rule
+### Minimum training count and partial-window rule
 
-- Minimum per team-side: **12 completed prior team matches** at the fixture-date cutoff. This matches the existing V0 window and preserves a comparable minimum sample.
-- If any of the 26 team-sides in a 13-match card has fewer than 12 eligible prior matches, fail closed for the entire round; do not emit a partial arm or silently substitute a league average.
-- The existing runner's positive pooled-baseline precondition also remains in force.
-- For round 1673, the pinned current history has 480 completed matches through 2026-11-15. After NFKC/team-alias normalization, the 26 scheduled team-sides have **14 or 17** prior appearances, so the 12-match minimum is met. None has 20. Therefore round 1673 would be a **20-match cap** using 14–17 actual matches per team, not a claim that every team has a full 20-match sample. Reports must show the actual count for every side.
+- Minimum per team-side: **12 completed prior team matches** at the fixture-date cutoff.
+- If a team has **12–19** eligible prior matches, use all available matches and set `partial_window=true`; do not pad or duplicate rows.
+- If a team has **20 or more**, use the latest 20 and set `partial_window=false`.
+- If a team has **fewer than 12**, mark that side as missing; do not emit a neutral fallback or automatically substitute another window. A fixture enters the paired W20-vs-V1 score only when both sides meet the minimum. Report eligible fixtures, missing sides, and coverage explicitly; do not silently drop them.
+- The existing runner's positive pooled-baseline precondition remains in force.
+- As a current data-availability check only (not a forecast), the 26 team-sides on round 1673 have 14 or 17 appearances in the 480-row history. That indicates the 12-match floor is currently reachable, but it does not establish round-1674 counts. Recompute counts from the exact frozen history at round-1674 generation time.
 
-## 4. Round-1673 input snapshot currently available
+## 4. Input freeze and provenance
 
-These are audit references, not permission to reuse production probabilities:
+Audit references currently available (not permission to reuse round-1673 probabilities):
 
 - GPT `data/history.json` blob SHA: `487d45e9c1b5063d96c17d7b718ec3375651f959`; 480 rows, latest match date 2026-11-15, `updatedAt=2026-11-18T07:25:01.354Z`. All rows currently share `fetchedAt=2026-11-18T07:25:01.354Z`.
 - Source: `k-addtimes/jleague_open_data` community mirror, not an official toto feed.
 - GPT `data/team_aliases.json` blob SHA: `5de22584524ff4c07ddac1d27f49afbbbc5f88ab`, `updatedAt=2026-10-22`.
-- toto-lab official schedule blob and source are listed in §1. The schedule contains 13 ordinary-toto fixtures. Product crosswalks for mini A/B and GOAL3 are not used by this arm.
-- The execution must pin the exact history, alias, fixture, and runner hashes used at generation time. If any input changes, record the new digest; never rewrite an earlier snapshot.
+- The round-1673 official schedule is a separate 13-match toto13 card; its schedule blob is `43011d91c2cee4e74014a3105e62db3705bd8208`. Round-1674 must have its own official schedule and deadline verification; do not infer them from round 1673.
+- The round-1674 execution must pin the exact history, alias, fixture, and runner hashes used at generation time. If any input changes, record the new digest; never rewrite an earlier snapshot.
 
-## 5. Evidence and scoring requirements
-
-Each round artifact must record:
-
-- product `toto13`, round, all 13 fixtures, official deadline, actual generation timestamp, and per-team prior-match counts;
-- exact history/alias/fixture/runner SHA-256 or Git blob SHAs and source URLs;
-- arm IDs and full 1/X/2 probability vectors;
-- workflow run ID/attempt, event, branch, workflow commit SHA, PR head SHA, run creation/completion times, artifact ID, artifact digest, and artifact upload completion time.
+Each round artifact must record product `toto13`, round, all 13 fixtures, official deadline, actual generation timestamp, per-team prior-match counts and `partial_window` flags, exact input/code hashes and source URLs, arm IDs and probability vectors, workflow run ID/attempt/event/branch/commit, PR head SHA, artifact ID/digest, and artifact upload completion time.
 
 A Git commit timestamp or runner-generated `createdAt` alone is not sufficient. The immutable Actions artifact must be shown to have completed upload before the official deadline. Do not score a round without that proof and an official result source.
 
+## 5. Scoring and adoption gate
+
 After official results are confirmed, the primary paired contrast is:
 
-`D = score(W20_k6_window20_cap) - score(V0_k6_window12)`
+`D = score(W20_k10_window20_cap) - score(V1_k10_window12)`
 
-for LogLoss and multiclass Brier; negative values favor Window-20. Resample complete rounds as clusters (not individual team-sides), use 10,000 paired round-block bootstrap replicates with a fixed, recorded seed, and report percentile 95% intervals. Report Accuracy as secondary. J1/J2/J3 results are descriptive; do not invent a league-specific adoption threshold in this arm.
+for multiclass LogLoss and Brier; negative values favor Window-20. Compare the same eligible fixtures only. Resample complete rounds as clusters (keep all matches in a round together), use 10,000 paired round-block bootstrap replicates with a fixed, recorded seed, and report percentile 95% intervals. Accuracy is secondary. League-level results are descriptive; no league-specific adoption threshold is invented in this arm.
 
-**No adoption before 20 eligible prospective rounds** with pre-deadline artifacts and official results. At that point, both primary LogLoss and Brier paired 95% interval upper bounds must be below zero, with no material league-level deterioration and no increase in missing forecasts/fit failures. Fewer than 20 rounds are descriptive only. Round 1670 is retained as historical evidence and is not retroactively added to the Window-20 arm.
+**No adoption before 20 eligible prospective rounds** with pre-deadline artifacts and official results. At that point, both primary LogLoss and Brier paired 95% interval upper bounds must be below zero, with no material league-level deterioration and no increase in missing forecasts/fit failures. Fewer than 20 rounds are descriptive only. Round 1670 remains a historical pre-deadline snapshot and is not retroactively added to the Window-20 arm.
 
 ## 6. Safety boundaries
 
