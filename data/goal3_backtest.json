@@ -29,7 +29,7 @@
       "exactBothSidesAccuracy": 0.08333333333333333
     }
   },
-  "updatedAt": "2026-11-19T07:22:09.099Z",
+  "updatedAt": "2026-11-19T20:33:30.921Z",
   "source": {
     "name": "k-addtimes/jleague_open_data",
     "url": "https://raw.githubusercontent.com/k-addtimes/jleague_open_data/main/current_schedule_file.csv",
