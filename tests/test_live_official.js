@@ -169,8 +169,6 @@ function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
     'all current GOAL3 fixtures should have distinct non-empty home/away teams');
   assert.equal(new Set(goal3.fixtures.map(f => f.home + '|' + f.away)).size, 3,
     'current GOAL3 fixtures should be unique');
-  const salesTermsUrl = 'https://store.toto-dream.com/dcs/subos/screen/ps01/spsl000/PGSPSL00001InitTotoSingle.form';
-  const salesTermsHtml = await fetchOfficialHtml(salesTermsUrl, 'official product sales-terms page');
   const independentlyParsedGoal3Deadline = extractGoal3DeadlineFromSalesTermsHtml(salesTermsHtml, goal3.round);
   assert.equal(
     goal3.deadline,
