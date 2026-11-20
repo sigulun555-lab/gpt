@@ -4,8 +4,8 @@ const { parseToto } = require('../scripts/auto_pipeline.js');
 
 // Regression: the selected round must win over a newer round listed in navigation.
 {
-  const html = '<label>開催回</label><select name="holdCntId"><option value="1668">第1668回</option><option value="1666" selected="selected">第1666回</option></select><div>第1668回 totoくじ情報</div><div>〖くじ〗 totoGOAL3</div>';
-  assert.equal(parseToto(html, new Date('2026-10-28T00:00:00+09:00')).round, 1666,
+  const html = '<label>開催回</label><select name="holdCntId"><option value="1674">第1674回</option><option value="1673" selected="selected">第1673回</option></select><div>第1674回 totoくじ情報</div><div>〖くじ〗 totoGOAL3</div>';
+  assert.equal(parseToto(html, new Date('2026-11-20T00:00:00+09:00')).round, 1673,
     'selected official round should take precedence over unselected navigation round');
 }
 
@@ -27,6 +27,15 @@ function officialPlainText(html) {
     .trim();
 }
 
+
+function extractCurrentRoundFromSalesTermsHtml(html) {
+  const plain = officialPlainText(html);
+  const match = plain.match(/開催回の選択\s*第\s*(\d+)\s*回/);
+  if (!match) throw new Error('Official product catalog does not identify the current round');
+  const round = Number(match[1]);
+  if (!Number.isInteger(round) || round < 1) throw new Error('Official product catalog returned an invalid current round');
+  return round;
+}
 function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
   const plain = officialPlainText(html);
   if (!new RegExp('第\\s*' + Number(round) + '\\s*回').test(plain)) {
@@ -52,15 +61,21 @@ function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
     String(minute).padStart(2, '0') + ':00+09:00';
 }
 
+// Regression: the current round comes from the official product selector, not a stale fixture.
+{
+  const fixture = '<h3>くじタイプと開催回の選択</h3><div>第1673回</div><div>第1672回</div>';
+  assert.equal(extractCurrentRoundFromSalesTermsHtml(fixture), 1673);
+  assert.throws(() => extractCurrentRoundFromSalesTermsHtml('<div>第1673回</div>'), /current round/);
+}
 // Regression: select the totoGOAL3 row rather than the first regular-toto row.
 {
-  const fixture = '<h1>第1670回</h1><table>' +
-    '<tr><td><img alt="toto"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
-    '<tr><td><img alt="minitotoA"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
-    '<tr><td><img alt="minitotoB"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 12:50</td></tr>' +
-    '<tr><td><img alt="totogoal3"></td><td>販売中</td><td>2026/10/31 08:00～2026/11/07 13:50</td></tr>' +
+  const fixture = '<h1>第1673回</h1><table>' +
+    '<tr><td><img alt="toto"></td><td>販売中</td><td>2026/11/14 08:00～2026/11/21 13:50</td></tr>' +
+    '<tr><td><img alt="minitotoA"></td><td>販売中</td><td>2026/11/14 08:00～2026/11/21 13:50</td></tr>' +
+    '<tr><td><img alt="minitotoB"></td><td>販売中</td><td>2026/11/14 08:00～2026/11/21 13:50</td></tr>' +
+    '<tr><td><img alt="totogoal3"></td><td>販売中</td><td>2026/11/14 08:00～2026/11/21 13:50</td></tr>' +
     '</table>';
-  assert.equal(extractGoal3DeadlineFromSalesTermsHtml(fixture, 1670), '2026-11-07T13:50:00+09:00');
+  assert.equal(extractGoal3DeadlineFromSalesTermsHtml(fixture, 1673), '2026-11-21T13:50:00+09:00');
 }
 
 (async () => {
@@ -108,25 +123,33 @@ function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
     throw new Error(label + ' failed after retries');
   }
 
+  // Discover the active round from the official product selector before fetching
+  // the product-specific standard-toto page; never pin a historical round.
+  const salesTermsUrl = 'https://store.toto-dream.com/dcs/subos/screen/ps01/spsl000/PGSPSL00001InitTotoSingle.form';
+  const salesTermsHtml = await fetchOfficialHtml(salesTermsUrl, 'official product sales-terms page');
+  const currentRound = extractCurrentRoundFromSalesTermsHtml(salesTermsHtml);
+  assert.ok(currentRound >= 1670, 'official product catalog should identify a recently verified round');
+
   // Standard toto remains supported and must be distinguished from GOAL3.
-  const totoUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=1668';
+  const totoUrl = 'https://sp.toto-dream.com/dcs/subos/screen/si01/ssin025/PGSSIN02501ForwardSalesTermtotoSP.form?holdCntId=' + currentRound;
   const totoHtml = await fetchOfficialHtml(totoUrl, 'official standard-toto page');
   assert.ok(totoHtml.length > 1000, 'official standard-toto HTML should be non-empty');
-  const toto = parseToto(totoHtml, new Date('2026-10-28T00:00:00+09:00'));
-  const expectedToto = [
-    ['岡山', 'FC東京'], ['水戸', '広島'], ['神戸', '名古屋'],
-    ['鹿島', 'Ｃ大阪'], ['柏', '浦和'], ['京都', '清水'],
-    ['千葉', '福岡'], ['長崎', '東京Ｖ'], ['町田', 'Ｇ大阪'],
-    ['横浜FM', '川崎Ｆ'], ['仙台', '大宮'], ['新潟', '富山'],
-    ['宮崎', '大分']
-  ];
-  assert.equal(toto.round, 1668, 'official standard-toto round should be parsed');
-  assert.equal(toto.marketType, 'toto', 'commodityId=01 should be identified as standard toto');
-  assert.equal(toto.deadline, '2026-10-31T13:50:00+09:00', 'standard-toto deadline should be parsed');
+  const totoAsOf = new Date();
+  const toto = parseToto(totoHtml, totoAsOf);
+  assert.equal(toto.round, currentRound, 'standard-toto round should match the current official product selector');
+  assert.equal(toto.marketType, 'toto', 'standard-toto page should be identified as toto, not GOAL3');
+  assert.ok(typeof toto.deadline === 'string' && Number.isFinite(Date.parse(toto.deadline)),
+    'current standard-toto online deadline should be parsed as a valid timestamp');
+  assert.ok(Date.parse(toto.deadline) > totoAsOf.getTime(),
+    'current standard-toto sales deadline must still be in the future');
   assert.equal(toto.fixtures.length, 13, 'all 13 standard-toto fixtures should be parsed');
-  assert.deepEqual(toto.fixtures.map(f => [f.home, f.away]), expectedToto,
-    'standard-toto home/away pairs should match in order');
-  console.log('PASS live official toto HTML: round 1668, deadline, and all 13 fixtures');
+  assert.deepEqual(toto.fixtures.map(f => f.number), Array.from({ length: 13 }, (_, i) => i + 1),
+    'standard-toto fixture numbers should be exactly 1 through 13');
+  assert.ok(toto.fixtures.every(f => f.home && f.away && f.home !== f.away),
+    'all standard-toto fixtures should have distinct non-empty home/away teams');
+  assert.equal(new Set(toto.fixtures.map(f => f.home + '|' + f.away)).size, 13,
+    'standard-toto fixtures should be unique');
+  console.log('PASS live official toto HTML: current round ' + currentRound + ', deadline, and all 13 fixtures');
 
   // Explicitly choose commodityId=02 (totoGOAL3) while allowing the official page
   // to supply its current round; enforce a known lower bound so a stale old form
@@ -135,8 +158,7 @@ function extractGoal3DeadlineFromSalesTermsHtml(html, round) {
   const goal3Html = await fetchOfficialHtml(goal3Url, 'official GOAL3 selection page');
   const goal3AsOf = new Date();
   const goal3 = parseToto(goal3Html, goal3AsOf);
-  assert.ok(Number.isInteger(goal3.round) && goal3.round >= 1670,
-    'current official GOAL3 round should be at least the latest verified round 1670');
+  assert.equal(goal3.round, currentRound, 'GOAL3 round should match the current official product selector');
   assert.equal(goal3.marketType, 'totoGOAL3', 'commodityId=02 should be identified as totoGOAL3');
   assert.ok(typeof goal3.deadline === 'string' && Number.isFinite(Date.parse(goal3.deadline)),
     'current official GOAL3 online deadline should be parsed as a valid timestamp');
