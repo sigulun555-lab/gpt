@@ -17,6 +17,7 @@ on:
       - '.github/workflows/update-predictions.yml'
 permissions:
   contents: write
+  pull-requests: write
 concurrency:
   group: toto-prediction-refresh
   cancel-in-progress: false
@@ -26,6 +27,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,41 +51,27 @@ jobs:
           path: data/
           if-no-files-found: error
           retention-days: 3
-      - name: Commit status and generated data
+      - name: Create or update data refresh pull request
         id: publish
         if: steps.pipeline.outcome == 'success' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/
-          if git diff --cached --quiet; then
-            echo 'No data changes to publish.'
-          else
-            git commit -m "chore: refresh toto data and predictions [skip ci]"
-            git pull --rebase -X theirs origin main
-            git push origin HEAD:main
-          fi
-      - name: Report unsuccessful pipeline or publish
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/toto-data-refresh
+          delete-branch: false
+          commit-message: 'chore: refresh toto data and predictions'
+          title: 'data: refresh J.League toto predictions'
+          body: |
+            Automated data refresh from the existing J.League toto prediction pipeline.
+
+            - Generated data is proposed on this dedicated branch only.
+            - No direct write to main and no automatic merge.
+            - Existing prediction/history records are reviewed as a diff before publication.
+            - No GitHub Pages deployment is performed by this scheduled data-refresh workflow.
+          add-paths: |
+            data/**
+      - name: Report unsuccessful pipeline or PR creation
         if: always() && (steps.pipeline.outcome != 'success' || (github.ref == 'refs/heads/main' && steps.publish.outcome != 'success'))
         run: |
-          echo 'Pipeline or data publish failed. Inspect the uploaded toto-generated-data artifact and job logs.'
+          echo 'Pipeline or data refresh PR creation failed. Inspect the uploaded toto-generated-data artifact and job logs.'
           exit 1
-  deploy:
-    if: github.ref == 'refs/heads/main' && always() && needs.update.result != 'cancelled'
-    needs: update
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-      - uses: actions/deploy-pages@v4
