@@ -20,18 +20,22 @@
     "previousSnapshot": {
       "repository": "sigulun555-lab/toto-lab",
       "pullRequest": 129,
-      "commit": "f5cc6e2570dbd053cdfc8ef274beef8a33cb48e9",
-      "fileBlobSha": "0e0e52d381f2c1eddf13fb2ac5908cfba8f91f3a",
-      "supersededSnapshot": "data/schedule/round_1674_20261118_superseded.json"
+      "commit": "0749e19b210ea97a612284eb77e233ee385db724",
+      "originalPath": "data/schedule/round_1674.json",
+      "originalBlobSha": "2d7226d17512b97b07ce630a22212e3bc9d71265",
+      "preservedPath": "data/schedule/round_1674_20261118_superseded.json",
+      "preservedBlobSha": "0f5e4e07cd9e9bcee9acc11b77ab87aeaacf9bb2"
     },
     "supersedesPrevious": true,
-    "changedMatchNumbers": [
+    "changedMatchNumbers": [],
+    "unchangedMatchNumbers": [
       1,
       2,
       3,
       4,
       5,
       6,
+      7,
       8,
       9,
       10,
@@ -39,12 +43,16 @@
       12,
       13
     ],
-    "unchangedMatchNumbers": [
-      7
-    ],
-    "note": "Current official card differs from the 2026-11-18 snapshot in 12 of 13 fixtures. This 2026-11-21 official page is authoritative for future predictions.",
+    "note": "The 2026-11-21 official page was compared with the original 2026-11-18 snapshot: all 13 home/away fixture pairs are identical (0 changed, 13 unchanged). This is a later observation with refreshed page/retrieval timestamps and sales summary, not a fixture correction.",
     "revalidatedAt": "2026-11-21T14:01:00+09:00",
-    "observedAt": "2026-11-21T14:01:00+09:00"
+    "observedAt": "2026-11-21T14:01:00+09:00",
+    "currentSnapshot": {
+      "repository": "sigulun555-lab/toto-lab",
+      "pullRequest": 129,
+      "commit": "d2ae68b84a819243ae46e7252a818b93910d219f",
+      "path": "data/schedule/round_1674.json",
+      "fileBlobSha": "78e66a25037b35fe9fd2f43364b4023aa80b3b32"
+    }
   },
   "fixtures": [
     {
