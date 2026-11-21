@@ -1,0 +1,60 @@
+name: Validate toto13 Window-20 shadow arm
+on:
+  push:
+    branches:
+      - research/toto13-window20-round1674-20261121-run2
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: node --check scripts/run_toto13_shadow.js
+      - run: node --test tests/toto13-shadow.test.js
+      - run: node --check scripts/run_toto13_window20_shadow.js
+      - run: node --test tests/toto13-window20.test.js
+  generate:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[window20-shadow]') && github.ref == 'refs/heads/research/toto13-window20-round1674-20261121-run2' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch current GPT main history snapshot
+        run: |
+          git fetch origin main --depth=1
+          git show origin/main:data/history.json > data/history.json
+      - name: Generate round-1674 Window-20 shadow artifact
+        env:
+          WINDOW20_TRIGGER_CONFIRMED: '1'
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          SHADOW_HEAD_SHA: ${{ github.sha }}
+        run: |
+          node scripts/run_toto13_window20_shadow.js shadow/toto13/window20/fixtures/round_1674_20261121.json shadow/toto13/window20/predictions/round_1674_20261124T2200JST.json --generate
+      - name: Upload immutable Window-20 artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: toto13-window20-round-1674
+          path: shadow/toto13/window20/predictions/round_1674_20261124T2200JST.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Record upload completion evidence
+        run: |
+          echo "Artifact ID: ${{ steps.upload.outputs.artifact-id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact digest: ${{ steps.upload.outputs.artifact-digest }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Upload completion observed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
