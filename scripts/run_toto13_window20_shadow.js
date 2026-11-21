@@ -18,6 +18,7 @@ const PRODUCT = 'toto13';
 const EARLIEST_GENERATION_AT = '2026-11-24T22:00:00+09:00';
 const OFFICIAL_DEADLINE = '2026-11-25T18:50:00+09:00';
 const MIN_PRIOR_MATCHES = 12;
+const MAX_FIXTURE_AGE_MS = 5 * 60 * 1000;
 const WINDOW20 = Object.freeze({ id: 'W20_k10_window20_cap', shrink: 10, window: 20 });
 const CONTROL12 = Object.freeze({ id: 'V1_k10_window12', shrink: 10, window: 12 });
 
@@ -78,9 +79,20 @@ function buildWindow20Report(historyInput, fixtureDocument, options = {}) {
   if (!fixtureDocument.source || !String(fixtureDocument.source.url || '').includes('holdCntId=1674')) {
     throw new Error('official round-1674 source URL is required');
   }
+  const pageDisplayAt = fixtureDocument.source.pageDisplayAt;
   const revalidatedAt = fixtureDocument.source.revalidatedAt;
-  if (!revalidatedAt || !Number.isFinite(Date.parse(revalidatedAt)) || Date.parse(revalidatedAt) > nowMs) {
-    throw new Error('fixture source must have a verified revalidation timestamp no later than generation');
+  const retrievedAt = fixtureDocument.source.retrievedAt;
+  const pageDisplayMs = Date.parse(pageDisplayAt);
+  const revalidatedMs = Date.parse(revalidatedAt);
+  const retrievedMs = Date.parse(retrievedAt);
+  if (!Number.isFinite(pageDisplayMs) || !Number.isFinite(revalidatedMs) || !Number.isFinite(retrievedMs)) {
+    throw new Error('official fixture source must include valid pageDisplayAt, revalidatedAt, and retrievedAt timestamps');
+  }
+  if (pageDisplayMs > revalidatedMs || revalidatedMs > retrievedMs || retrievedMs > nowMs) {
+    throw new Error('official fixture timestamps must be ordered pageDisplayAt <= revalidatedAt <= retrievedAt <= generation');
+  }
+  if (nowMs - pageDisplayMs > MAX_FIXTURE_AGE_MS || nowMs - retrievedMs > MAX_FIXTURE_AGE_MS || retrievedMs - pageDisplayMs > MAX_FIXTURE_AGE_MS) {
+    throw new Error('official fixture snapshot must be revalidated and retrieved within 5 minutes of generation');
   }
 
   const historyDocument = options.historyDocument || {};
