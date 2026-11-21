@@ -1,0 +1,188 @@
+{
+  "round": 1674,
+  "holdDates": [
+    "2026-11-25"
+  ],
+  "matches": [
+    {
+      "matchNumber": 1,
+      "homeTeam": "ジェフユナイテッド千葉",
+      "awayTeam": "名古屋グランパス",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "フクアリ"
+    },
+    {
+      "matchNumber": 2,
+      "homeTeam": "ファジアーノ岡山",
+      "awayTeam": "清水エスパルス",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ＪＦＥス"
+    },
+    {
+      "matchNumber": 3,
+      "homeTeam": "Ｖ・ファーレン長崎",
+      "awayTeam": "川崎フロンターレ",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ピースタ"
+    },
+    {
+      "matchNumber": 4,
+      "homeTeam": "水戸ホーリーホック",
+      "awayTeam": "東京ヴェルディ",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "水戸信ス"
+    },
+    {
+      "matchNumber": 5,
+      "homeTeam": "アビスパ福岡",
+      "awayTeam": "横浜Ｆ・マリノス",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ベススタ"
+    },
+    {
+      "matchNumber": 6,
+      "homeTeam": "ＦＣ東京",
+      "awayTeam": "サンフレッチェ広島",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "味スタ"
+    },
+    {
+      "matchNumber": 7,
+      "homeTeam": "浦和レッズ",
+      "awayTeam": "セレッソ大阪",
+      "kickoffAt": "2026-11-25T19:30:00+09:00",
+      "venue": "埼玉"
+    },
+    {
+      "matchNumber": 8,
+      "homeTeam": "北海道コンサドーレ札幌",
+      "awayTeam": "藤枝ＭＹＦＣ",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "プレド"
+    },
+    {
+      "matchNumber": 9,
+      "homeTeam": "モンテディオ山形",
+      "awayTeam": "ジュビロ磐田",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ＮＤスタ"
+    },
+    {
+      "matchNumber": 10,
+      "homeTeam": "サガン鳥栖",
+      "awayTeam": "大分トリニータ",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "駅スタ"
+    },
+    {
+      "matchNumber": 11,
+      "homeTeam": "いわきＦＣ",
+      "awayTeam": "カターレ富山",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ハワスタ"
+    },
+    {
+      "matchNumber": 12,
+      "homeTeam": "横浜ＦＣ",
+      "awayTeam": "ベガルタ仙台",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ニッパツ"
+    },
+    {
+      "matchNumber": 13,
+      "homeTeam": "ＲＢ大宮アルディージャ",
+      "awayTeam": "徳島ヴォルティス",
+      "kickoffAt": "2026-11-25T19:00:00+09:00",
+      "venue": "ＮＡＣＫ"
+    }
+  ],
+  "miniTotoA": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "miniTotoB": [
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "totoGoal3Matches": [
+    1,
+    2,
+    3
+  ],
+  "notes": "Official round 1674 card for 2026-11-25. Official network-settlement cutoff is 18:50 JST; other official cutoffs shown on the page are convenience settlement 17:00, sports-kiosk 11:30, and retail outlets 12:00. mini toto A/B and totoGOAL3 are separate products; the arrays above are expressed in ordinary-toto13 match-number space. The Window-20 shadow arm uses ordinary toto13 only. totoGOAL3 is a separate 3-match product with six team-side targets and four goal categories (0, 1, 2, 3+).",
+  "sources": [
+    "https://store.toto-dream.com/dcs/subos/screen/pi01/spin000/PGSPIN00001DisptotoLotInfo.form?holdCntId=1674"
+  ],
+  "retrievedAt": "2026-11-18T18:37:00+09:00",
+  "deadline": "2026-11-25T18:50:00+09:00",
+  "revalidatedAt": "2026-11-18T18:37:00+09:00",
+  "salesCutoffs": {
+    "networkSettlement": "2026-11-25T18:50:00+09:00",
+    "convenienceSettlement": "2026-11-25T17:00:00+09:00",
+    "sportsKiosk": "2026-11-25T11:30:00+09:00",
+    "retailOutlet": "2026-11-25T12:00:00+09:00"
+  },
+  "productNumbering": {
+    "convention": "miniTotoA, miniTotoB and totoGoal3Matches arrays above are expressed in regular toto13 match-number space. Product-specific numbering restarts at 1 within each mini group and within totoGOAL3.",
+    "miniTotoA": {
+      "productMatchNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "toto13MatchNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "miniTotoB": {
+      "productMatchNumbers": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "toto13MatchNumbers": [
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "totoGOAL3": {
+      "productMatchNumbers": [
+        1,
+        2,
+        3
+      ],
+      "toto13MatchNumbers": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  "source": {
+    "revalidatedAt": "2026-11-21T14:01:00+09:00",
+    "revalidationNote": "Official round-1674 selection page re-opened on 2026-11-21 14:01 JST; all 13 home/away pairs and 2026-11-25 18:50 JST network deadline still match this snapshot.",
+    "previousSnapshot": {
+      "repository": "sigulun555-lab/toto-lab",
+      "pullRequest": 129,
+      "commit": "0749e19b210ea97a612284eb77e233ee385db724",
+      "fileBlobSha": "2d7226d17512b97b07ce630a22212e3bc9d71265"
+    }
+  }
+}
