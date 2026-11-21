@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   WINDOW20, CONTROL12, buildWindow20Report, priorTeamMatchCount,
   teamWindowStatus, validateWindow20OutputPath,
@@ -144,4 +146,17 @@ test('the W20 and V1 predictions call the existing T1 function with the preregis
   const directV1=predictToto13(h,fx,CONTROL12);
   assert.deepEqual(row.arms[WINDOW20.id].probabilities,directW20.probabilities);
   assert.deepEqual(row.arms[CONTROL12.id].probabilities,directV1.probabilities);
+});
+
+test('pinned round-1674 fixture provenance records zero changes from the 2026-11-18 card', () => {
+  const fixturePath = path.join(__dirname, '..', 'shadow', 'toto13', 'window20', 'fixtures', 'round_1674_20261121.json');
+  const doc = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+  assert.equal(doc.round, 1674);
+  assert.equal(doc.marketType, 'toto');
+  assert.equal(doc.fixtures.length, 13);
+  assert.deepEqual(doc.source.changedMatchNumbers, []);
+  assert.deepEqual(doc.source.unchangedMatchNumbers, Array.from({ length: 13 }, (_, i) => i + 1));
+  assert.equal(doc.source.currentSnapshot.fileBlobSha, '78e66a25037b35fe9fd2f43364b4023aa80b3b32');
+  assert.equal(doc.source.previousSnapshot.originalBlobSha, '2d7226d17512b97b07ce630a22212e3bc9d71265');
+  assert.equal(doc.source.previousSnapshot.preservedBlobSha, '0f5e4e07cd9e9bcee9acc11b77ab87aeaacf9bb2');
 });
