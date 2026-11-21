@@ -4,26 +4,26 @@
     {
       "marketType": "totoGOAL3",
       "matchNumber": 1,
-      "home": "町田",
-      "away": "長崎",
-      "round": 1673,
-      "deadline": "2026-11-21T13:50:00+09:00"
+      "home": "千葉",
+      "away": "名古屋",
+      "round": 1674,
+      "deadline": "2026-11-25T18:50:00+09:00"
     },
     {
       "marketType": "totoGOAL3",
       "matchNumber": 2,
-      "home": "広島",
-      "away": "横浜FM",
-      "round": 1673,
-      "deadline": "2026-11-21T13:50:00+09:00"
+      "home": "岡山",
+      "away": "清水",
+      "round": 1674,
+      "deadline": "2026-11-25T18:50:00+09:00"
     },
     {
       "marketType": "totoGOAL3",
       "matchNumber": 3,
-      "home": "Ｇ大阪",
-      "away": "岡山",
-      "round": 1673,
-      "deadline": "2026-11-21T13:50:00+09:00"
+      "home": "長崎",
+      "away": "川崎Ｆ",
+      "round": 1674,
+      "deadline": "2026-11-25T18:50:00+09:00"
     }
   ]
 }
