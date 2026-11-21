@@ -92,9 +92,9 @@ test('same-day and future results are excluded from team counts', () => {
 
 test('GOAL3, mini toto, round 1673 and wrong deadlines are rejected', () => {
   const goal3 = fixtureDocument(); goal3.marketType='totoGOAL3'; goal3.fixtures=goal3.fixtures.slice(0,3);
-  assert.throws(()=>buildWindow20Report(historyRows(20),goal3,options),/ordinary-toto13/);
+  assert.throws(()=>buildWindow20Report(historyRows(20),goal3,options),/marketType must be toto/);
   const mini = fixtureDocument(); mini.marketType='mini toto A'; mini.fixtures=mini.fixtures.slice(0,5);
-  assert.throws(()=>buildWindow20Report(historyRows(20),mini,options),/ordinary-toto13/);
+  assert.throws(()=>buildWindow20Report(historyRows(20),mini,options),/marketType must be toto/);
   const old = fixtureDocument(); old.round=1673;
   assert.throws(()=>buildWindow20Report(historyRows(20),old,options),/round 1674 only/);
   const wrongDeadline = fixtureDocument(); wrongDeadline.deadline='2026-11-25T17:00:00+09:00';
