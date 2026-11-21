@@ -14,8 +14,10 @@ function fixtureDocument() {
     deadline: '2026-11-25T18:50:00+09:00',
     source: {
       url: 'https://store.toto-dream.com/dcs/subos/screen/pi01/spin000/PGSPIN00001DisptotoLotInfo.form?holdCntId=1674',
-      observedAt: '2026-11-18T18:37:00+09:00',
-      revalidatedAt: '2026-11-21T14:01:00+09:00',
+      observedAt: '2026-11-24T21:56:00+09:00',
+      pageDisplayAt: '2026-11-24T21:56:00+09:00',
+      revalidatedAt: '2026-11-24T21:57:00+09:00',
+      retrievedAt: '2026-11-24T21:58:00+09:00',
     },
     fixtures: Array.from({ length: 13 }, (_, i) => ({
       number: i + 1, date: '2026-11-25', competition: 'J1',
@@ -99,6 +101,26 @@ test('GOAL3, mini toto, round 1673 and wrong deadlines are rejected', () => {
   assert.throws(()=>buildWindow20Report(historyRows(20),old,options),/round 1674 only/);
   const wrongDeadline = fixtureDocument(); wrongDeadline.deadline='2026-11-25T17:00:00+09:00';
   assert.throws(()=>buildWindow20Report(historyRows(20),wrongDeadline,options),/deadline/);
+});
+
+test('stale official fixture snapshot is rejected even when the generation window is open', () => {
+  const stale = fixtureDocument();
+  stale.source.pageDisplayAt = '2026-11-21T14:01:00+09:00';
+  stale.source.revalidatedAt = '2026-11-21T14:01:00+09:00';
+  stale.source.retrievedAt = '2026-11-21T14:02:00+09:00';
+  assert.throws(
+    () => buildWindow20Report(historyRows(20), stale, options),
+    /within 5 minutes/
+  );
+});
+
+test('future or out-of-order official fixture timestamps are rejected', () => {
+  const future = fixtureDocument();
+  future.source.retrievedAt = '2026-11-24T22:01:00+09:00';
+  assert.throws(
+    () => buildWindow20Report(historyRows(20), future, options),
+    /ordered pageDisplayAt/
+  );
 });
 
 test('generation before 22:00 previous day or after deadline is refused', () => {
