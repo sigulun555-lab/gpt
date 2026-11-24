@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-24T09:52:09.771Z",
+  "generatedAt": "2026-11-24T22:24:34.730Z",
   "status": "predictions_generated",
   "liveData": true,
   "predictionsGenerated": true,
@@ -16,7 +16,7 @@
   "totoSource": {
     "name": "スポーツくじ公式公開ページ",
     "url": "https://sp.toto-dream.com/dcs/subos/screen/ss01/sssl014/PGSSSL01401InittotoSP.form?commodityId=02&gameAssortment=1",
-    "lastFetchedAt": "2026-11-24T09:52:09.771Z",
+    "lastFetchedAt": "2026-11-24T22:24:34.730Z",
     "marketType": "totoGOAL3",
     "round": 1674,
     "deadline": "2026-11-25T18:50:00+09:00",
