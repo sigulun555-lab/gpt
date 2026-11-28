@@ -414,24 +414,25 @@ class ProspectiveShadowTests(unittest.TestCase):
             # diagnostic forecast/input artifact, while the process exits nonzero and
             # marks the whole round ineligible for the primary prospective cohort.
             ineligible_out = tmp / "ineligible_shadow.json"
-            state = {"force": False}
+            state = {"forced_once": False, "awaiting_gradient": False}
             original_fit = prospective_shadow.fit_shrinkage_strict
             original_gradient = prospective_shadow.gradient_diagnostics
 
             def fit_with_one_gradient_failure(matches, k):
                 params, team_index, info = original_fit(matches, k)
-                if float(k) == 10.0 and not state["force"]:
+                if float(k) == 10.0 and not state["forced_once"]:
                     info = dict(info)
                     info["maxAbsGradient"] = 1.5e-6
-                    state["force"] = True
+                    state["forced_once"] = True
+                    state["awaiting_gradient"] = True
                 return params, team_index, info
 
             def gradient_with_one_failure(matches, params, team_index, k):
                 diagnostic = original_gradient(matches, params, team_index, k)
-                if state["force"]:
+                if state["awaiting_gradient"]:
                     diagnostic = dict(diagnostic)
                     diagnostic["maxAbsGradient"] = 1.5e-6
-                    state["force"] = False
+                    state["awaiting_gradient"] = False
                 return diagnostic
 
             ineligible_argv = [
