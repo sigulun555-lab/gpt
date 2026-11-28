@@ -1,0 +1,5 @@
+Research-only trigger marker for a new immutable GOAL3 prospective shadow artifact.
+Target: round 1675, 3 fixtures / 6 team-side targets.
+Purpose: paired k=6 vs k=10 under frozen Protocol v1.5.
+This marker does not contain or modify any prediction, production model, market weight, prediction log, or existing shadow artifact.
+The workflow must independently fetch and validate the official GOAL3 deadline and target card, enforce snapshotAvailableBy and forecastAsOf before the official deadline, and fail closed on missing inputs or optimizer eligibility.
