@@ -152,6 +152,15 @@ def make_results(round_no, incomplete=False, fixture_date="2026-11-07"):
 
 
 class ProspectiveShadowScoringTests(unittest.TestCase):
+    def test_gradient_above_tolerance_excludes_otherwise_successful_fit(self):
+        forecast = make_forecast(1)
+        forecast["fitDiagnostics"][0]["maxAbsGradient"] = 1.3919828845132542e-6
+        errors = scorer.forecast_errors(forecast, 1)
+        self.assertTrue(
+            any(error.startswith("fit_gradient_exceeds_tolerance:") for error in errors),
+            errors,
+        )
+
     def build_manifest(self, root, specs):
         entries = []
         for round_no, forecast_doc, result_doc in specs:
