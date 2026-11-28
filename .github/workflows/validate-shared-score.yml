@@ -22,6 +22,8 @@ jobs:
       - run: npm test
       - name: Test against live official toto HTML
         run: node tests/test_live_official.js
+      # Historical round-1670 shadow generation was removed. The round is closed;
+      # PR validation must never create a retrospective shadow artifact.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
