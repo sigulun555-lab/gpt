@@ -196,3 +196,77 @@ async function renderAppWithPayload(marketType) {
   assert.equal(totoCards.children[0].children[2].children.length,3,'each standard toto card must show three 1X2 probabilities');
   console.log('PASS app.js UI rendering: GOAL3 3 fixtures with goal bins and standard toto 13 fixtures with 1X2 labels');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+
+// Guard the research-only GOAL3 dispatch pins against stale reviewer-lock revisions.
+{
+  const dispatchWorkflow = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', '.github', 'workflows', 'goal3-shadow-dispatch.yml'),
+    'utf8'
+  );
+  const pins = {
+    APPROVED_RESEARCH_COMMIT: 'd5f48314159ffff2f8980738fa02d33ddf2a188b',
+    APPROVED_CODE_LOCK_REF: 'research/goal3-scoring-provenance-guard-20261105',
+    APPROVED_CODE_LOCK_COMMIT: '752412c08e1497c948b95cd951f29c774dffbad9',
+    APPROVED_CODE_LOCK_SOURCE_COMMIT: 'e4afd3391e6ca0fbac0c4fbadf8a2dc71b993b7d',
+    APPROVED_CODE_LOCK_FILE_SHA256: '11b0a10982b991cb005734820cde7f5c77be21391d9c9c3d096caaa7e313f207',
+    APPROVED_CODE_LOCK_REVIEWED_AT: '2026-11-05T19:12:33Z',
+    APPROVED_RUNNER_SHA256: 'c886d26ca2705042fdbc08d61fd582eafff9506f0357aa94e63eab8f459ec06a',
+    APPROVED_MODEL_SHA256: 'cf7ce0b89f2d2c6cfd48f30e1ce72666ad112251121242dbd81b9c467b4bb05d',
+    APPROVED_SNAPSHOT_PIPELINE_SHA256: '6f2a1929dbf0f68800b69a714865ce2ace7244f7fd8f2ff9e52f64c294dbbafe',
+    APPROVED_SCORER_SHA256: 'fde799fe18ff30b2e081efcc255024bcc1af33f40073a43c7007dd36683583c5',
+    APPROVED_DISPATCH_VALIDATOR_BLOB_SHA: '1912475245d071bbfd52ba3bb37897e678726411'
+  };
+  for (const [key, value] of Object.entries(pins)) {
+    assert.ok(dispatchWorkflow.split('\n').includes('  ' + key + ': ' + value),
+      'GOAL3 dispatch pin must match the independently reviewed v1.2 lock: ' + key);
+  }
+  const validatorPathForBlob = require('node:path').join(
+    __dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'
+  );
+  const validatorBytesForBlob = require('node:fs').readFileSync(validatorPathForBlob);
+  const validatorGitBlobSha = require('node:crypto').createHash('sha1')
+    .update(Buffer.from('blob ' + validatorBytesForBlob.length + '\0'))
+    .update(validatorBytesForBlob)
+    .digest('hex');
+  assert.equal(pins.APPROVED_DISPATCH_VALIDATOR_BLOB_SHA, validatorGitBlobSha,
+    'dispatch validator blob pin must match the exact checked-in validator bytes');
+    assert.ok(dispatchWorkflow.includes('lock.get("generationSourceCommit") != os.environ["APPROVED_RESEARCH_COMMIT"]'),
+    'dispatch must bind lock generationSourceCommit to the approved research commit');
+  assert.ok(dispatchWorkflow.includes('reviewer lock source bytes/blob mismatch'),
+    'dispatch must independently verify source bytes and Git blob IDs');
+  assert.ok(dispatchWorkflow.includes('ATTESTED_FIXTURE_SNAPSHOT: ${{ inputs.attested_fixture_snapshot }}'),
+    'dispatch must receive the exact human-reviewed fixture snapshot');
+  assert.ok(dispatchWorkflow.includes('path: dispatch-source'),
+    'dispatch must separately checkout its validator from the workflow commit');
+  assert.ok(dispatchWorkflow.includes('APPROVED_DISPATCH_VALIDATOR_BLOB_SHA'),
+    'dispatch validator source must be pinned by Git blob SHA');
+  assert.ok(dispatchWorkflow.includes('test "$DISPATCH_SOURCE_SHA" = "$GITHUB_SHA"'),
+    'dispatch validator checkout must match the workflow commit SHA');
+  assert.ok(dispatchWorkflow.includes('python dispatch-source/verification/goal3_independent/validate_dispatch_attestation.py'),
+    'dispatch must execute the validator from the workflow checkout, not the research checkout');
+  const attestationStep = dispatchWorkflow.indexOf('validate_dispatch_attestation.py');
+  const forecastStep = dispatchWorkflow.indexOf('prospective_shadow.py \\');
+  assert.ok(attestationStep >= 0 && forecastStep > attestationStep,
+    'fixture attestation must be validated before the forecast is generated');
+  assert.ok(dispatchWorkflow.includes('artifacts/fixture-attestation.json'),
+    'fixture attestation must be retained in the immutable artifact');
+  const validatorSource = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'),
+    'utf8'
+  );
+  assert.ok(validatorSource.includes('review is older than 10 minutes'),
+    'human review must expire after ten minutes');
+  assert.ok(validatorSource.includes('r"\\d{4}-\\d{2}-\\d{2}"'),
+    'fixture dates must use strict YYYY-MM-DD format');
+  assert.ok(validatorSource.includes('isinstance(fixture["number"], bool)'),
+    'boolean fixture numbers must not pass as integers');
+  const {spawnSync} = require('node:child_process');
+  const attestationTest = spawnSync(process.env.PYTHON || 'python3', [
+    require('node:path').join(__dirname, '..', 'verification', 'goal3_independent', 'validate_dispatch_attestation.py'),
+    '--self-test'
+  ], {encoding:'utf8'});
+  assert.equal(attestationTest.status, 0,
+    'dispatch attestation validator self-test failed: ' + (attestationTest.stderr || attestationTest.stdout));
+}
+console.log('PASS GOAL3 dispatch workflow pins and reviewer-lock provenance guard');
