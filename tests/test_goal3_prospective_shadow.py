@@ -18,7 +18,7 @@ from verification.goal3_independent.optimizer_gradient import (
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "verification" / "goal3_independent"))
-from prospective_shadow import extract_goal3_deadline
+from prospective_shadow import extract_goal3_deadline, require_fit_eligible
 
 RUNNER = ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"
 
@@ -40,6 +40,35 @@ def sales_terms_fixture(round_no, deadline_iso):
 
 
 class ProspectiveShadowTests(unittest.TestCase):
+    def test_optimizer_success_with_gradient_above_tolerance_is_rejected(self):
+        info = {"success": True, "status": 0, "gradientDimension": 122}
+        gradient = {
+            "maxAbsGradient": 1.3919828845132542e-6,
+            "gradientL2": 1.8286732940413683e-6,
+            "gradientDimension": 122,
+        }
+        with self.assertRaisesRegex(RuntimeError, "gradient gate failed"):
+            require_fit_eligible(info, gradient, fixture_number=1, k=10)
+
+    def test_optimizer_failure_is_rejected_even_with_small_gradient(self):
+        info = {"success": False, "status": 1, "gradientDimension": 122}
+        gradient = {
+            "maxAbsGradient": 1e-8,
+            "gradientL2": 1e-7,
+            "gradientDimension": 122,
+        }
+        with self.assertRaisesRegex(RuntimeError, "optimizer status gate failed"):
+            require_fit_eligible(info, gradient, fixture_number=2, k=6)
+
+    def test_gradient_exactly_at_tolerance_is_eligible(self):
+        info = {"success": True, "status": 0, "gradientDimension": 122}
+        gradient = {
+            "maxAbsGradient": 1e-6,
+            "gradientL2": 1e-6,
+            "gradientDimension": 122,
+        }
+        self.assertIsNone(require_fit_eligible(info, gradient, fixture_number=3, k=6))
+
     def test_product_specific_deadline_uses_goal3_block_not_first_product(self):
         html = sales_terms_fixture(1670, "2026-11-07T13:50:00+09:00")
         self.assertEqual(
