@@ -27,11 +27,50 @@ from optimizer_gradient import (
 )  # noqa: E402
 
 K_ARMS = (6.0, 10.0)
+MAX_ABS_GRADIENT_TOLERANCE = 1e-6
 VALID_LEAGUES = {"J1", "J2", "J3"}
 
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def require_fit_eligible(info, gradient_info, fixture_number: int, k: int) -> None:
+    """Fail closed unless optimizer status and independent gradient checks pass."""
+    if not isinstance(info, dict) or info.get("success") is not True or info.get("status") != 0:
+        success = info.get("success") if isinstance(info, dict) else None
+        status = info.get("status") if isinstance(info, dict) else None
+        raise RuntimeError(
+            f"optimizer status gate failed for fixture {fixture_number}, k={k}: "
+            f"success={success!r}, status={status!r}"
+        )
+    if not isinstance(gradient_info, dict):
+        raise RuntimeError(f"gradient diagnostics missing for fixture {fixture_number}, k={k}")
+    max_abs = gradient_info.get("maxAbsGradient")
+    gradient_l2 = gradient_info.get("gradientL2")
+    dimension = gradient_info.get("gradientDimension")
+    if (
+        not isinstance(max_abs, (int, float))
+        or isinstance(max_abs, bool)
+        or not math.isfinite(float(max_abs))
+        or float(max_abs) < 0
+        or float(max_abs) > MAX_ABS_GRADIENT_TOLERANCE
+    ):
+        raise RuntimeError(
+            f"strict optimizer gradient gate failed for fixture {fixture_number}, k={k}: "
+            f"maxAbsGradient={max_abs!r}, tolerance={MAX_ABS_GRADIENT_TOLERANCE}"
+        )
+    if (
+        not isinstance(gradient_l2, (int, float))
+        or isinstance(gradient_l2, bool)
+        or not math.isfinite(float(gradient_l2))
+        or float(gradient_l2) < 0
+        or not isinstance(dimension, int)
+        or isinstance(dimension, bool)
+        or dimension <= 0
+        or info.get("gradientDimension") != dimension
+    ):
+        raise RuntimeError(f"invalid independent gradient diagnostics for fixture {fixture_number}, k={k}")
 
 
 def parse_time(value: str) -> datetime:
@@ -272,6 +311,7 @@ def main() -> None:
             gradient_info = gradient_diagnostics(prior, params, team_index, k)
             if abs(info["maxAbsGradient"] - gradient_info["maxAbsGradient"]) > 1e-12:
                 raise RuntimeError("strict optimizer gradient diagnostic mismatch")
+            require_fit_eligible(info, gradient_info, fixture_number=fixture["number"], k=int(k))
             ph, pa = predict_shrinkage(params, team_index, home, away)
             if abs(sum(ph) - 1.0) > 1e-9 or abs(sum(pa) - 1.0) > 1e-9:
                 raise AssertionError("Goal-category probabilities do not sum to one")
@@ -292,7 +332,8 @@ def main() -> None:
             fit_diagnostics.append({
                 "fixtureNumber": fixture["number"], "k": int(k),
                 "trainingRows": len(prior), "trainingCutoffExclusive": target_date,
-                "fitSuccess": bool(info["success"]), "optimizerStatus": int(info["status"]),
+                "fitSuccess": bool(info["success"]), "gradientGatePassed": True,
+                "optimizerStatus": int(info["status"]),
                 "optimizerName": info["optimizerName"],
                 "optimizerOptions": info["optimizerOptions"],
                 "optimizerIterations": int(info["nit"]),
@@ -398,7 +439,8 @@ def main() -> None:
             "optimizerDiagnostics": {
                 "optimizerName": "L-BFGS-B",
                 "optimizerOptions": dict(STRICT_LBFGSB_OPTIONS),
-                "maxAbsGradientTolerance": 1e-6,
+                "maxAbsGradientTolerance": MAX_ABS_GRADIENT_TOLERANCE,
+                "gradientGate": "every fit requires optimizer success, status 0, finite independent maxAbsGradient <= tolerance; otherwise fail closed before forecast creation",
                 "gradientSource": "independent analytic gradient of the pinned objective; finite-difference tested",
                 "successFlagAloneIsInsufficient": True,
             },
