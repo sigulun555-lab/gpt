@@ -546,11 +546,16 @@ jobs:
             --aliases data/team_aliases.json \
             --out artifacts/goal3-prospective-shadow.json
       - name: Name artifact by round and run
+        if: always()
         id: meta
         run: |
-          ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])")
+          ROUND=unknown
+          if [ -f data/predictions.json ]; then
+            ROUND=$(python -c "import json; print(json.load(open('data/predictions.json'))['round'])" 2>/dev/null || echo unknown)
+          fi
           echo "round=$ROUND" >> "$GITHUB_OUTPUT"
       - name: Upload immutable run artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: goal3-shadow-round-${{ steps.meta.outputs.round }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}

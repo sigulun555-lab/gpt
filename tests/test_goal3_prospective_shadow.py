@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from verification.goal3_independent.optimizer_gradient import (
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "verification" / "goal3_independent"))
+import prospective_shadow
 from prospective_shadow import extract_goal3_deadline, require_fit_eligible
 
 RUNNER = ROOT / "verification" / "goal3_independent" / "prospective_shadow.py"
@@ -407,6 +409,62 @@ class ProspectiveShadowTests(unittest.TestCase):
             self.assertNotEqual(expired_rejected.returncode, 0)
             self.assertIn("snapshot available at or after the official deadline",
                           expired_rejected.stderr)
+
+            # A fit above the frozen gradient threshold must still leave an immutable
+            # diagnostic forecast/input artifact, while the process exits nonzero and
+            # marks the whole round ineligible for the primary prospective cohort.
+            ineligible_out = tmp / "ineligible_shadow.json"
+            state = {"force": False}
+            original_fit = prospective_shadow.fit_shrinkage_strict
+            original_gradient = prospective_shadow.gradient_diagnostics
+
+            def fit_with_one_gradient_failure(matches, k):
+                params, team_index, info = original_fit(matches, k)
+                if float(k) == 10.0 and not state["force"]:
+                    info = dict(info)
+                    info["maxAbsGradient"] = 1.5e-6
+                    state["force"] = True
+                return params, team_index, info
+
+            def gradient_with_one_failure(matches, params, team_index, k):
+                diagnostic = original_gradient(matches, params, team_index, k)
+                if state["force"]:
+                    diagnostic = dict(diagnostic)
+                    diagnostic["maxAbsGradient"] = 1.5e-6
+                    state["force"] = False
+                return diagnostic
+
+            ineligible_argv = [
+                "prospective_shadow.py",
+                "--history", str(tmp / "history.json"),
+                "--predictions", str(tmp / "predictions.json"),
+                "--aliases", str(tmp / "aliases.json"),
+                "--sales-terms-html", str(sales_terms_path),
+                "--out", str(ineligible_out),
+            ]
+            with patch.object(sys, "argv", ineligible_argv), \
+                 patch.object(prospective_shadow, "fit_shrinkage_strict", side_effect=fit_with_one_gradient_failure), \
+                 patch.object(prospective_shadow, "gradient_diagnostics", side_effect=gradient_with_one_failure), \
+                 patch.dict(os.environ, env):
+                with self.assertRaisesRegex(RuntimeError, "diagnostic artifact retained"):
+                    prospective_shadow.main()
+
+            self.assertTrue(ineligible_out.is_file())
+            diagnostic_record = json.loads(ineligible_out.read_text(encoding="utf-8"))
+            self.assertEqual(diagnostic_record["status"], "ineligible_diagnostic_forecast_created_before_deadline")
+            self.assertFalse(diagnostic_record["eligibility"]["eligible"])
+            self.assertTrue(diagnostic_record["eligibility"]["diagnosticOnly"])
+            self.assertTrue(diagnostic_record["eligibility"]["roundExcludedFromPrimaryCohort"])
+            self.assertEqual(len(diagnostic_record["eligibility"]["failures"]), 1)
+            self.assertEqual(diagnostic_record["eligibility"]["failures"][0]["fixtureNumber"], 1)
+            self.assertEqual(diagnostic_record["eligibility"]["failures"][0]["k"], 10)
+            self.assertFalse(diagnostic_record["fitDiagnostics"][1]["gradientGatePassed"])
+            self.assertAlmostEqual(
+                sum(diagnostic_record["fixtures"][0]["arms"]["10"]["homeGoalProbabilities"]),
+                1.0,
+                places=9,
+            )
+            self.assertTrue((tmp / "ineligible_shadow-inputs").is_dir())
 
 
 if __name__ == "__main__":

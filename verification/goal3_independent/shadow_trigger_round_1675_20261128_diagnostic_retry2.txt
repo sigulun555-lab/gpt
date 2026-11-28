@@ -1,0 +1,2 @@
+Research-only retry marker for GOAL3 round 1675.
+The prior attempt failed the frozen maxAbsGradient <= 1e-6 gate for fixture 1, k=10 (1.3919828845e-6). The corrected runner must retain a byte-frozen diagnostic forecast and input snapshots, mark the entire round ineligible, exit nonzero, and upload the diagnostic artifact. Do not relax the optimizer threshold, do not score this round, and do not modify production/main/market weights/forecast logs/existing shadow artifacts.

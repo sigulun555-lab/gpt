@@ -35,17 +35,19 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def require_fit_eligible(info, gradient_info, fixture_number: int, k: int) -> None:
-    """Fail closed unless optimizer status and independent gradient checks pass."""
+def fit_eligibility_issues(info, gradient_info, fixture_number: int, k: int):
+    """Return every frozen fit-gate failure without discarding diagnostic evidence."""
+    issues = []
     if not isinstance(info, dict) or info.get("success") is not True or info.get("status") != 0:
         success = info.get("success") if isinstance(info, dict) else None
         status = info.get("status") if isinstance(info, dict) else None
-        raise RuntimeError(
+        issues.append(
             f"optimizer status gate failed for fixture {fixture_number}, k={k}: "
             f"success={success!r}, status={status!r}"
         )
     if not isinstance(gradient_info, dict):
-        raise RuntimeError(f"gradient diagnostics missing for fixture {fixture_number}, k={k}")
+        issues.append(f"gradient diagnostics missing for fixture {fixture_number}, k={k}")
+        return issues
     max_abs = gradient_info.get("maxAbsGradient")
     gradient_l2 = gradient_info.get("gradientL2")
     dimension = gradient_info.get("gradientDimension")
@@ -56,7 +58,7 @@ def require_fit_eligible(info, gradient_info, fixture_number: int, k: int) -> No
         or float(max_abs) < 0
         or float(max_abs) > MAX_ABS_GRADIENT_TOLERANCE
     ):
-        raise RuntimeError(
+        issues.append(
             f"strict optimizer gradient gate failed for fixture {fixture_number}, k={k}: "
             f"maxAbsGradient={max_abs!r}, tolerance={MAX_ABS_GRADIENT_TOLERANCE}"
         )
@@ -68,9 +70,18 @@ def require_fit_eligible(info, gradient_info, fixture_number: int, k: int) -> No
         or not isinstance(dimension, int)
         or isinstance(dimension, bool)
         or dimension <= 0
+        or not isinstance(info, dict)
         or info.get("gradientDimension") != dimension
     ):
-        raise RuntimeError(f"invalid independent gradient diagnostics for fixture {fixture_number}, k={k}")
+        issues.append(f"invalid independent gradient diagnostics for fixture {fixture_number}, k={k}")
+    return issues
+
+
+def require_fit_eligible(info, gradient_info, fixture_number: int, k: int) -> None:
+    """Fail closed unless optimizer status and independent gradient checks pass."""
+    issues = fit_eligibility_issues(info, gradient_info, fixture_number, k)
+    if issues:
+        raise RuntimeError(issues[0])
 
 
 def parse_time(value: str) -> datetime:
@@ -296,6 +307,7 @@ def main() -> None:
 
     fixture_results = []
     fit_diagnostics = []
+    eligibility_failures = []
     for fixture in sorted(fixtures, key=lambda p: p["number"]):
         target_date = fixture["date"]
         prior = [m for m in prepared if m["date"] < target_date]
@@ -307,40 +319,105 @@ def main() -> None:
         away = canonical(fixture["away"], aliases)
         arms = {}
         for k in K_ARMS:
-            params, team_index, info = fit_shrinkage_strict(prior, k)
-            gradient_info = gradient_diagnostics(prior, params, team_index, k)
-            if abs(info["maxAbsGradient"] - gradient_info["maxAbsGradient"]) > 1e-12:
-                raise RuntimeError("strict optimizer gradient diagnostic mismatch")
-            require_fit_eligible(info, gradient_info, fixture_number=fixture["number"], k=int(k))
-            ph, pa = predict_shrinkage(params, team_index, home, away)
-            if abs(sum(ph) - 1.0) > 1e-9 or abs(sum(pa) - 1.0) > 1e-9:
-                raise AssertionError("Goal-category probabilities do not sum to one")
-            n_teams = len(team_index)
-            home_eta = float(params[0] + params[1] +
-                (params[2 + team_index[home]] if home in team_index else 0.0) -
-                (params[2 + n_teams + team_index[away]] if away in team_index else 0.0))
-            away_eta = float(params[0] +
-                (params[2 + team_index[away]] if away in team_index else 0.0) -
-                (params[2 + n_teams + team_index[home]] if home in team_index else 0.0))
+            fit_errors = []
+            params = None
+            team_index = None
+            info = None
+            gradient_info = None
+            try:
+                params, team_index, info = fit_shrinkage_strict(prior, k)
+            except Exception as exc:
+                fit_errors.append(
+                    f"optimizer execution failed for fixture {fixture['number']}, k={int(k)}: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            if params is not None and team_index is not None:
+                try:
+                    gradient_info = gradient_diagnostics(prior, params, team_index, k)
+                except Exception as exc:
+                    fit_errors.append(
+                        f"independent gradient diagnostic failed for fixture {fixture['number']}, "
+                        f"k={int(k)}: {type(exc).__name__}: {exc}"
+                    )
+            fit_errors.extend(fit_eligibility_issues(info, gradient_info, fixture_number=fixture["number"], k=int(k)))
+            if isinstance(info, dict) and isinstance(gradient_info, dict):
+                optimizer_gradient = info.get("maxAbsGradient")
+                independent_gradient = gradient_info.get("maxAbsGradient")
+                if (
+                    not isinstance(optimizer_gradient, (int, float))
+                    or isinstance(optimizer_gradient, bool)
+                    or not isinstance(independent_gradient, (int, float))
+                    or isinstance(independent_gradient, bool)
+                    or not math.isfinite(float(optimizer_gradient))
+                    or not math.isfinite(float(independent_gradient))
+                    or abs(float(optimizer_gradient) - float(independent_gradient)) > 1e-12
+                ):
+                    fit_errors.append(
+                        f"strict optimizer and independent gradient diagnostic mismatch for "
+                        f"fixture {fixture['number']}, k={int(k)}"
+                    )
+
+            ph = pa = None
+            home_expected = away_expected = None
+            if params is not None and team_index is not None:
+                try:
+                    ph, pa = predict_shrinkage(params, team_index, home, away)
+                    if (
+                        not all(math.isfinite(float(v)) for v in ph + pa)
+                        or abs(sum(ph) - 1.0) > 1e-9
+                        or abs(sum(pa) - 1.0) > 1e-9
+                    ):
+                        raise ValueError("Goal-category probabilities are non-finite or do not sum to one")
+                    n_teams = len(team_index)
+                    home_eta = float(params[0] + params[1] +
+                        (params[2 + team_index[home]] if home in team_index else 0.0) -
+                        (params[2 + n_teams + team_index[away]] if away in team_index else 0.0))
+                    away_eta = float(params[0] +
+                        (params[2 + team_index[away]] if away in team_index else 0.0) -
+                        (params[2 + n_teams + team_index[home]] if home in team_index else 0.0))
+                    home_expected = math.exp(max(-20.0, min(20.0, home_eta)))
+                    away_expected = math.exp(max(-20.0, min(20.0, away_eta)))
+                except Exception as exc:
+                    fit_errors.append(
+                        f"diagnostic probability reconstruction failed for fixture {fixture['number']}, "
+                        f"k={int(k)}: {type(exc).__name__}: {exc}"
+                    )
+                    ph = pa = None
+                    home_expected = away_expected = None
+            else:
+                fit_errors.append(
+                    f"fit did not produce parameters for fixture {fixture['number']}, k={int(k)}"
+                )
+
+            if fit_errors:
+                eligibility_failures.append({
+                    "fixtureNumber": fixture["number"],
+                    "k": int(k),
+                    "reasons": fit_errors,
+                })
             arms[str(int(k))] = {
                 "homeGoalProbabilities": ph,
                 "awayGoalProbabilities": pa,
-                "homeExpectedGoals": math.exp(max(-20.0, min(20.0, home_eta))),
-                "awayExpectedGoals": math.exp(max(-20.0, min(20.0, away_eta))),
-                "fit": info,
+                "homeExpectedGoals": home_expected,
+                "awayExpectedGoals": away_expected,
+                "fit": info if isinstance(info, dict) else None,
+                "eligible": not fit_errors,
+                "eligibilityErrors": fit_errors,
             }
             fit_diagnostics.append({
                 "fixtureNumber": fixture["number"], "k": int(k),
                 "trainingRows": len(prior), "trainingCutoffExclusive": target_date,
-                "fitSuccess": bool(info["success"]), "gradientGatePassed": True,
-                "optimizerStatus": int(info["status"]),
-                "optimizerName": info["optimizerName"],
-                "optimizerOptions": info["optimizerOptions"],
-                "optimizerIterations": int(info["nit"]),
-                "optimizerMessage": str(info["message"]),
-                "maxAbsGradient": gradient_info["maxAbsGradient"],
-                "gradientL2": gradient_info["gradientL2"],
-                "gradientDimension": gradient_info["gradientDimension"],
+                "fitSuccess": bool(info.get("success")) if isinstance(info, dict) else False,
+                "gradientGatePassed": not fit_errors,
+                "optimizerStatus": info.get("status") if isinstance(info, dict) else None,
+                "optimizerName": info.get("optimizerName") if isinstance(info, dict) else None,
+                "optimizerOptions": info.get("optimizerOptions") if isinstance(info, dict) else None,
+                "optimizerIterations": int(info["nit"]) if isinstance(info, dict) and info.get("nit") is not None else None,
+                "optimizerMessage": str(info.get("message")) if isinstance(info, dict) else None,
+                "maxAbsGradient": gradient_info.get("maxAbsGradient") if isinstance(gradient_info, dict) else None,
+                "gradientL2": gradient_info.get("gradientL2") if isinstance(gradient_info, dict) else None,
+                "gradientDimension": gradient_info.get("gradientDimension") if isinstance(gradient_info, dict) else None,
+                "eligibilityErrors": fit_errors,
             })
         fixture_results.append({
             "number": fixture["number"], "date": target_date,
@@ -384,7 +461,17 @@ def main() -> None:
         "pipelineDeclaredLastFetchedAt": source_fetched,
         "recordedAt": recorded_at.isoformat(),
         "deadline": deadline,
-        "status": "forecast_created_before_deadline",
+        "status": (
+            "forecast_created_before_deadline"
+            if not eligibility_failures
+            else "ineligible_diagnostic_forecast_created_before_deadline"
+        ),
+        "eligibility": {
+            "eligible": not eligibility_failures,
+            "diagnosticOnly": bool(eligibility_failures),
+            "roundExcludedFromPrimaryCohort": bool(eligibility_failures),
+            "failures": eligibility_failures,
+        },
         "productionImpact": "none",
         "workflowRun": {
             "id": env_int("GITHUB_RUN_ID"),
@@ -440,7 +527,7 @@ def main() -> None:
                 "optimizerName": "L-BFGS-B",
                 "optimizerOptions": dict(STRICT_LBFGSB_OPTIONS),
                 "maxAbsGradientTolerance": MAX_ABS_GRADIENT_TOLERANCE,
-                "gradientGate": "every fit requires optimizer success, status 0, finite independent maxAbsGradient <= tolerance; otherwise fail closed before forecast creation",
+                "gradientGate": "every fit requires optimizer success, status 0, finite independent maxAbsGradient <= tolerance; any failed fit excludes the entire round from the primary cohort, but the immutable diagnostic forecast and input snapshots are retained",
                 "gradientSource": "independent analytic gradient of the pinned objective; finite-difference tested",
                 "successFlagAloneIsInsufficient": True,
             },
@@ -472,6 +559,7 @@ def main() -> None:
             "resultHandling": {
                 "score": "official full-time after 90 minutes plus stoppage; exclude extra time and penalties",
                 "incompleteRound": "exclude the entire round if any fixture lacks a final official result; record reason",
+                "fitEligibilityFailure": "retain the immutable diagnostic forecast and input snapshots, mark the entire round ineligible, and exclude it from the primary cohort",
                 "provenance": "record result source URL and publication/retrieval timestamp; label community-source data explicitly",
             },
             "adoptionRule": "after at least 20 completed rounds and 60 matches, both overall primary 95% round-cluster CI upper bounds must be below zero; all J1/J2/J3 90% non-inferiority bounds must be below their margins; no increase in fit failures or missing targets; provenance and exclusions auditable",
@@ -485,10 +573,17 @@ def main() -> None:
         f.write("\n")
     print(json.dumps({
         "status": record["status"], "round": round_no,
+        "eligible": not eligibility_failures,
+        "eligibilityFailureCount": len(eligibility_failures),
         "fixtures": len(fixture_results), "teamTargets": len(fixture_results) * 2,
         "fitCount": len(fit_diagnostics),
         "out": str(out_path),
     }, ensure_ascii=False))
+    if eligibility_failures:
+        raise RuntimeError(
+            f"GOAL3 round {round_no} is ineligible; diagnostic artifact retained at "
+            f"{out_path}; failed fits={len(eligibility_failures)}"
+        )
 
 
 if __name__ == "__main__":
