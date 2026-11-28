@@ -11,7 +11,7 @@ No production model, prediction file, or prediction log was changed.
 ## Data and protocol
 
 - 2025 history: 1,140 match rows (community mirror source).
-- 2026 history: 429 match rows across 34 distinct dates.
+- 2026 history: 429 match rows across **37 distinct dates**.
 - Outer evaluation: 3 chronological folds, 17 total outer-test dates (2026-09-19 through 2026-11-03), 472 home/away goal-category targets.
 - Candidate penalty strengths: 0.5, 1, 2, 3, 4, 6, 8, 10, 15, 20, 30, 50, 75, 100, 150, 200.
 - Training windows compared: 2026-only and 2025+2026.
@@ -19,6 +19,8 @@ No production model, prediction file, or prediction log was changed.
 - Same-day/future leakage guard retained.
 - 1,088 inner optimizer fits completed with zero failures; all 17 selected outer fits completed with zero failures.
 - Additional fixed-k outer diagnostics were recorded for every candidate/window. These are diagnostic only and were not used to retune the same outer blocks.
+
+**Date-count correction (2026-11-10):** the earlier “34 distinct dates” value was a documentation error. The pinned `data/history.json` blob `f5cc8c044758e45b1e679e4ce796e68b3f27a854` contains 429 rows; applying the filters in `nested_validation.load_data()` retains all 429 rows and yields 37 distinct dates (2026-08-07 through 2026-11-03). The 17 outer-test dates and 472 targets are unchanged. This correction changes no fitted values, scores, or bootstrap results.
 
 ## Fixed-k outer results: 2026-only training
 

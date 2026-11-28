@@ -1,0 +1,5 @@
+Research-only retry marker for a new immutable GOAL3 prospective shadow attempt.
+Target: round 1675, 3 fixtures / 6 team-side targets.
+Reason: the earlier round-1675 attempt is retained unchanged as a diagnostic artifact and was ineligible because one strict k=10 fit exceeded the frozen maxAbsGradient <= 1e-6 gate.
+This retry uses the current v1.5 runner after the fail-closed eligibility fix; it must independently fetch and validate the official GOAL3 product deadline, preserve raw inputs, and remain before the official deadline.
+This marker does not change production forecasts, market weights, prediction logs, main, or any existing shadow artifact.

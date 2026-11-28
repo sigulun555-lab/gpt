@@ -11,18 +11,78 @@ import csv
 import json
 import math
 import os
+import sys
+import hashlib
 import unicodedata
 from collections import defaultdict
 
 import numpy as np
+import scipy
 from scipy.optimize import minimize
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 HERE = os.path.dirname(__file__)
-LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
+DEFAULT_LAMBDAS = [0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, 150.0, 200.0]
+LAMBDAS = list(DEFAULT_LAMBDAS)
 WINDOWS = ["2026_only", "2025_plus_2026"]
 OUTER_START_FRACTIONS = [0.55, 0.70, 0.85]
 INNER_START_FRACTION = 0.40
+
+
+def parse_lambda_grid(value):
+    """Parse an explicit, strictly increasing positive lambda grid."""
+    if value is None:
+        return list(DEFAULT_LAMBDAS)
+    parts = [part.strip() for part in value.split(",")]
+    if not parts or any(not part for part in parts):
+        raise ValueError("lambda grid must be a comma-separated list of positive numbers")
+    try:
+        values = [float(part) for part in parts]
+    except ValueError as exc:
+        raise ValueError("lambda grid contains a non-numeric value") from exc
+    if any(not math.isfinite(x) or x <= 0 for x in values):
+        raise ValueError("lambda grid values must be finite and positive")
+    if any(a >= b for a, b in zip(values, values[1:])):
+        raise ValueError("lambda grid must be strictly increasing with no duplicates")
+    return values
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _file_provenance(path):
+    absolute = os.path.abspath(path)
+    return {
+        "path": os.path.relpath(absolute, ROOT),
+        "sizeBytes": os.path.getsize(absolute),
+        "sha256": sha256_file(absolute),
+    }
+
+
+def build_input_provenance(history_path, aliases_path, csv2025_path):
+    """Return self-contained input/code hashes and the CI execution identity."""
+    return {
+        "inputs": {
+            "history2026": _file_provenance(history_path),
+            "teamAliases": _file_provenance(aliases_path),
+            "history2025Csv": _file_provenance(csv2025_path),
+        },
+        "script": _file_provenance(__file__),
+        "execution": {
+            "githubSha": os.environ.get("GITHUB_SHA"),
+            "githubRef": os.environ.get("GITHUB_REF"),
+            "workflowRunId": os.environ.get("GITHUB_RUN_ID"),
+            "workflowRunAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+            "python": sys.version.split()[0],
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+        },
+    }
 
 def canonical(name, aliases):
     name = unicodedata.normalize("NFKC", str(name)).strip()
@@ -34,15 +94,40 @@ def load_data(history_path, aliases_path, csv2025_path):
     with open(history_path, encoding="utf-8") as f:
         raw = json.load(f)["history"]
     h2026 = []
-    for m in raw:
+    for row_index, m in enumerate(raw):
+        if not isinstance(m, dict):
+            raise ValueError(f"history row {row_index} must be an object")
+        if not isinstance(m.get("date"), str) or not m["date"].startswith("2026-"):
+            raise ValueError(f"2026-only history guard: unexpected date {m.get('date')!r}")
         if m.get("competition") not in ("J1", "J2", "J3"):
             continue
-        if not isinstance(m.get("home_goals"), int) or not isinstance(m.get("away_goals"), int):
+
+        home_goals = m.get("home_goals")
+        away_goals = m.get("away_goals")
+        # Preserve the existing exclusion of fully unscored fixtures, but do
+        # not let bool (a Python int subclass), partial scores, or negatives
+        # silently enter the scored training cohort.
+        if home_goals is None and away_goals is None:
             continue
+        if (type(home_goals) is not int or type(away_goals) is not int
+                or home_goals < 0 or away_goals < 0):
+            raise ValueError(
+                f"invalid scored goal counts at history row {row_index}: "
+                f"{home_goals!r}-{away_goals!r}"
+            )
+
+        home_raw, away_raw = m.get("home"), m.get("away")
+        if (not isinstance(home_raw, str) or not home_raw.strip()
+                or not isinstance(away_raw, str) or not away_raw.strip()):
+            raise ValueError(f"missing team name at history row {row_index}")
+        home = canonical(home_raw, aliases)
+        away = canonical(away_raw, aliases)
+        if home == away:
+            raise ValueError(f"home and away resolve to the same team at history row {row_index}")
+
         h2026.append({
-            "date": m["date"], "home": canonical(m["home"], aliases),
-            "away": canonical(m["away"], aliases),
-            "hg": int(m["home_goals"]), "ag": int(m["away_goals"]), "year": 2026,
+            "date": m["date"], "home": home, "away": away,
+            "hg": home_goals, "ag": away_goals, "year": 2026,
         })
     h2026.sort(key=lambda m: (m["date"], m["home"], m["away"]))
     h2025 = []
@@ -99,7 +184,11 @@ def select_training(h2025, h2026, target_date, window):
 def fit_shrinkage(prior, lam_pen):
     teams = sorted({m["home"] for m in prior} | {m["away"] for m in prior})
     if not teams:
-        return None, {}, {"success": True, "nit": 0, "message": "empty prior fallback"}
+        return None, {}, {
+            "success": True, "status": 0, "nit": 0,
+            "message": "empty prior fallback", "optimizerFit": False,
+            "maxAbsGradient": None, "gradientL2": None, "gradientDimension": 0,
+        }
     idx = {t: i for i, t in enumerate(teams)}
     n = len(teams)
     homes = np.array([idx[m["home"]] for m in prior], dtype=int)
@@ -136,8 +225,17 @@ def fit_shrinkage(prior, lam_pen):
         return float(value), grad
 
     res = minimize(objective, x0, jac=True, method="L-BFGS-B", options={"maxiter": 300})
-    info = {"success": bool(res.success), "status": int(res.status),
-            "nit": int(res.nit), "message": str(res.message)}
+    final_gradient = np.asarray(res.jac, dtype=float)
+    if final_gradient.shape != res.x.shape or not np.all(np.isfinite(final_gradient)):
+        raise RuntimeError("L-BFGS-B returned an invalid final gradient")
+    info = {
+        "success": bool(res.success), "status": int(res.status),
+        "nit": int(res.nit), "message": str(res.message),
+        "optimizerFit": True,
+        "maxAbsGradient": float(np.max(np.abs(final_gradient))),
+        "gradientL2": float(np.linalg.norm(final_gradient)),
+        "gradientDimension": int(final_gradient.size),
+    }
     if not res.success:
         raise RuntimeError("L-BFGS-B failed: " + str(info))
     return res.x, idx, info
@@ -212,10 +310,16 @@ def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagno
     records = []
     date_metrics = []
     fit_count = 0
+    optimizer_fits = []
+    fallback_date_count = 0
     for date in dates_to_score:
         prior = select_training(h2025, h2026, date, window)
         params, idx, info = fit_shrinkage(prior, lam_pen)
         fit_count += 1
+        if info.get("optimizerFit"):
+            optimizer_fits.append(info)
+        else:
+            fallback_date_count += 1
         targets = [m for m in h2026 if m["date"] == date]
         date_records = []
         for m in targets:
@@ -225,12 +329,35 @@ def evaluate_dates(dates_to_score, h2025, h2026, window, lam_pen, collect_diagno
         if collect_diagnostics:
             date_metrics.append({"date": date, **score(date_records)})
     result = score(records)
-    # A failed fit raises immediately, so every recorded fit is successful.
+    # A failed fit raises immediately. SciPy success and the stricter gradient
+    # gate are reported separately; the gate is diagnostic, not a filter.
     result["fitCount"] = fit_count
     result["fitFailureCount"] = 0
+    result["optimizerDiagnostics"] = {
+        "optimizerFitCount": len(optimizer_fits),
+        "fallbackDateFitCount": fallback_date_count,
+        "withinGradientGate1eMinus6": sum(x["maxAbsGradient"] <= 1e-6 for x in optimizer_fits),
+        "aboveGradientGate1eMinus6": sum(x["maxAbsGradient"] > 1e-6 for x in optimizer_fits),
+        "maxAbsGradient": max((x["maxAbsGradient"] for x in optimizer_fits), default=None),
+        "maxGradientL2": max((x["gradientL2"] for x in optimizer_fits), default=None),
+        "maxIterations": max((x["nit"] for x in optimizer_fits), default=0),
+    }
     if collect_diagnostics:
         result["dateMetrics"] = date_metrics
     return result
+
+def aggregate_optimizer_diagnostics(evaluations):
+    diagnostics = [x["optimizerDiagnostics"] for x in evaluations]
+    return {
+        "optimizerFitCount": sum(x["optimizerFitCount"] for x in diagnostics),
+        "fallbackDateFitCount": sum(x["fallbackDateFitCount"] for x in diagnostics),
+        "withinGradientGate1eMinus6": sum(x["withinGradientGate1eMinus6"] for x in diagnostics),
+        "aboveGradientGate1eMinus6": sum(x["aboveGradientGate1eMinus6"] for x in diagnostics),
+        "maxAbsGradient": max((x["maxAbsGradient"] for x in diagnostics if x["maxAbsGradient"] is not None), default=None),
+        "maxGradientL2": max((x["maxGradientL2"] for x in diagnostics if x["maxGradientL2"] is not None), default=None),
+        "maxIterations": max((x["maxIterations"] for x in diagnostics), default=0),
+    }
+
 
 def choose_configuration(h2025, h2026, all_dates, outer_start_idx):
     inner_start = int(len(all_dates) * INNER_START_FRACTION)
@@ -266,7 +393,13 @@ def main():
     ap.add_argument("--aliases", default=os.path.join(ROOT, "data", "team_aliases.json"))
     ap.add_argument("--csv2025", default=os.path.join(HERE, "2025.csv"))
     ap.add_argument("--out", default=os.path.join(HERE, "nested_results.json"))
+    ap.add_argument(
+        "--lambda-grid", default=None,
+        help="comma-separated, strictly increasing positive lambda candidates; default is the expanded 16-value research grid",
+    )
     args = ap.parse_args()
+    global LAMBDAS
+    LAMBDAS = parse_lambda_grid(args.lambda_grid)
     h2025, h2026 = load_data(args.history2026, args.aliases, args.csv2025)
     dates = sorted({m["date"] for m in h2026})
     if len(dates) < 20:
@@ -318,6 +451,29 @@ def main():
         })
     if len(outer) < 2:
         raise ValueError("Nested validation produced fewer than two outer folds")
+    input_provenance = build_input_provenance(args.history2026, args.aliases, args.csv2025)
+    inner_evaluations = [
+        fold
+        for outer_fold in outer
+        for candidate in outer_fold["innerCandidates"]
+        for fold in candidate["innerFolds"]
+    ]
+    selected_outer_evaluations = [
+        outer_fold["outerMetrics"]["shrinkageMLE"] for outer_fold in outer
+    ]
+    outer_candidate_evaluations = [
+        candidate["metrics"]
+        for outer_fold in outer
+        for candidate in outer_fold["outerCandidateDiagnosticsNotForSelection"]
+    ]
+    inner_optimizer_diagnostics = aggregate_optimizer_diagnostics(inner_evaluations)
+    selected_outer_optimizer_diagnostics = aggregate_optimizer_diagnostics(selected_outer_evaluations)
+    outer_candidate_optimizer_diagnostics = aggregate_optimizer_diagnostics(outer_candidate_evaluations)
+    all_optimizer_diagnostics = [
+        inner_optimizer_diagnostics,
+        selected_outer_optimizer_diagnostics,
+        outer_candidate_optimizer_diagnostics,
+    ]
     result = {
         "method": "nested expanding-window time-series validation",
         "selectionRule": "lowest pooled inner Brier; tie-break Log Loss, Accuracy, lower lambda",
@@ -330,24 +486,32 @@ def main():
         "history2026DateRange": [h2026[0]["date"], h2026[-1]["date"]],
         "outerFolds": outer,
         "optimizerDiagnostics": {
-            "innerFitCountAcrossAllCandidatesAndOuterFolds": sum(
-                fold["fitCount"]
-                for outer_fold in outer
-                for candidate in outer_fold["innerCandidates"]
-                for fold in candidate["innerFolds"]
+            "innerFitCountAcrossAllCandidatesAndOuterFolds": inner_optimizer_diagnostics["optimizerFitCount"],
+            "innerGradientGate": inner_optimizer_diagnostics,
+            "outerSelectedFitCount": selected_outer_optimizer_diagnostics["optimizerFitCount"],
+            "outerSelectedGradientGate": selected_outer_optimizer_diagnostics,
+            "outerCandidateDiagnosticFitCountNotForSelection": outer_candidate_optimizer_diagnostics["optimizerFitCount"],
+            "outerCandidateDiagnosticGradientGate": outer_candidate_optimizer_diagnostics,
+            "totalOptimizerFitCount": sum(x["optimizerFitCount"] for x in all_optimizer_diagnostics),
+            "totalFitsWithinGradientGate1eMinus6": sum(x["withinGradientGate1eMinus6"] for x in all_optimizer_diagnostics),
+            "totalFitsAboveGradientGate1eMinus6": sum(x["aboveGradientGate1eMinus6"] for x in all_optimizer_diagnostics),
+            "maximumObservedMaxAbsGradient": max(
+                (x["maxAbsGradient"] for x in all_optimizer_diagnostics if x["maxAbsGradient"] is not None),
+                default=None,
             ),
-            "outerSelectedFitCount": sum(
-                fold["outerMetrics"]["shrinkageMLE"]["fitCount"] for fold in outer
-            ),
+            "strictGradientGateThreshold": 1e-6,
+            "strictGradientGateRole": "diagnostic only; it does not exclude fits or change inner selection/outer scoring",
             "failureCount": 0,
-            "failureHandling": "any failed optimizer fit aborts the run; no failed fit is silently scored",
+            "failureHandling": "any SciPy unsuccessful optimizer fit aborts the run; gradient-gate exceedances are separately reported and are not silently called converged",
         },
+        "inputProvenance": input_provenance,
         "warning": "Outer-fold results are rolling-origin estimates, not a guarantee of future performance. GOAL3 lambda=10 was inherited from 1X2 and was not independently tuned for GOAL3 before this analysis.",
     }
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(json.dumps({
         "output": args.out,
+        "inputProvenance": input_provenance,
         "outerFolds": [{
             "fold": x["fold"], "testStart": x["testStart"], "testEnd": x["testEnd"],
             "selected": x["selected"],
